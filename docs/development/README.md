@@ -4,7 +4,7 @@ The build is nine stages, in the order of build plan §3 (`root-sot/imnstr/modul
 
 | Stage | What | Size | Depends on | Milestone | Status |
 |---|---|---|---|---|---|
-| B1 | Foundation: server, schema, dates, tokens and fonts, page shell in both languages, harness | L | P0-1 | MS1 (with B2) | planned |
+| B1 | Foundation: server, schema, dates, tokens and fonts, page shell in both languages, harness | L | P0-1 | MS1 (with B2) | verified 2026-10-11 · [record](B1.md) |
 | B2 | Deploy: image, compose, Nginx, TLS, backups, log retention | S | B1, P0-2, P0-3 | MS1 | planned |
 | B3 | Public log and feed: doc schema, render, bidi, landing, `/log`, feed | L | B1 | MS2 | planned |
 | B4a | Passkeys and sessions (server) | L | B1 | MS2 | planned |
@@ -26,4 +26,13 @@ Parallel lanes: never more than two at once. B2 and B3 can run together; B3 and 
 
 ## Owed
 
-Nothing yet. A stage that leaves something for a later one lists it in its own record, and it is copied here.
+A stage that leaves something for a later one lists it in its own record, and it is copied here. Items for the founder are in `root-sot/imnstr/open-work.md`.
+
+| What | To | From |
+|---|---|---|
+| The 401 test that enumerates the admin router (house rule 7) | B4a | B1 |
+| Isolate inline Latin in the Persian copy through `lib/bidi.ts`; recheck the placeholder Persian | B3 | B1 |
+| Nav and 404 links to `/log`, `/podcast` and the feed answer 404 until their routes exist | B3, B7 | B1 |
+| Insert an episode as a draft, add a link, then publish (extra trigger); supply `episode.date`, today in `SITE_TZ` | B7 | B1 |
+| Headers through Nginx and TLS, by `curl -I` | B2 | B1 |
+| Contrast of the dark colour pairs, measured | B9 | B1 |
