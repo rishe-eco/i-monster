@@ -123,6 +123,15 @@ describe.each(['en', 'fa'] as const)('the %s feed', (lang) => {
     expect(xmlProblem(body)).toBeNull();
   });
 
+  it('drops the control characters XML forbids, which pasted text can carry (found at B3 verify)', async () => {
+    const body = { type: 'doc' as const, content: [{ type: 'paragraph' as const, content: [{ type: 'text' as const, text: 'one\u000Btwo\u0008' }] }] };
+    insertPublished(t.db, { lang, title: 'A\u0001B', body, firstPublishedAt: NOW });
+    const xml = await feed(path);
+    expect(xml).not.toMatch(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/);
+    expect(xml).toContain('<title>AB</title>');
+    expect(xml).toMatch(/one.*two/);
+  });
+
   it('is an empty but valid feed with no entries', async () => {
     const body = await feed(path);
     expect(xmlProblem(body)).toBeNull();

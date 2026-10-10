@@ -17,7 +17,12 @@ const URL_TRAILING = /[.,;:!?)\]}'’”»،؛؟…]+$/;
 
 const LATIN = 'A-Za-z\\u00C0-\\u024F';
 // A Latin run: words, digits, and the joiners that sit between them ("Root 2.0", "example.org/x").
-const LATIN_RUN = new RegExp(`[${LATIN}0-9]+(?:[ .\\-_'’/:&+#@]+[${LATIN}0-9]+)*`, 'g');
+// It keeps a trailing + or # ("C++", "C#") and a leading dot before a letter (".NET"): left
+// outside the run, they would be drawn on the wrong side of the name in a right-to-left paragraph.
+const LATIN_RUN = new RegExp(
+  `(?:(?<![${LATIN}0-9])\\.(?=[${LATIN}]))?[${LATIN}0-9]+(?:[ .\\-_'’/:&+#@]+[${LATIN}0-9]+)*[+#]*`,
+  'g',
+);
 const HAS_LATIN = new RegExp(`[${LATIN}]`);
 
 const ARABIC = '\\u0600-\\u06FF\\u0750-\\u077F\\uFB50-\\uFDFF\\uFE70-\\uFEFF';

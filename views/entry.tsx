@@ -39,11 +39,7 @@ export const EntryPage: FC<{ lang: Lang; assets: AssetManifest; entry: PublicEnt
       </div>
       <p class="entry-page__owner">
         {fill(t.entry.writtenBy, {
-          owner: (
-            <a href={localePath(lang, '/')}>
-              <bdi lang="en">{t.owner}</bdi>
-            </a>
-          ),
+          owner: <a href={localePath(lang, '/')}>{raw(isolate(t.owner, lang))}</a>,
           podcast: <a href={localePath(lang, '/podcast')}>{t.entry.podcastLink}</a>,
         })}
       </p>

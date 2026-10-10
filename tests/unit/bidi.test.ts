@@ -36,6 +36,12 @@ describe('isolate in a Persian paragraph', () => {
   it('escapes text inside a run and outside it', () => {
     expect(isolate('و a&b و <', 'fa')).toBe('و <bdi lang="en">a&amp;b</bdi> و &lt;');
   });
+
+  it('keeps a trailing + or # and a leading dot inside the name (found at B3 verify)', () => {
+    expect(isolate('با C++ و C# نوشتم.', 'fa')).toBe('با <bdi lang="en">C++</bdi> و <bdi lang="en">C#</bdi> نوشتم.');
+    expect(isolate('فریم‌ورک .NET و Node.js', 'fa')).toBe('فریم‌ورک <bdi lang="en">.NET</bdi> و <bdi lang="en">Node.js</bdi>');
+    expect(isolate('پایان Root.', 'fa')).toBe('پایان <bdi lang="en">Root</bdi>.');
+  });
 });
 
 describe('isolate in an English paragraph', () => {

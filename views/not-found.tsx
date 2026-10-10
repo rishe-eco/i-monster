@@ -1,5 +1,7 @@
+import { raw } from 'hono/html';
 import type { FC } from 'hono/jsx';
 import type { AssetManifest } from '../lib/assets.ts';
+import { isolate } from '../lib/bidi.ts';
 import { localePath, strings, type Lang } from '../lib/i18n.ts';
 import { ArrowIcon } from './icons.tsx';
 import { Layout } from './layout.tsx';
@@ -8,7 +10,7 @@ import { Layout } from './layout.tsx';
 // path, and an unpublished entry and a URL that never existed look the same.
 export const NotFound: FC<{ lang: Lang; assets: AssetManifest }> = ({ lang, assets }) => {
   const t = strings(lang);
-  // The owner's name is Latin; inside Persian text it keeps its own run.
+  // The owner's name is Latin; inside Persian text lib/bidi.ts keeps it in its own run.
   const [before = '', after = ''] = t.notFound.ownerLine.split('{owner}');
   return (
     <Layout lang={lang} kind="not-found" assets={assets} title={t.notFound.title}>
@@ -31,7 +33,7 @@ export const NotFound: FC<{ lang: Lang; assets: AssetManifest }> = ({ lang, asse
         </div>
         <p class="owner-line">
           {before}
-          <bdi lang="en">{t.owner}</bdi>
+          {raw(isolate(t.owner, lang))}
           {after}
         </p>
       </div>
