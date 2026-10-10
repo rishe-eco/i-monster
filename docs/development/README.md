@@ -6,7 +6,7 @@ The build is nine stages, in the order of build plan §3 (`root-sot/imnstr/modul
 |---|---|---|---|---|---|
 | B1 | Foundation: server, schema, dates, tokens and fonts, page shell in both languages, harness | L | P0-1 | MS1 (with B2) | verified 2026-10-11 · [record](B1.md) |
 | B2 | Deploy: image, compose, Nginx, TLS, backups, log retention | S | B1, P0-2, P0-3 | MS1 | planned |
-| B3 | Public log and feed: doc schema, render, bidi, landing, `/log`, feed | L | B1 | MS2 | planned |
+| B3 | Public log and feed: doc schema, render, bidi, landing, `/log`, feed | L | B1 | MS2 | verified 2026-10-11 · [record](B3.md) |
 | B4a | Passkeys and sessions (server) | L | B1 | MS2 | planned |
 | B4b | Auth screens: sign-in, setup, passkeys, codes | M | B4a | MS2 | planned |
 | B5 | Entries API, admin shell, entries list | M | B3, B4b | MS3 | planned |
@@ -31,8 +31,14 @@ A stage that leaves something for a later one lists it in its own record, and it
 | What | To | From |
 |---|---|---|
 | The 401 test that enumerates the admin router (house rule 7) | B4a | B1 |
-| Isolate inline Latin in the Persian copy through `lib/bidi.ts`; recheck the placeholder Persian | B3 | B1 |
-| Nav and 404 links to `/log`, `/podcast` and the feed answer 404 until their routes exist | B3, B7 | B1 |
+| ~~Isolate inline Latin in the Persian copy through `lib/bidi.ts`; recheck the placeholder Persian~~ done | B3 | B1 |
+| Nav and 404 links to `/podcast` answer 404 until the route exists (`/log` and the feed done in B3) | B7 | B1 |
 | Insert an episode as a draft, add a link, then publish (extra trigger); supply `episode.date`, today in `SITE_TZ` | B7 | B1 |
 | Headers through Nginx and TLS, by `curl -I` | B2 | B1 |
 | Contrast of the dark colour pairs, measured | B9 | B1 |
+| Drop empty paragraphs before saving, or loosen `text+` in `shared/doc.ts` | B5, B6 | B3 |
+| `docHasText` for `BODY_REQUIRED` | B5 | B3 |
+| Refuse XML-forbidden control characters in `DOC_INVALID`, or strip them on paste (they are dropped at render now) | B5, B6 | B3 |
+| Install with `npm ci --ignore-scripts` in the image, or give it build tools (better-sqlite3's `binding.gyp`) | B2 | B3 |
+| Clear rows seeded on production with `reset-content` | B8 | B3 |
+| Contrast of B3's new dark pairs (dates, lede, empty state, feed link) | B9 | B3 |

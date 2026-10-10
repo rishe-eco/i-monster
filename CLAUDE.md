@@ -40,7 +40,7 @@ The plan, the spec and the design live in `E:\_root\root-sot\imnstr\modules\01-w
 
 | | |
 |---|---|
-| `npm install` | once, at the repo root |
+| `npm install --ignore-scripts` | once, at the repo root and in every new worktree (see *Environment*) |
 | `npm run dev` / `npm start` | the server, on `PORT` (default 4100) |
 | `npm test` | Vitest: unit and integration, one temporary SQLite file per test file |
 | `npx vitest run tests/unit/dates.test.ts` | one file. A lane runs only its own files |
@@ -56,6 +56,7 @@ Environment variables are read only in `lib/env.ts` and listed in `.env.example`
 
 Windows 10. The Bash tool runs Git Bash; npm runs package scripts through **cmd.exe**.
 
+- **Install with `--ignore-scripts`** (`npm install` and `npm ci` alike). better-sqlite3 has a `binding.gyp`, so npm runs `node-gyp rebuild` for it, and that fails here: there is no Windows SDK. The package ships its own prebuilt binaries (`prebuilds/win32-x64.node`), which it loads at run time, so nothing needs compiling.
 - Node 24. **No `VAR=value cmd` prefixes inside `package.json` scripts**: cmd.exe cannot run them. Set variables in the Bash command that runs the suite.
 - **There is no Chrome.** Playwright runs on Edge (`channel: 'msedge'`). Do not install Playwright's Chromium.
 - **No Docker in development.** SQLite is a file. The Dockerfile (B2) is built only on the server.
