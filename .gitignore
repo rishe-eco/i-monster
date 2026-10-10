@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.tmp/
+.claude/worktrees/
+.env
+.env.*
+!.env.example
+# Playwright output
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+*.log

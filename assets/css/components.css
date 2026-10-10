@@ -1,0 +1,391 @@
+/* The shell and the landing and 404 pages. Logical properties and tokens only. */
+
+.wrap {
+  max-inline-size: var(--measure-page);
+  margin-inline: auto;
+  padding-inline: var(--pad-page);
+}
+
+/* ── Header ── */
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  padding-block-start: var(--space-3);
+}
+
+/* The landing page's hero is the wordmark, so its header holds only the nav. */
+.site-header--landing {
+  justify-content: flex-end;
+}
+
+.wordmark {
+  font-family: var(--font-ui-latin);
+  font-weight: 800;
+  font-size: var(--size-wordmark-header);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  color: var(--monster);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--hit);
+}
+
+.nav,
+.footer-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: var(--size-ui);
+}
+
+.nav a,
+.footer-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--hit);
+  min-inline-size: var(--hit);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.nav a[aria-current='page'] {
+  text-decoration: underline;
+  text-decoration-color: var(--monster);
+  text-decoration-thickness: 0.125rem;
+  text-underline-offset: 0.3125rem;
+}
+
+/* The switch names the other language in that language, so it takes that
+   language's face, whatever page it sits on. */
+.nav a[lang='fa'] {
+  font-family: var(--font-ui-fa);
+  letter-spacing: 0;
+}
+
+.nav a[lang='en'] {
+  font-family: var(--font-ui-latin);
+}
+
+/* On a phone the header drops Feed (the footer keeps it) so the wordmark and
+   the nav fit 360px. */
+.nav .nav-feed {
+  display: none;
+}
+
+/* ── Landing ── */
+
+.hero {
+  padding-block-start: var(--space-5);
+  min-block-size: var(--hero-min);
+  display: flex;
+  align-items: flex-end;
+}
+
+.hero h1 {
+  font-family: var(--font-ui-latin);
+  font-weight: 800;
+  font-size: var(--size-wordmark-hero);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  /* The wordmark is Latin: it keeps its own direction and sits at the start. */
+}
+
+.hero a {
+  color: var(--monster);
+  text-decoration: none;
+}
+
+.intro {
+  margin-block-start: var(--space-4);
+  max-inline-size: var(--measure-intro);
+  font-size: var(--size-intro);
+  line-height: var(--leading-intro);
+  text-wrap: pretty;
+}
+
+/* ── Big ruled rows: the calls to action ── */
+
+.rows {
+  margin-block-start: var(--space-5);
+  display: flex;
+  flex-direction: column;
+}
+
+.big-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: var(--space-2);
+  row-gap: var(--space-hair);
+  padding: var(--space-2) var(--space-xs);
+  border-block-start: var(--rule) solid var(--rule-strong);
+  color: var(--ink);
+  text-decoration: none;
+  background-image: linear-gradient(var(--highlight), var(--highlight));
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+}
+
+.rows > .big-row:last-child {
+  border-block-end: var(--rule) solid var(--rule-strong);
+}
+
+.big-row__title {
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: var(--size-cta);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+}
+
+.big-row__line {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  font-size: var(--size-row-line);
+  color: var(--body-2);
+}
+
+.big-row__arrow {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+/* The highlighter fills the row on hover and keyboard focus. It appears at
+   once for now; the 0.35s sweep is motion, and arrives in B9. */
+.big-row:hover,
+.big-row:focus-visible {
+  background-size: 100% 100%;
+  color: var(--highlight-ink);
+}
+
+.big-row:hover .big-row__line,
+.big-row:focus-visible .big-row__line {
+  color: var(--highlight-ink);
+}
+
+:lang(fa) .big-row {
+  background-position: 100% 0;
+}
+
+/* Arrows are SVG, not text: no font here has the arrow glyphs, and a fallback
+   font is exactly what AC-40 rules out. Persian mirrors them. */
+.icon {
+  inline-size: var(--icon);
+  block-size: var(--icon);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+:lang(fa) .icon--flip {
+  transform: scaleX(-1);
+}
+
+.icon--small {
+  inline-size: var(--icon-small);
+  block-size: var(--icon-small);
+}
+
+/* ── Projects ── */
+
+.building {
+  margin-block-start: var(--space-6);
+}
+
+.building__heading {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--size-meta);
+  color: var(--link);
+  margin-block-end: var(--space-2);
+}
+
+.projects {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.project {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.project__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--size-project);
+  line-height: 1.2;
+}
+
+.project__line {
+  font-size: var(--size-row-line);
+  line-height: 1.45;
+  color: var(--body-2);
+}
+
+/* ── Not found ── */
+
+.notfound {
+  margin-block-start: var(--space-7);
+  max-inline-size: var(--measure-read);
+}
+
+.notfound h1 {
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: var(--size-cta);
+  line-height: 1.02;
+  letter-spacing: var(--tracking-display);
+  text-wrap: balance;
+}
+
+.notfound__body {
+  margin-block: var(--space-2) var(--space-4);
+  font-size: var(--size-read);
+  line-height: 1.5;
+  color: var(--body-2);
+  text-wrap: pretty;
+}
+
+.button-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-block-size: var(--hit-button);
+  padding-inline: var(--space-3);
+  border: var(--rule) solid var(--field-edge);
+  border-radius: var(--radius-button);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--size-button);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.button--primary {
+  border-color: var(--ink);
+}
+
+.button:hover {
+  border-color: var(--ink);
+}
+
+.owner-line {
+  margin-block-start: var(--space-5);
+  font-family: var(--font-ui);
+  font-size: var(--size-meta);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ── Footer ── */
+
+.site-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding-block: var(--space-6) var(--space-4);
+  font-family: var(--font-ui);
+  font-size: var(--size-meta);
+  color: var(--muted);
+}
+
+.footer-nav {
+  font-size: var(--size-meta);
+  gap: var(--space-3);
+}
+
+.footer-nav a {
+  color: var(--muted);
+  justify-content: flex-start;
+}
+
+/* ── Wider screens ── */
+
+@media (min-width: 48em) {
+  .site-header {
+    padding-block-start: var(--space-4);
+  }
+
+  .nav {
+    gap: var(--space-2xl);
+  }
+
+  .nav .nav-feed {
+    display: inline-flex;
+  }
+
+  .hero {
+    padding-block-start: var(--space-hero);
+    min-block-size: var(--hero-min);
+  }
+
+  .intro {
+    margin-block-start: var(--space-5);
+  }
+
+  .rows {
+    margin-block-start: var(--space-7);
+  }
+
+  .big-row {
+    grid-template-columns: 1fr auto auto;
+    padding-inline: var(--space-md);
+  }
+
+  .big-row__line {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+  }
+
+  .big-row__arrow {
+    grid-column: 3;
+    margin-inline-start: var(--space-lg);
+  }
+
+  .building {
+    margin-block-start: var(--space-6);
+  }
+
+  .projects {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-5);
+  }
+
+  .site-footer {
+    flex-direction: row-reverse;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-block: var(--space-8) var(--space-5);
+    font-size: var(--size-meta);
+  }
+
+  .footer-nav {
+    gap: var(--space-xl);
+  }
+}

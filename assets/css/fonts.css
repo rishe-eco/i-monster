@@ -1,0 +1,128 @@
+/* Self-hosted fonts (PD-26, D-1): no request leaves the site's own origin.
+   Every face's unicode-range is the exact set of code points its file contains,
+   read from the file's cmap (fontTools), so a character is never claimed by a
+   face that cannot draw it. Fontsource's ranges overlap: its Latin faces claim
+   U+2000-206F, which includes ZWNJ, though they have no ZWNJ glyph. In Edge
+   that made no visible difference (ZWNJ draws nothing), so this is safety by
+   construction, not a fix for a seen fault.
+   The Persian families need both subsets. The Arabic one has the letters, the
+   Persian digits, ZWNJ and the Persian comma; the Latin one has the space, the
+   full stop, the colon, the hyphen and the guillemets, which the Arabic one
+   lacks. The plan's "Arabic subset" alone would draw those in a fallback font. */
+
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(../fonts/bricolage-grotesque/bricolage-grotesque-latin-500-normal.woff2) format('woff2');
+  unicode-range: U+20-7E,U+A0-A3,U+A5-AC,U+AE-FF,U+102,U+131,U+152-153,U+2C6,U+2DA,U+2DC,U+300-301,U+303-304,U+308-309,U+323,U+2002,U+2009,U+200B,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2032-2033,U+2039-203A,U+2044,U+20AC,U+2122,U+2191,U+2193,U+2212;
+}
+
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(../fonts/bricolage-grotesque/bricolage-grotesque-latin-600-normal.woff2) format('woff2');
+  unicode-range: U+20-7E,U+A0-A3,U+A5-AC,U+AE-FF,U+102,U+131,U+152-153,U+2C6,U+2DA,U+2DC,U+300-301,U+303-304,U+308-309,U+323,U+2002,U+2009,U+200B,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2032-2033,U+2039-203A,U+2044,U+20AC,U+2122,U+2191,U+2193,U+2212;
+}
+
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(../fonts/bricolage-grotesque/bricolage-grotesque-latin-700-normal.woff2) format('woff2');
+  unicode-range: U+20-7E,U+A0-A3,U+A5-AC,U+AE-FF,U+102,U+131,U+152-153,U+2C6,U+2DA,U+2DC,U+300-301,U+303-304,U+308-309,U+323,U+2002,U+2009,U+200B,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2032-2033,U+2039-203A,U+2044,U+20AC,U+2122,U+2191,U+2193,U+2212;
+}
+
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url(../fonts/bricolage-grotesque/bricolage-grotesque-latin-800-normal.woff2) format('woff2');
+  unicode-range: U+20-7E,U+A0-A3,U+A5-AC,U+AE-FF,U+102,U+131,U+152-153,U+2C6,U+2DA,U+2DC,U+300-301,U+303-304,U+308-309,U+323,U+2002,U+2009,U+200B,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2032-2033,U+2039-203A,U+2044,U+20AC,U+2122,U+2191,U+2193,U+2212;
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../fonts/newsreader/newsreader-latin-400-normal.woff2) format('woff2');
+  unicode-range: U+20-7E,U+A0-FF,U+131,U+152-153,U+2BC,U+2C6,U+2DA,U+2DC,U+300-301,U+303-304,U+308-309,U+323,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2032-2033,U+2039-203A,U+2044,U+20AC,U+2122,U+2212,U+2215;
+}
+
+@font-face {
+  font-family: 'Estedad';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(../fonts/estedad/estedad-arabic-500-normal.woff2) format('woff2');
+  unicode-range: U+20,U+41,U+A0,U+600-604,U+609-612,U+615-61C,U+61E-6FF,U+750-77F,U+8A0-8B4,U+8B6-8BD,U+200C-200E,U+2010-2011,U+A732,U+A73A,U+FB50-FBB1,U+FBD3-FBE9,U+FBFC-FBFF,U+FC5E-FC63,U+FCF2-FCF4,U+FD3C-FD3F,U+FDF2,U+FDFC,U+FE70-FE74,U+FE76-FEEE,U+FEF1-FEFC;
+}
+
+@font-face {
+  font-family: 'Estedad';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(../fonts/estedad/estedad-arabic-700-normal.woff2) format('woff2');
+  unicode-range: U+20,U+41,U+A0,U+600-604,U+609-612,U+615-61C,U+61E-6FF,U+750-77F,U+8A0-8B4,U+8B6-8BD,U+200C-200E,U+2010-2011,U+A732,U+A73A,U+FB50-FBB1,U+FBD3-FBE9,U+FBFC-FBFF,U+FC5E-FC63,U+FCF2-FCF4,U+FD3C-FD3F,U+FDF2,U+FDFC,U+FE70-FE74,U+FE76-FEEE,U+FEF1-FEFC;
+}
+
+@font-face {
+  font-family: 'Estedad';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url(../fonts/estedad/estedad-arabic-800-normal.woff2) format('woff2');
+  unicode-range: U+20,U+41,U+A0,U+600-604,U+609-612,U+615-61C,U+61E-6FF,U+750-77F,U+8A0-8B4,U+8B6-8BD,U+200C-200E,U+2010-2011,U+A732,U+A73A,U+FB50-FBB1,U+FBD3-FBE9,U+FBFC-FBFF,U+FC5E-FC63,U+FCF2-FCF4,U+FD3C-FD3F,U+FDF2,U+FDFC,U+FE70-FE74,U+FE76-FEEE,U+FEF1-FEFC;
+}
+
+@font-face {
+  font-family: 'Estedad';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(../fonts/estedad/estedad-latin-500-normal.woff2) format('woff2');
+  unicode-range: U+20-7E,U+A0-AC,U+AE-FF,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+300-301,U+303-304,U+308-309,U+323,U+329,U+200B,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2032-2033,U+2039-203A,U+2044,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+A732,U+A73A;
+}
+
+@font-face {
+  font-family: 'Estedad';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(../fonts/estedad/estedad-latin-700-normal.woff2) format('woff2');
+  unicode-range: U+20-7E,U+A0-AC,U+AE-FF,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+300-301,U+303-304,U+308-309,U+323,U+329,U+200B,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2032-2033,U+2039-203A,U+2044,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+A732,U+A73A;
+}
+
+@font-face {
+  font-family: 'Estedad';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url(../fonts/estedad/estedad-latin-800-normal.woff2) format('woff2');
+  unicode-range: U+20-7E,U+A0-AC,U+AE-FF,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+300-301,U+303-304,U+308-309,U+323,U+329,U+200B,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2032-2033,U+2039-203A,U+2044,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+A732,U+A73A;
+}
+
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../fonts/vazirmatn/vazirmatn-arabic-400-normal.woff2) format('woff2');
+  unicode-range: U+0,U+20,U+41,U+A0,U+60C-60D,U+610-612,U+615,U+61B,U+61F,U+621-63A,U+63D,U+640-658,U+65A-65B,U+660-671,U+674,U+679,U+67C,U+67E,U+681,U+685-686,U+688-689,U+691,U+693,U+695-696,U+698,U+69A,U+6A0-6A1,U+6A4,U+6A9-6AD,U+6AF,U+6B5,U+6BA,U+6BC-6BE,U+6C0-6C3,U+6C6-6D0,U+6D2-6D5,U+6DC-6DE,U+6E9,U+6F0-6F9,U+762-763,U+200C-200E,U+2010-2011,U+FB50-FB51,U+FB56-FB59,U+FB66-FB6D,U+FB7A-FB7D,U+FB88-FB95,U+FB9E-FB9F,U+FBA5,U+FBA7-FBB1,U+FBBF-FBC0,U+FBD3-FBDC,U+FBDE-FBDF,U+FBE2-FBE3,U+FBE8-FBE9,U+FBFC-FBFF,U+FD3E-FD3F,U+FDF2,U+FDFC,U+FE70-FE74,U+FE76-FEFC;
+}
+
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../fonts/vazirmatn/vazirmatn-latin-400-normal.woff2) format('woff2');
+  unicode-range: U+0,U+20-7E,U+A0-FF,U+131,U+152-153,U+2BC,U+2C6,U+2DA,U+2DC,U+300-301,U+303,U+309,U+323,U+2002,U+2009,U+200B,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2032-2033,U+2039-203A,U+2044,U+20AC,U+2122,U+2212,U+2215,U+FEFF,U+FFFD;
+}

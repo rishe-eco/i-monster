@@ -1,0 +1,157 @@
+/* Design tokens (design README, "The design system it settles"; D-6).
+   The only file with literal colours, type sizes and spacing. Everything else
+   uses var(--…). Sizes are rem; the design drew them in px, so 1rem = 16px here.
+   Dark follows prefers-color-scheme and nothing else (AC-32). */
+
+:root {
+  color-scheme: light dark;
+
+  /* Colour: one green family on green-tinted paper. */
+  --ground: #eff0ea;
+  --ink: #1b211d;
+  --body-2: #3a443e;          /* descriptions */
+  --muted: #56605a;           /* meta, footers (5.7:1) */
+  --link: #2f5442;            /* link and green text (7.4:1) */
+  --monster: #3f8f3a;         /* wordmark, current-page underline, focus ring: large text and lines only */
+  --highlight: #bfe8ad;
+  --highlight-ink: #1b211d;   /* text on the highlighter */
+  --success-fill: #dcebd7;
+  --success-edge: #3f8f3a;
+  --error-fill: #f6e1d9;
+  --error-edge: #b0492f;
+  --error-ink: #5e2414;
+  --input-fill: #f7f8f3;
+  --field-edge: #7d837f;      /* 3.6:1 against the ground (HIG #3) */
+  --placeholder: #5c6660;
+  --button-fill: #1b211d;     /* primary button */
+  --button-ink: #eff0ea;
+  --rule-strong: #1b211d;     /* structural rules */
+  --rule-soft: rgb(27 33 29 / 0.18);  /* between rows */
+
+  /* The highlighter: lower part of the line in light, a full fill in dark. */
+  --highlight-size-y: 52%;
+  --highlight-position-y: 85%;
+
+  /* Type families. Persian swaps the first two (below). Bricolage Grotesque is
+     the voice, Newsreader is for reading; Estedad and Vazirmatn are their
+     Persian counterparts. */
+  --font-ui-latin: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-ui-fa: 'Estedad', system-ui, sans-serif;
+  --font-ui: var(--font-ui-latin);
+  --font-read: 'Newsreader', Georgia, serif;
+
+  /* Type scale. Phone first; the wider scale is set under the media query below. */
+  --size-wordmark-hero: 3.125rem;
+  --size-wordmark-header: 1.5rem;
+  --size-page-title: 2.875rem;
+  --size-cta: 2.125rem;
+  --size-title: 1.4375rem;
+  --size-intro: 1.3125rem;
+  --size-read: 1.125rem;
+  --size-row-line: 1rem;
+  --size-ui: 0.875rem;
+  --size-meta: 0.8125rem;
+  --size-project: 1.25rem;
+  --size-button: 1.0625rem;
+
+  --leading-read: 1.6;
+  --leading-intro: 1.42;
+  --leading-display: 1;
+  --tracking-display: -0.03em;
+  --tracking-title: -0.025em;
+
+  /* Spacing rhythm: 8, 14, 20, 24, 36, 56, 64, 88 px. */
+  --space-1: 0.5rem;
+  --space-2: 0.875rem;
+  --space-3: 1.25rem;
+  --space-4: 1.5rem;
+  --space-5: 2.25rem;
+  --space-6: 3.5rem;
+  --space-7: 4rem;
+  --space-8: 5.5rem;
+  --space-hair: 0.125rem;
+  --space-xs: 0.25rem;
+  --space-sm: 0.375rem;
+  --space-md: 0.625rem;
+  --space-lg: 0.75rem;
+  --space-xl: 1.375rem;
+  --space-2xl: 1.75rem;
+  --pad-page: 1.375rem;       /* 22px on a phone */
+  --measure-read: 42.5rem;    /* reading column, 680px */
+  --measure-page: 75rem;
+  --measure-intro: 47.5rem;
+  --hero-min: 8rem;           /* room for the wordmark and its eyes */
+  --icon: 1.375rem;
+  --icon-small: 0.9375rem;
+
+  /* Shape. */
+  --radius-field: 0.75rem;
+  --radius-button: 0.875rem;
+  --radius-dialog: 1.125rem;
+  --radius-pill: 62rem;
+  --rule: 0.09375rem;         /* 1.5px: structural rules and field edges */
+  --rule-soft-width: 0.0625rem;
+  --hit: 2.75rem;             /* 44px: the smallest tap target */
+  --hit-inline: 1.5rem;       /* 24px: an inline link inside running text */
+  --hit-button: 3.25rem;      /* 52px: a primary button on a phone */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #112019;        /* greener than the first draft (HIG #11) */
+    --ink: #e4e8e3;
+    --body-2: #c9d0cb;
+    --muted: #aab4ad;         /* 8.3:1 */
+    --link: #7fd36b;
+    --monster: #7fd36b;
+    --highlight: #7fd36b;
+    --highlight-ink: #112019;
+    --success-fill: #1c3a27;
+    --success-edge: #7fd36b;
+    --error-fill: #3b1d16;
+    --error-edge: #e8876a;
+    --error-ink: #f8d9cd;
+    --input-fill: #182b22;
+    --field-edge: #7f9187;
+    --placeholder: #9aa69f;
+    --button-fill: #e4e8e3;
+    --button-ink: #112019;
+    --rule-strong: #e4e8e3;
+    --rule-soft: rgb(228 232 227 / 0.18);
+
+    --highlight-size-y: 100%;
+    --highlight-position-y: 0;
+  }
+}
+
+/* Persian: Estedad for the interface and Vazirmatn for reading, both covering
+   the script. More line height, and no letter-spacing on Persian. */
+:root:lang(fa) {
+  --font-ui: var(--font-ui-fa);
+  --font-read: 'Vazirmatn', 'Estedad', system-ui, sans-serif;
+  --leading-read: 1.8;
+  --leading-intro: 1.8;
+  --tracking-display: 0;
+  --tracking-title: 0;
+}
+
+/* Wider screens: the design's desktop scale. 48em is 768px at the default size,
+   and em keeps the breakpoint honest when someone sets a larger text size. */
+@media (min-width: 48em) {
+  :root {
+    --size-wordmark-hero: 9.75rem;
+    --size-page-title: 5rem;
+    --size-cta: 3.5rem;
+    --size-title: 1.875rem;
+    --size-intro: 1.75rem;
+    --size-read: 1.25rem;
+    --size-row-line: 1.1875rem;
+    --size-ui: 0.9375rem;
+    --size-meta: 0.875rem;
+    --size-project: 1.375rem;
+    --pad-page: 4rem;         /* 64px */
+    --space-hero: 2.75rem;
+    --hero-min: 12.5rem;
+    --icon: 1.5rem;
+  }
+}

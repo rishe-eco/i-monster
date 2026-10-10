@@ -1,0 +1,104 @@
+/* Reset and element defaults. Logical properties only (margin-inline-start,
+   never left), so the Persian pages mirror without a second stylesheet. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-read);
+  font-size: var(--size-read);
+  line-height: var(--leading-read);
+  /* A long word or address must never make the page scroll sideways (spec §4.6). */
+  overflow-wrap: break-word;
+}
+
+h1,
+h2,
+h3,
+p,
+ul {
+  margin: 0;
+  padding: 0;
+}
+
+ul {
+  list-style: none;
+}
+
+a {
+  color: var(--link);
+  text-underline-offset: 0.2em;
+}
+
+:focus-visible {
+  outline: 0.1875rem solid var(--monster);
+  outline-offset: var(--space-hair);
+}
+
+svg {
+  display: block;
+  flex: none;
+}
+
+/* Emphasis is the highlighter, drawn behind the text (design: Highlighter). */
+mark {
+  background-color: transparent;
+  background-image: linear-gradient(var(--highlight), var(--highlight));
+  background-repeat: no-repeat;
+  background-size: 100% var(--highlight-size-y);
+  background-position: 0 var(--highlight-position-y);
+  color: var(--highlight-ink);
+  padding-inline: var(--space-hair);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* The highlighter starts at the start edge of the text, so in Persian it
+   starts on the right. */
+:lang(fa) mark {
+  background-position: 100% var(--highlight-position-y);
+}
+
+/* A Latin name inside Persian text keeps its own face and direction. */
+bdi[lang='en'] {
+  font-family: var(--font-ui-latin);
+}
+
+/* Motion arrives in B9. Until then this keeps any later transition honest. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Forced colours drop background colours, which would erase the highlighter
+   and field edges. Give both a system colour and a visible edge (HIG #4). */
+@media (forced-colors: active) {
+  mark {
+    forced-color-adjust: none;
+    background-image: none;
+    background-color: Mark;
+    color: MarkText;
+  }
+
+  .field,
+  input,
+  textarea,
+  select {
+    border: var(--rule) solid CanvasText;
+  }
+}
