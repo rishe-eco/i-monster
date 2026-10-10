@@ -1,5 +1,5 @@
 // Checks every public page's e2e spec shares: the same promises, asked of each page kind.
-import { expect, type Page, type TestInfo } from '@playwright/test';
+import { expect, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
 
 export type Lang = 'en' | 'fa';
 
@@ -124,3 +124,54 @@ export async function loadedFamilies(page: Page): Promise<string[]> {
     return [...loaded];
   });
 }
+
+// ── Seeding the log through the e2e-only routes ──
+
+/** The fixed instant every e2e fixture date is relative to (2026-10-10 12:00 UTC). */
+export const NOW = Date.UTC(2026, 9, 10, 12, 0, 0);
+export const DAY = 24 * 60 * 60 * 1000;
+
+export interface SeedEntry {
+  lang: Lang;
+  title?: string;
+  text: string;
+  firstPublishedAt?: number;
+  id?: string;
+}
+
+/** Text in the entry's own language, so nothing needs isolating unless a test says so. */
+export const sampleText = (lang: Lang, n: number): string => (lang === 'fa' ? `نوشتهٔ شماره ${n}` : `Entry number ${n}`);
+
+/** `count` plain entries of one language, newest first, a day apart. */
+export function plainEntries(lang: Lang, count: number): SeedEntry[] {
+  return Array.from({ length: count }, (_, i) => ({
+    lang,
+    text: sampleText(lang, i + 1),
+    firstPublishedAt: NOW - (i + 1) * DAY,
+  }));
+}
+
+/** Fix the clock, empty the entry table, and insert `entries`. Returns their ids in order. */
+export async function resetLog(request: APIRequestContext, entries: SeedEntry[] = []): Promise<string[]> {
+  expect((await request.post('/__test/clock', { data: { now: NOW } })).ok()).toBe(true);
+  expect((await request.delete('/__test/entries')).ok()).toBe(true);
+  if (entries.length === 0) return [];
+  const res = await request.post('/__test/entries', { data: { entries } });
+  expect(res.ok()).toBe(true);
+  return ((await res.json()) as { ids: string[] }).ids;
+}
+
+/** A Persian entry that starts with an English word and holds a URL, and the same idea in English (AC-48). */
+export const MIXED = {
+  fa: {
+    title: 'Passkeyها اگر همگام شوند',
+    text: 'Passkeyها اگر همگام شوند، یکی‌اند. Google Password Manager هم همین کار را می‌کند. ==«دو کلید» در واقع یک کلید است== ببینید https://example.org/passkeys/a-very-long-path-that-keeps-going-to-test-wrapping-at-small-widths.',
+  },
+  en: {
+    title: 'The word سلام',
+    text: 'The word «سلام دنیا» means hello, and ==می‌خواهم== means I want. See https://example.org/passkeys/a-very-long-path-that-keeps-going-to-test-wrapping-at-small-widths.',
+  },
+} as const;
+
+/** A paragraph of ordinary text and one 90-character word, which must wrap rather than scroll. */
+export const LONG_TEXT = `${'Long words and long lines must wrap at every width. '.repeat(8)}${'Supercalifragilistic'.repeat(5)}`;
