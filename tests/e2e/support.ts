@@ -31,13 +31,17 @@ export async function expectNoThirdParty(page: Page, requests: string[]): Promis
   expect(foreign).toEqual([]);
 }
 
-export async function expectNoSidewaysScroll(page: Page): Promise<void> {
+/** No horizontal scroll at `width` CSS px: 360 is the phone, 180 is that phone zoomed to 200% (HIG #8). */
+export async function expectNoSidewaysScroll(page: Page, width = 360): Promise<void> {
+  if (width !== 360) await page.setViewportSize({ width, height: 800 });
+  // Measure the final faces: the fallback fonts are narrower and hide an overflow.
+  await fontsSettled(page);
   const widths = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
     page: document.documentElement.scrollWidth,
     body: document.body.scrollWidth,
   }));
-  expect(widths.viewport).toBe(360);
+  expect(widths.viewport).toBe(width);
   expect(widths.page).toBeLessThanOrEqual(widths.viewport);
   expect(widths.body).toBeLessThanOrEqual(widths.viewport);
 }

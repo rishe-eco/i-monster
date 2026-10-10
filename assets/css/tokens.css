@@ -41,10 +41,12 @@
   --font-read: 'Newsreader', Georgia, serif;
 
   /* Type scale. Phone first; the wider scale is set under the media query below. */
-  --size-wordmark-hero: 3.125rem;
+  /* The three display sizes are capped by the viewport, so a 360px phone zoomed
+     to 200% (180 CSS px; HIG #8) still fits them. The caps only bite when zoomed. */
+  --size-wordmark-hero: min(3.125rem, 19vw);
   --size-wordmark-header: 1.5rem;
-  --size-page-title: 2.875rem;
-  --size-cta: 2.125rem;
+  --size-page-title: min(2.875rem, 14vw);
+  --size-cta: min(2.125rem, 11vw);
   --size-title: 1.4375rem;
   --size-intro: 1.3125rem;
   --size-read: 1.125rem;
@@ -139,9 +141,9 @@
    and em keeps the breakpoint honest when someone sets a larger text size. */
 @media (min-width: 48em) {
   :root {
-    --size-wordmark-hero: 9.75rem;
-    --size-page-title: 5rem;
-    --size-cta: 3.5rem;
+    --size-wordmark-hero: min(9.75rem, 19vw);
+    --size-page-title: min(5rem, 14vw);
+    --size-cta: min(3.5rem, 11vw);
     --size-title: 1.875rem;
     --size-intro: 1.75rem;
     --size-read: 1.25rem;

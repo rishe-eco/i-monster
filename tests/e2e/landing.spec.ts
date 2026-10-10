@@ -32,6 +32,11 @@ for (const [lang, path] of PAGES) {
       await expect(page.locator('.project')).toHaveCount(3);
     });
 
+    test('still fits when the 360px phone is zoomed to 200% (HIG #8)', async ({ page }) => {
+      await page.goto(path);
+      await expectNoSidewaysScroll(page, 180);
+    });
+
     test('makes no request to another origin and sets no cookie (AC-7)', async ({ page }) => {
       const requests = watchRequests(page);
       await page.goto(path);
