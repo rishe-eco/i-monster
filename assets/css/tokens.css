@@ -39,6 +39,8 @@
   --font-ui-fa: 'Estedad', system-ui, sans-serif;
   --font-ui: var(--font-ui-latin);
   --font-read: 'Newsreader', Georgia, serif;
+  /* Persian runs inside an English entry are drawn in the Persian reading face (AC-40). */
+  --font-read-fa: 'Vazirmatn', 'Estedad', system-ui, sans-serif;
 
   /* Type scale. Phone first; the wider scale is set under the media query below. */
   /* The three display sizes are capped by the viewport, so a 360px phone zoomed

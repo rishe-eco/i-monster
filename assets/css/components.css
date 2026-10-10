@@ -391,3 +391,158 @@
     gap: var(--space-xl);
   }
 }
+
+/* ── The log ── */
+
+.page-title {
+  margin-block-start: var(--space-6);
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: var(--size-page-title);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-display);
+  text-wrap: balance;
+}
+
+.page-lede {
+  margin-block-start: var(--space-md);
+  max-inline-size: var(--measure-read);
+  font-size: var(--size-row-line);
+  line-height: 1.45;
+  color: var(--body-2);
+}
+
+.feed-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-block-size: var(--hit);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: var(--size-ui);
+  color: var(--link);
+}
+
+.entries {
+  margin-block-start: var(--space-3);
+  padding-block-start: var(--space-3);
+  border-block-start: var(--rule) solid var(--rule-strong);
+  max-inline-size: var(--measure-read);
+}
+
+/* The same space after every entry, whatever the days between them (AC-5). */
+.entry {
+  margin-block-end: var(--space-3);
+}
+
+.entry:last-child {
+  margin-block-end: 0;
+}
+
+.entry p + p {
+  margin-block-start: var(--space-1);
+}
+
+.entry__pilcrow {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  color: var(--link);
+}
+
+:lang(fa) .entry__pilcrow {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+
+.entry__date,
+.entry-page__date {
+  font-family: var(--font-ui);
+  font-size: var(--size-meta);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+/* The date is a link inside running text: 24px to tap (HIG #1). */
+.entry__date {
+  display: inline-block;
+  min-block-size: var(--hit-inline);
+  line-height: var(--hit-inline);
+}
+
+.entry__title {
+  font-family: var(--font-ui);
+  font-weight: 600;
+}
+
+.entry__more {
+  text-indent: 1.1em;
+}
+
+.older {
+  margin-block-start: var(--space-5);
+}
+
+.big-row--small .big-row__title {
+  font-size: var(--size-title);
+}
+
+.empty {
+  margin-block-start: var(--space-5);
+  padding: var(--space-3);
+  border: var(--rule) solid var(--rule-soft);
+  border-radius: var(--radius-dialog);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-inline-size: var(--measure-read);
+}
+
+.empty__line {
+  font-size: var(--size-intro);
+  line-height: 1.45;
+}
+
+.empty__more {
+  line-height: 1.5;
+  color: var(--body-2);
+}
+
+/* ── One entry ── */
+
+.entry-page {
+  margin-block-start: var(--space-6);
+  max-inline-size: var(--measure-read);
+}
+
+.entry-page__date {
+  display: inline-block;
+  min-block-size: var(--hit-inline);
+}
+
+.entry-page__title {
+  margin-block: var(--space-1) var(--space-3);
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: var(--size-cta);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-title);
+  text-wrap: balance;
+}
+
+.entry-page__body p {
+  line-height: var(--leading-read);
+  text-wrap: pretty;
+}
+
+.entry-page__body p + p {
+  margin-block-start: var(--space-2);
+}
+
+.entry-page__owner {
+  margin-block-start: var(--space-3);
+  max-inline-size: var(--measure-read);
+  font-size: var(--size-row-line);
+  line-height: 1.5;
+  color: var(--body-2);
+}

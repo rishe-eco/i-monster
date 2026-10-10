@@ -97,3 +97,15 @@ describe('feedDate', () => {
     expect(feedDate(utc(2026, 12, 31, 20, 29), 'America/New_York')).toBe('2026-12-31T15:29:00-05:00');
   });
 });
+
+describe('formatFeedTitleDate (AC-40)', () => {
+  it('writes the date in full, Gregorian in English', async () => {
+    const { formatFeedTitleDate } = await import('../../lib/dates.ts');
+    expect(formatFeedTitleDate(Date.UTC(2026, 9, 13, 4, 0, 0), 'en', 'Asia/Tehran')).toBe('13 October 2026');
+  });
+
+  it('writes Solar Hijri with Persian digits in Persian', async () => {
+    const { formatFeedTitleDate } = await import('../../lib/dates.ts');
+    expect(formatFeedTitleDate(Date.UTC(2026, 9, 20, 18, 30, 0), 'fa', 'Asia/Tehran')).toBe('۲۸ مهر ۱۴۰۵');
+  });
+});

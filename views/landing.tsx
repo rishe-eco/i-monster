@@ -1,6 +1,8 @@
+import { raw } from 'hono/html';
 import type { FC } from 'hono/jsx';
 import type { SiteContent } from '../content/site.ts';
 import type { AssetManifest } from '../lib/assets.ts';
+import { isolate } from '../lib/bidi.ts';
 import { localePath, strings, type Lang } from '../lib/i18n.ts';
 import { ArrowIcon, ExternalIcon } from './icons.tsx';
 import { Layout } from './layout.tsx';
@@ -23,7 +25,9 @@ export const Landing: FC<{ lang: Lang; assets: AssetManifest; content: SiteConte
         </h1>
       </div>
       <p class="intro">
-        {content.who.map((segment) => (segment.mark ? <mark>{segment.text}</mark> : segment.text))}
+        {content.who.map((segment) =>
+          segment.mark ? <mark>{raw(isolate(segment.text, lang))}</mark> : raw(isolate(segment.text, lang)),
+        )}
       </p>
       <div class="rows">
         <a class="big-row" href={localePath(lang, '/log')}>
@@ -43,14 +47,14 @@ export const Landing: FC<{ lang: Lang; assets: AssetManifest; content: SiteConte
         </h2>
         <ul class="projects">
           {content.projects.map((project) => {
-            const name = project.latinName ? <bdi lang="en">{project.name}</bdi> : project.name;
+            const name = raw(isolate(project.name, lang));
             const inner = (
               <>
                 <span class="project__name">
                   {name}
                   {project.url ? <ExternalIcon /> : null}
                 </span>
-                <span class="project__line">{project.line}</span>
+                <span class="project__line">{raw(isolate(project.line, lang))}</span>
               </>
             );
             return (

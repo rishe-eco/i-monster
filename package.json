@@ -12,6 +12,7 @@
     "dev": "tsx watch server.ts",
     "test": "vitest run",
     "e2e": "playwright test",
+    "seed-entry": "tsx scripts/seed-entry.ts",
     "check": "tsc --noEmit && eslint ."
   },
   "dependencies": {

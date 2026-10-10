@@ -41,11 +41,3 @@ describe.each(contents)('site content (%s)', (_name, content) => {
     for (const link of content.show.links) expect(link.label.trim()).not.toBe('');
   });
 });
-
-describe('Latin names in Persian content', () => {
-  it('are marked, so the page can isolate them', () => {
-    for (const project of siteFa.projects) {
-      if (/^[\x20-\x7e]+$/.test(project.name)) expect(project.latinName).toBe(true);
-    }
-  });
-});

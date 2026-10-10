@@ -10,6 +10,7 @@ import type { Db } from './lib/db.ts';
 import type { Env } from './lib/env.ts';
 import { securityHeaders } from './lib/headers.ts';
 import { langFromPath } from './lib/i18n.ts';
+import { logRoutes } from './routes/log.tsx';
 import { notFoundHandler, publicRoutes } from './routes/public.tsx';
 import { systemRoutes } from './routes/system.ts';
 import { testRoutes } from './routes/test.ts';
@@ -40,7 +41,8 @@ export function createApp({ env, db, assets = buildAssets() }: AppOptions): Hono
 
   app.route('/', systemRoutes(db, { prelaunch: env.prelaunch }));
   app.route('/', publicRoutes({ en: siteEn, fa: siteFa }));
-  if (env.e2eClock) app.route('/', testRoutes());
+  app.route('/', logRoutes(db));
+  if (env.e2eClock) app.route('/', testRoutes(db));
 
   app.notFound(notFoundHandler);
   app.onError((error, c) => {

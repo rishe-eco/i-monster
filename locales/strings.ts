@@ -31,6 +31,23 @@ export interface Strings {
     /** Holds {owner}, where the owner's name goes (it is isolated from the surrounding text). */
     ownerLine: string;
   };
+  log: {
+    title: string;
+    lede: string;
+    description: string;
+    older: string;
+    empty: string;
+    /** Holds {who} and {podcast}, each a link. */
+    emptyMeanwhile: string;
+    whoLink: string;
+    podcastLink: string;
+  };
+  entry: {
+    more: string;
+    /** Holds {owner} and {podcast}, each a link. */
+    writtenBy: string;
+    podcastLink: string;
+  };
   footer: {
     noCookies: string;
   };

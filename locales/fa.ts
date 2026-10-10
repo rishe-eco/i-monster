@@ -29,6 +29,21 @@ export const fa: Strings = {
     goHome: 'برو خانه',
     ownerLine: 'این سایت {owner} است. اینجا کوکی نداریم. هیولا خوردشان.',
   },
+  log: {
+    title: 'آموخته‌ها',
+    lede: 'چیزهایی که فهمیدم. تازه‌ترین بالا.',
+    description: 'چیزهایی که iMNSTR فهمیده، تازه‌ترین بالا.',
+    older: 'نوشته‌های قدیمی‌تر',
+    empty: 'فعلاً اینجا چیزی منتشر نشده.',
+    emptyMeanwhile: 'تا آن موقع، {who} و {podcast} هست.',
+    whoLink: 'من کی‌ام',
+    podcastLink: 'پادکست مانستر',
+  },
+  entry: {
+    more: 'آموخته‌های بیشتر',
+    writtenBy: 'نوشتهٔ {owner}، که {podcast} را هم می‌سازد.',
+    podcastLink: 'پادکست مانستر',
+  },
   footer: {
     noCookies: 'اینجا کوکی نداریم. هیولا خوردشان.',
   },

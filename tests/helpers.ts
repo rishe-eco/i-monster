@@ -41,3 +41,27 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
 export function testApp(db: Db, overrides: Record<string, string> = {}) {
   return createApp({ env: testEnv(overrides), db });
 }
+
+/**
+ * A well-formedness check for the feed, with no XML dependency: tags nest and
+ * close, attributes are quoted, and no bare `&` or `<` sits in text. Returns
+ * the problem, or null. (The W3C Feed Validator is the reviewer's, plan §8.)
+ */
+export function xmlProblem(xml: string): string | null {
+  const stack: string[] = [];
+  const token = /<\?[\s\S]*?\?>|<!--[\s\S]*?-->|<(\/?)([A-Za-z][\w:.-]*)((?:\s+[\w:.-]+="[^"<]*")*)\s*(\/?)>|([^<]+)|(<)/g;
+  for (const m of xml.matchAll(token)) {
+    if (m[6]) return `a stray "<" at ${m.index}`;
+    if (m[5] !== undefined) {
+      if (/&(?!(?:amp|lt|gt|quot|#39|#\d+);)/.test(m[5])) return `a bare "&" in text near "${m[5].slice(0, 30)}"`;
+      if (stack.length === 0 && m[5].trim() !== '') return 'text outside the root element';
+    } else if (m[2]) {
+      if (m[1]) {
+        if (stack.pop() !== m[2]) return `unmatched </${m[2]}>`;
+      } else if (!m[4]) {
+        stack.push(m[2]);
+      }
+    }
+  }
+  return stack.length ? `unclosed <${stack[stack.length - 1]}>` : null;
+}

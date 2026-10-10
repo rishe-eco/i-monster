@@ -102,3 +102,20 @@ bdi[lang='en'] {
     border: var(--rule) solid CanvasText;
   }
 }
+
+/* Persian inside an English entry keeps its own direction and face. */
+bdi[lang='fa'] {
+  font-family: var(--font-read-fa);
+}
+
+/* Read by assistive technology, not drawn. */
+.visually-hidden {
+  position: absolute;
+  inline-size: 0.0625rem;
+  block-size: 0.0625rem;
+  margin: -0.0625rem;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

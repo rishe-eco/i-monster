@@ -150,7 +150,7 @@ describe('the 404 (AC-26, AC-28)', () => {
 
   it('does not depend on what was asked for: every unknown path gives one page', async () => {
     const pages = await Promise.all(
-      ['/nope', '/log/abcdefghjk', '/log/0000000000', '/a/b/c', '/podcast/x', '/log/feed.xml'].map((path) => html(path)),
+      ['/nope', '/log/abcdefghjk', '/log/0000000000', '/a/b/c', '/podcast/x', '/log/feed.xml.bak'].map((path) => html(path)),
     );
     expect(new Set(pages).size).toBe(1);
     const fa = await Promise.all(['/fa/nope', '/fa/log/abcdefghjk', '/fa/a/b/c'].map((path) => html(path)));

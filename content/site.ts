@@ -9,8 +9,6 @@ export interface Segment {
 
 export interface Project {
   name: string;
-  /** True when `name` is Latin script inside Persian text, which keeps its own direction. */
-  latinName?: boolean;
   line: string;
   /** Optional outbound link. Always https. */
   url?: string;

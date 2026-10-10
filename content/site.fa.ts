@@ -14,18 +14,15 @@ export const siteFa: SiteContent = {
   projects: [
     {
       name: 'Root',
-      latinName: true,
       line: 'مجموعه‌ای کوچک از ابزارها برای یاد گرفتن و سامان دادن به زندگی.',
       url: 'https://example.com/root',
     },
     {
       name: 'Tracker',
-      latinName: true,
       line: 'جایی که ایده‌های Root اول روی خودم امتحان می‌شوند.',
     },
     {
       name: 'Root Studio',
-      latinName: true,
       line: 'وب‌سایت Root، ساخته‌شده مثل یک اپ. اول فارسی.',
       url: 'https://example.com/root-studio',
     },

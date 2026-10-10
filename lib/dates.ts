@@ -95,3 +95,16 @@ export function feedDate(instant: number, timeZone: string = env.siteTz): string
   });
   return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}${offsetOf(instant, timeZone)}`;
 }
+
+/**
+ * An untitled entry's title in the feed (AC-40): its date alone, written in
+ * full. English: "13 October 2026". Persian: Solar Hijri, Persian digits,
+ * "۲۸ مهر ۱۴۰۵".
+ */
+export function formatFeedTitleDate(instant: number, lang: Lang, timeZone: string = env.siteTz): string {
+  const p =
+    lang === 'fa'
+      ? partsOf(instant, 'fa-IR-u-ca-persian-nu-arabext', { timeZone, day: 'numeric', month: 'long', year: 'numeric' })
+      : partsOf(instant, 'en-US', { timeZone, day: 'numeric', month: 'long', year: 'numeric' });
+  return `${p.day} ${p.month} ${p.year}`;
+}

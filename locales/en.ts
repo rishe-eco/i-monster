@@ -27,6 +27,21 @@ export const en: Strings = {
     goHome: 'Go home',
     ownerLine: 'This is {owner}’s site. No cookies here. The monster ate them.',
   },
+  log: {
+    title: 'Learnings',
+    lede: 'Things I figured out. Newest on top.',
+    description: 'Things iMNSTR figured out, newest on top.',
+    older: 'Older entries',
+    empty: 'Nothing published here at the moment.',
+    emptyMeanwhile: 'Meanwhile, there’s {who} and the {podcast}.',
+    whoLink: 'who I am',
+    podcastLink: 'Monster Podcast',
+  },
+  entry: {
+    more: 'More learnings',
+    writtenBy: 'Written by {owner}, who also makes the {podcast}.',
+    podcastLink: 'Monster Podcast',
+  },
   footer: {
     noCookies: 'No cookies here. The monster ate them.',
   },
