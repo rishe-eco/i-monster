@@ -41,7 +41,7 @@ export function loadEnv(source: Source): Env {
     throw new Error(`PORT must be a whole number from 1 to 65535, got "${portText}"`);
   }
 
-  // P0-5 (the founder's timezone) isn't confirmed yet; Tehran is the plan's placeholder.
+  // The founder's timezone, confirmed 2026-10-11 (P0-5).
   const siteTz = source.SITE_TZ?.trim() || 'Asia/Tehran';
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: siteTz });
