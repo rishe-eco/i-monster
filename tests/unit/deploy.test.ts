@@ -49,10 +49,11 @@ describe('deploy/nginx/imnstr.conf', () => {
     expect(conf).toMatch(/location \/admin\/api\/auth\/ \{[^}]*limit_req zone=imnstr_auth/);
   });
 
-  it('uses the nginx 1.18 spelling of http2, on IPv4 and IPv6', () => {
-    expect(conf).toContain('listen 443 ssl http2;');
-    expect(conf).toContain('listen [::]:443 ssl http2;');
-    expect(conf).not.toMatch(/\bhttp2 on\b/);
+  // In nginx 1.18, http2 on one listen line turns it on for every site on that port.
+  it('listens on 443 over IPv4 and IPv6, without http2', () => {
+    expect(conf).toContain('listen 443 ssl;');
+    expect(conf).toContain('listen [::]:443 ssl;');
+    expect(conf).not.toMatch(/\bhttp2\b/);
   });
 
   it('points at the imnstr.com certificate', () => {

@@ -28,20 +28,21 @@ Done once, as root or with sudo.
 
 4. **Nginx, first the bootstrap file.** The final config points at a certificate that does not exist yet, and `nginx -t` refuses that. So start with the port-80-only file:
    ```
-   ln -s /srv/imnstr/deploy/nginx/imnstr.bootstrap.conf /etc/nginx/sites-enabled/imnstr
+   cp /srv/imnstr/deploy/nginx/imnstr.bootstrap.conf /etc/nginx/sites-available/imnstr
+   ln -s /etc/nginx/sites-available/imnstr /etc/nginx/sites-enabled/imnstr
    nginx -t && systemctl reload nginx
    ```
-   (A symlink into the repo means `git pull` updates the config. A reload is still a separate, checked step.)
+   The live file is a **copy**, not a link into the repo, for two reasons. certbot's nginx plugin edits the live file for a moment at every renewal, and that must not happen inside the git checkout. And a `git pull` must not change what the box's next reload loads (root-app's, or certbot's) before anyone has run `nginx -t` on it.
 
 5. **The certificate**, without certbot editing any file in the repo:
    ```
-   certbot certonly --nginx -d imnstr.com -d www.imnstr.com
+   certbot certonly --nginx -d imnstr.com -d www.imnstr.com      --deploy-hook 'nginx -t && systemctl reload nginx'
    ```
-   DNS for both names must already point at the box.
+   DNS for both names must already point at the box. `certonly` writes the certificate and touches no config. certbot keeps the deploy hook and runs it after each renewal, so Nginx loads the new certificate.
 
 6. **Swap in the final config.**
    ```
-   ln -sf /srv/imnstr/deploy/nginx/imnstr.conf /etc/nginx/sites-enabled/imnstr
+   cp /srv/imnstr/deploy/nginx/imnstr.conf /etc/nginx/sites-available/imnstr
    nginx -t && systemctl reload nginx
    ```
    The certbot timer renews the certificate; `imnstr.conf` reads it from `/etc/letsencrypt/live/imnstr.com/`. Check with `certbot renew --dry-run`.
@@ -54,7 +55,12 @@ Done once, as root or with sudo.
 cd /srv/imnstr && git pull && docker compose -f docker-compose.prod.yml build && docker compose -f docker-compose.prod.yml up -d
 ```
 
-Migrations run at boot. If `deploy/nginx/imnstr.conf` changed, run `nginx -t` and then `systemctl reload nginx`.
+Migrations run at boot. If `deploy/nginx/imnstr.conf` changed, copy it over the live file, then check and reload. If `nginx -t` fails, put the old file back before anything else reloads:
+```
+cp /etc/nginx/sites-available/imnstr /tmp/imnstr.conf.prev
+cp /srv/imnstr/deploy/nginx/imnstr.conf /etc/nginx/sites-available/imnstr
+nginx -t && systemctl reload nginx || cp /tmp/imnstr.conf.prev /etc/nginx/sites-available/imnstr
+```
 
 Shorthand used below: `dc` is `docker compose -f docker-compose.prod.yml`.
 
@@ -91,6 +97,8 @@ BACKUP_REMOTE=backup@other-host:/backups/imnstr/
 17 3 * * * root /srv/imnstr/deploy/backup.sh
 ```
 
+Until the off-box target exists, the cron line can go in without the `BACKUP_REMOTE` line: the daily local copy is still made, and the run exits 1 so the missing copy off the box stays visible.
+
 Try it by hand once before trusting cron: `BACKUP_REMOTE=... /srv/imnstr/deploy/backup.sh`, then look at `/srv/imnstr/backups` and the target.
 
 ### Restoring a backup into a scratch container
@@ -104,7 +112,7 @@ docker run --rm -d --name imnstr-scratch -p 127.0.0.1:4199:4100 \
   -e DB_PATH=/data/imnstr.db -e PRELAUNCH=1 \
   -v /tmp/imnstr-restore:/data imnstr:latest
 curl -s http://127.0.0.1:4199/healthz            # ok
-curl -s http://127.0.0.1:4199/log/ | head        # the entries are there
+curl -s http://127.0.0.1:4199/log | head         # the entries are there
 docker exec imnstr-scratch node --import tsx scripts/backup.ts /data/check.db   # copies and integrity-checks it
 docker stop imnstr-scratch && rm -rf /tmp/imnstr-restore
 ```

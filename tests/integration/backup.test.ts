@@ -23,7 +23,12 @@ describe('backupDb', () => {
 
     await backupDb(t.path, destination);
 
+    // One self-contained file: no -wal or -shm left beside it for the prune to miss.
+    expect(existsSync(`${destination}-wal`)).toBe(false);
+    expect(existsSync(`${destination}-shm`)).toBe(false);
+
     const copy = new Database(destination, { readonly: true });
+    expect(copy.pragma('journal_mode', { simple: true })).toBe('delete');
     expect(copy.pragma('integrity_check', { simple: true })).toBe('ok');
     expect(copy.prepare('SELECT id, name FROM credential ORDER BY id').all()).toEqual([
       { id: 'c1', name: 'phone' },

@@ -20,8 +20,12 @@ export async function backupDb(sourcePath: string, destination: string): Promise
   } finally {
     source.close();
   }
-  const copy = new Database(destination, { readonly: true });
+  // The copy inherits WAL mode from the live file, and a WAL database leaves -wal and
+  // -shm files beside it whenever it's opened. Switch it to a rollback journal so a
+  // backup is one self-contained file, which the prune and the rsync both expect.
+  const copy = new Database(destination);
   try {
+    copy.pragma('journal_mode = DELETE');
     const result = copy.pragma('integrity_check', { simple: true });
     if (result !== 'ok') throw new Error(`integrity_check on the copy: ${String(result)}`);
   } finally {
