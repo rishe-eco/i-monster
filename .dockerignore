@@ -1,0 +1,15 @@
+# Keep the host's files out of the image: COPY . . would otherwise lay the
+# Windows node_modules over the one `npm ci` built for Linux.
+node_modules
+.tmp
+.git
+.claude
+.env*
+!.env.example
+data
+backups
+test-results
+playwright-report
+blob-report
+playwright/.cache
+*.log

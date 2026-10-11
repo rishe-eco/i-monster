@@ -1,0 +1,24 @@
+# Production, on the shared VPS: `docker compose -f docker-compose.prod.yml ...`
+# from /srv/imnstr. See deploy/README.md.
+name: imnstr
+
+services:
+  imnstr:
+    build: .
+    image: imnstr:latest
+    restart: unless-stopped
+    # The box has about 1.2 GiB to spare and no swap, so the process is capped.
+    mem_limit: 256m
+    # Loopback only: Nginx is the way in.
+    ports:
+      - '127.0.0.1:4100:4100'
+    # The server's .env sets DB_PATH=/data/imnstr.db and PRELAUNCH=1.
+    env_file: .env
+    volumes:
+      - /srv/imnstr/data:/data
+      - /srv/imnstr/backups:/backups
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
