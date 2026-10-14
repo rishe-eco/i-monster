@@ -11,6 +11,10 @@ const phone = { width: 360, height: 800 };
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: false,
+  // One server, one database and one test clock serve the whole run, and the
+  // auth specs reset them, so two workers (the two colour schemes side by side)
+  // break each other's state. Found at MS2: five enrolment tests failed that way.
+  workers: 1,
   retries: 0,
   reporter: [['list']],
   use: {
