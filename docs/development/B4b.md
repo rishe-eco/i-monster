@@ -1,6 +1,6 @@
 # B4b · Auth screens — stage record
 
-*Written by the reviewer (`verify B4b`, trial step 8c), 2026-10-15. Plan: build plan 0.5 §5 B4b. Card: `root-sot/imnstr/modules/01-website/briefs/B4b.md`. Lane report: `briefs/B4b.report.md` beside it. Branch `b4b-auth-screens`: the lane's `8e0e524`, `fafa366` and `8cb1e99`, then the review's `7676c6c`. Built on `main @ d29166b`, which had not moved, so the merge was a no-op.*
+*Written by the reviewer (`verify B4b`, trial step 8c), 2026-10-15. Plan: build plan 0.5 §5 B4b. Card: `root-sot/imnstr/modules/01-website/briefs/B4b.md`. Lane report: `briefs/B4b.report.md` beside it. Branch `b4b-auth-screens`: the lane's `8e0e524`, `fafa366` and `8cb1e99`, then the review's `7676c6c`. Built on `main @ d29166b`, which had not moved, so the merge was a no-op. Fast-forwarded and pushed at the founder's word (`main @ 10c5463`), deployed, then this record's server section.*
 
 ## Built
 
@@ -53,7 +53,6 @@ The lane's calls (report item 4), each accepted at review:
 | "this device" after a hybrid sign-in names the other device's passkey: B4a's `device_credential` defaults to `opened_by`. Look at it with a real hybrid sign-in | MS2 | Review |
 | Real providers and their `excludeCredentials` wording; a real phone at 360 px with its keyboard; the QR scanned by a camera | MS2 (V-7) | Ceiling |
 | Contrast of the admin's dark pairs, measured | B9 (V-2) | Ceiling |
-| The VPS builds the bundle stage (dev dependencies plus `vite build`) with about 1.2 GiB free and no swap | this deploy | Report item 6 |
 | ~~`@simplewebauthn/browser`; the `/admin/setup/<code>` page; the `excludeCredentials` refusal (S-13)~~ done; real wording moves to V-7 | B4b | B4a |
 
 ## Flagged for close-out *(canon this stage made stale)*
@@ -84,15 +83,25 @@ The lane's calls (report item 4), each accepted at review:
 
 A second run, to measure the build stage under a 384 MiB cap, failed. Docker Desktop's VM disk went read-only again (`meta.db: read-only file system`). The cause is the build machine's `C:` drive, which has 0 GB free. That is also why the lane's build failed. The build stage's memory on the VPS is checked at this deploy instead.
 
-*On the server:* **pending**, at the founder's go-ahead.
+*On the server* (pasted output, 2026-10-14 22:43–22:45 UTC; `main @ 10c5463`; image rebuilt in 19.5 s; no conf change):
+- **The build stage fits.** After the build, `free -m` showed 1,209 MiB available of 7,951 MiB, with no swap. The reading from before the build wasn't in the paste.
+- `curl -sI` on `/admin` and `/admin/setup/x`: `200`, `cache-control: no-store`, the CSP, HSTS, `nosniff`, `x-robots-tag: noindex`, no `Set-Cookie`. Both have the same ETag, so it is one shell for both paths.
+- The shell names `/assets/admin/admin.0f06f373c2.js` and `admin.2609849a29.css`. Both return `200` with `public, max-age=31536000, immutable` and the right content type.
+- `/` and `/fa/`: `200`, `no-cache`, the same CSP and headers as B4a's deploy, no `Set-Cookie`.
+- `/admin/api/session`: `401`, 26 bytes of JSON, `no-store`.
+- `npm run setup-token` in the container printed the `https://imnstr.com/admin/setup/…` link with a 30-minute expiry.
+- **The first real passkey (V-7 starts).** The founder opened the link on their phone, created the passkey, signed out, and signed back in. All of it worked.
+- Not in the pasted output: the container's health after `starting`, and root-app's own URL. Nothing outside `/srv/imnstr` changed at this deploy.
 
 **The ceiling** (review checklist §8):
 
 | Item | Status |
 |---|---|
-| Headers through Nginx | pending, this deploy |
-| Real passkeys on the founder's phone and laptop; hybrid sign-in; enrolment by code | starts at this deploy (the first real setup token); the rest owed, MS2 |
+| Headers through Nginx | **done**, above |
+| Real passkeys on the founder's phone and laptop; hybrid sign-in; enrolment by code | **phone: done** (setup, sign-out, sign-in); laptop, hybrid sign-in and enrolment by code owed, MS2 |
 | AC-24, independent credentials | owed, MS2 and before launch |
 | Contrast of the dark pairs | owed, B9 |
 
 Everything else on the list doesn't apply to B4b.
+
+**Verified; on `main` and deployed.**
