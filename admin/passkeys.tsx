@@ -21,9 +21,15 @@ interface Props {
   session: SessionInfo;
   /** This device's own passkey was removed, so this device is signed out (AC-45). */
   onRemovedHere: (name: string) => void;
+  /**
+   * The removed passkey opened this session but isn't this device's own: a sign-in from
+   * another device's passkey, before this one had its own (AC-22). The session ended, and
+   * this device can still sign in with its own passkey.
+   */
+  onSessionEnded: () => void;
 }
 
-export function PasskeysSection({ session, onRemovedHere }: Props) {
+export function PasskeysSection({ session, onRemovedHere, onSessionEnded }: Props) {
   const [open, setOpen] = useState(true);
   const [passkeys, setPasskeys] = useState<Passkey[] | null>(null);
   const [loadFailed, setLoadFailed] = useState<Code | null>(null);
@@ -54,7 +60,7 @@ export function PasskeysSection({ session, onRemovedHere }: Props) {
       setMessage({ kind: result.code === 'REAUTH_REQUIRED' ? 'neutral' : 'error', text: refusals[result.code] });
       return;
     }
-    if (result.data.signedOut) return onRemovedHere(target.name);
+    if (result.data.signedOut) return target.thisDevice ? onRemovedHere(target.name) : onSessionEnded();
     setMessage({ kind: 'success', text: copy.passkeys.removeDialog.removed(target.name) });
     await load();
   };

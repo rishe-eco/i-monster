@@ -338,6 +338,41 @@ test('J3.11: removing this device\'s own passkey signs it out, and it can\'t sig
   for (const device of [phone, laptop]) await device.context.close();
 });
 
+test('removing the passkey that opened this session, when this device has its own, signs out without saying it can\'t sign in (AC-22, review)', async ({ browser, baseURL }, info) => {
+  // A session opened by one passkey, on a device that then adds its own: what a sign-in from another
+  // device's passkey (hybrid) leaves behind. Here the device swaps its authenticator to stand for that.
+  const device = await firstDevice(browser, baseURL as string, 'borrowed');
+  await device.cdp.send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: device.authenticatorId });
+  await device.cdp.send('WebAuthn.addVirtualAuthenticator', {
+    options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true },
+  });
+  await device.page.getByRole('button', { name: 'Add a passkey on this device' }).click();
+  await device.page.getByLabel('Name this passkey').fill('own');
+  await device.page.getByRole('button', { name: 'Create the passkey' }).click();
+  await expect(device.page.getByText('Passkey "own" added.')).toBeVisible();
+  await expect(row(device.page, 'own')).toContainText('this device');
+
+  await row(device.page, 'borrowed').getByRole('button', { name: /^Remove/ }).click();
+  const confirm = device.page.getByRole('dialog');
+  await expect(confirm).toContainText("It won't sign in any more, and anywhere it's signed in now is signed out at once.");
+  await confirm.getByRole('button', { name: 'Remove', exact: true }).click();
+
+  // The session it opened is over, but this device keeps its own passkey: the sign-in view, not "can't sign in any more".
+  const signIn = device.page.getByRole('button', { name: 'Sign in with a passkey' });
+  await expect(signIn).toBeVisible();
+  await expect(device.page.getByText('You were signed out. Sign in to carry on.')).toBeVisible();
+  await expect(device.page.getByText("This device can't sign in any more", { exact: false })).toHaveCount(0);
+  expect(await cookie(device)).toBeUndefined();
+  await expectScreenFits(device, info, signIn);
+
+  await signIn.click();
+  await expect(row(device.page, 'own')).toBeVisible();
+  await expect(row(device.page, 'borrowed')).toHaveCount(0);
+
+  expect(device.problems).toEqual([]);
+  await device.context.close();
+});
+
 test('sign-in and sign-out: the eyes\' slot is on the sign-in view only, and sign-out ends the session (AC-9, AC-10)', async ({ browser, baseURL }, info) => {
   const phone = await firstDevice(browser, baseURL as string);
   await phone.page.getByRole('button', { name: 'Sign out' }).click();
@@ -360,6 +395,25 @@ test('sign-in and sign-out: the eyes\' slot is on the sign-in view only, and sig
   await expect(row(phone.page, 'phone')).toBeVisible();
   expect(phone.problems).toEqual([]);
   await phone.context.close();
+});
+
+test('a sign-out the server never heard keeps the screen signed in and says so (AC-10, review)', async ({ browser, baseURL }) => {
+  const device = await firstDevice(browser, baseURL as string);
+  await device.page.route('**/admin/api/auth/signout', (route) => route.abort());
+  const signOut = device.page.getByRole('button', { name: 'Sign out' });
+  await signOut.click();
+  await expect(device.page.getByRole('alert')).toHaveText("Couldn't reach the server. Check the connection and try again.");
+  await expect(signOut).toBeEnabled();
+  expect(await cookie(device)).toBeDefined();
+
+  await device.page.unroute('**/admin/api/auth/signout');
+  await signOut.click();
+  await expect(device.page.getByRole('heading', { name: "It's you, right?" })).toBeVisible();
+  expect(await cookie(device)).toBeUndefined();
+
+  // The aborted request is the browser's own console error; nothing else may be.
+  expect(device.problems.filter((p) => !/ERR_FAILED|net::/.test(p))).toEqual([]);
+  await device.context.close();
 });
 
 test('a cancelled passkey sheet is neutral, not an error', async ({ browser, baseURL }) => {

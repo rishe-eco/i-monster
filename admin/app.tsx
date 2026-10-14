@@ -4,8 +4,8 @@
 //   the shell            → [editor, Entries, Podcast: B5–B7], Passkeys, Sign out
 // There is no router: two paths, and the rest is state.
 import { useEffect, useState } from 'preact/hooks';
-import { api, forgetSession, whenSignedOut, type SessionInfo } from './api.ts';
-import { copy } from './copy.ts';
+import { api, forgetSession, whenSignedOut, type Code, type SessionInfo } from './api.ts';
+import { copy, refusals } from './copy.ts';
 import { PasskeysSection } from './passkeys.tsx';
 import { ReauthHost } from './reauth.tsx';
 import { SignIn } from './signin.tsx';
@@ -94,6 +94,10 @@ export function App() {
             forgetSession();
             setScreen({ kind: 'removed', name });
           }}
+          onSessionEnded={() => {
+            forgetSession();
+            setScreen({ kind: 'signin', ended: true });
+          }}
         />
       );
       break;
@@ -112,18 +116,28 @@ function Home({
   welcome,
   onSignedOut,
   onRemovedHere,
+  onSessionEnded,
 }: {
   session: SessionInfo;
   welcome: string | null;
   onSignedOut: () => void;
   onRemovedHere: (name: string) => void;
+  onSessionEnded: () => void;
 }) {
   const [signingOut, setSigningOut] = useState(false);
+  const [signOutFailed, setSignOutFailed] = useState<Code | null>(null);
 
   const signOut = async () => {
     setSigningOut(true);
-    // The server ends the session whatever happens to the answer, so the screen follows either way.
-    await api('POST', 'auth/signout', {});
+    setSignOutFailed(null);
+    const result = await api('POST', 'auth/signout', {});
+    // A 401 means the session had already ended. Any other failure (the network, a refused
+    // token) may leave it alive on the server, so the screen must not claim it is signed out.
+    if (!result.ok && result.code !== 'UNAUTHENTICATED') {
+      setSigningOut(false);
+      setSignOutFailed(result.code);
+      return;
+    }
     onSignedOut();
   };
 
@@ -132,8 +146,9 @@ function Home({
       <Header signedIn />
       {welcome ? <Notice kind="success">{welcome}</Notice> : null}
       {/* W1 order: the editor, Entries and Podcast come here, above Passkeys, in B5 to B7. They are not drawn until they exist. */}
-      <PasskeysSection session={session} onRemovedHere={onRemovedHere} />
+      <PasskeysSection session={session} onRemovedHere={onRemovedHere} onSessionEnded={onSessionEnded} />
       <div class="section section--last">
+        {signOutFailed ? <Notice kind="error">{refusals[signOutFailed]}</Notice> : null}
         <button type="button" class="btn btn--quiet" disabled={signingOut} onClick={() => void signOut()}>
           {copy.signOut}
         </button>

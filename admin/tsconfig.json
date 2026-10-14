@@ -1,12 +1,12 @@
 {
   // The admin bundle is Preact, so its JSX is not the server's (hono/jsx). It reads
-  // three server files that hold one rule each, so the rule is never written twice
-  // (house rule 4): the limits, the dates, and the environment the dates default to.
+  // four server files that hold one rule each, so the rule is never written twice
+  // (house rule 4): the limits, the passkey name, the dates, and the environment the dates default to.
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "jsxImportSource": "preact",
     "types": ["node"]
   },
-  "include": ["./**/*.ts", "./**/*.tsx", "../lib/limits.ts", "../lib/dates.ts", "../lib/env.ts"],
+  "include": ["./**/*.ts", "./**/*.tsx", "../lib/limits.ts", "../lib/passkey-name.ts", "../lib/dates.ts", "../lib/env.ts"],
   "exclude": ["node_modules"]
 }

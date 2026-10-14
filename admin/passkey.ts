@@ -5,7 +5,7 @@
 // passkey for this site). The browser's own words are never shown.
 import { browserSupportsWebAuthn, startAuthentication, startRegistration } from '@simplewebauthn/browser';
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
-import { limits } from '../lib/limits.ts';
+import { cleanPasskeyName, type NameRefusal } from '../lib/passkey-name.ts';
 import { api, type ClientCode, type Result, type SessionInfo } from './api.ts';
 
 /** What the browser's error means for the person at the screen. */
@@ -79,14 +79,12 @@ export const registerHere = (name: string) =>
   );
 
 /**
- * The server's rule for a passkey's name, asked before the ceremony starts: the
- * server only sees the name when it verifies, which is after the passkey exists
- * on the device, and a refusal then would leave one behind. The server still
- * decides (NAME_REQUIRED, REQUEST_INVALID); this only spares the person that.
+ * The server's rule for a passkey's name (lib/passkey-name.ts), asked before the
+ * ceremony starts: the server only sees the name when it verifies, which is after
+ * the passkey exists on the device, and a refusal then would leave one behind.
+ * The server still decides; this only spares the person that.
  */
-export function nameProblem(name: string): 'NAME_REQUIRED' | 'REQUEST_INVALID' | null {
-  const clean = name.replace(/\s+/g, ' ').trim();
-  if (clean === '') return 'NAME_REQUIRED';
-  if (clean.length > limits.passkeyNameMax || /\p{Cc}/u.test(clean)) return 'REQUEST_INVALID';
-  return null;
+export function nameProblem(name: string): NameRefusal | null {
+  const result = cleanPasskeyName(name);
+  return 'refusal' in result ? result.refusal : null;
 }

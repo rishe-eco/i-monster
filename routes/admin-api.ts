@@ -14,8 +14,8 @@ import type { AppEnv } from '../lib/context.ts';
 import { CSRF_HEADER, csrfMatches } from '../lib/csrf.ts';
 import type { Db } from '../lib/db.ts';
 import type { Env } from '../lib/env.ts';
-import { limits } from '../lib/limits.ts';
 import { originGuard } from '../lib/origin.ts';
+import { cleanPasskeyName } from '../lib/passkey-name.ts';
 import {
   SESSION_COOKIE,
   createSession,
@@ -65,17 +65,6 @@ const readJson = async (c: Context<AppEnv>): Promise<Record<string, unknown> | n
 };
 
 const INDEPENDENCE_KEY = 'independence_note_dismissed';
-const NAME_MAX = limits.passkeyNameMax;
-
-/** A passkey's name: trimmed, one line, 1 to 60 characters. Otherwise the code to refuse with. */
-function cleanName(value: unknown): { name: string } | { refusal: 'NAME_REQUIRED' | 'REQUEST_INVALID' } {
-  if (typeof value !== 'string') return { refusal: 'NAME_REQUIRED' };
-  const name = value.replace(/\s+/g, ' ').trim();
-  if (name === '') return { refusal: 'NAME_REQUIRED' };
-  if (name.length > NAME_MAX || /\p{Cc}/u.test(name)) return { refusal: 'REQUEST_INVALID' };
-  return { name };
-}
-
 export function adminApiRoutes(db: Db, env: Env): Hono<AppEnv> {
   const api = new Hono<AppEnv>().basePath('/admin/api');
 
@@ -188,7 +177,7 @@ export function adminApiRoutes(db: Db, env: Env): Hono<AppEnv> {
       // counts the same, so a dead code can't be told apart by where it fails.
       const code = peekCode(db, body.code);
       if (code === 'CODE_REFUSED') return refuse(c, 'CODE_REFUSED');
-      const name = cleanName(body.name);
+      const name = cleanPasskeyName(body.name);
       if ('refusal' in name) return refuse(c, name.refusal);
       const verified = await verifyRegistration(env, body.response, code.hash);
       if (!verified) return refuse(c, 'REGISTRATION_FAILED');
@@ -215,7 +204,7 @@ export function adminApiRoutes(db: Db, env: Env): Hono<AppEnv> {
     const session = sessionOf(c);
     if (session instanceof Response) return session;
     if (!isFresh(session)) return refuse(c, 'REAUTH_REQUIRED');
-    const name = cleanName(body?.name);
+    const name = cleanPasskeyName(body?.name);
     if ('refusal' in name) return refuse(c, name.refusal);
     const verified = await verifyRegistration(env, body?.response, session.idHash);
     if (!verified) return refuse(c, 'REGISTRATION_FAILED');
