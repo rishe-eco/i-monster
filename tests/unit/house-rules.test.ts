@@ -41,7 +41,8 @@ describe('house rule 2: nothing inline in public markup (CSP)', () => {
 describe('the stylesheets', () => {
   // Comments may say "left" or quote a colour; only the rules count.
   const code = (path: string) => readFileSync(path, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  const sheets = files(join(ROOT, 'assets', 'css'), ['.css']).filter((path) => !rel(path).endsWith('tokens.css'));
+  // The admin's stylesheet keeps the same rules as the site's: it is built by Vite, but written like the others.
+  const sheets = [...files(join(ROOT, 'assets', 'css'), ['.css']), ...files(join(ROOT, 'admin'), ['.css'])].filter((path) => !rel(path).endsWith('tokens.css'));
 
   it('use logical properties only (no left, right, margin-left and the like)', () => {
     const physical =
@@ -61,6 +62,35 @@ describe('the stylesheets', () => {
     const offenders = sheets
       .filter((path) => !rel(path).endsWith('fonts.css'))
       .filter((path) => px.test(code(path)))
+      .map(rel);
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('the admin bundle sources (plan B4b)', () => {
+  const sources = files(join(ROOT, 'admin'), ['.ts', '.tsx']);
+  const text = (path: string) => readFileSync(path, 'utf8');
+
+  it('has sources to check', () => {
+    expect(sources.length).toBeGreaterThan(5);
+  });
+
+  it('keep nothing in the browser: no cookie, no localStorage, no sessionStorage, no IndexedDB (AC-10)', () => {
+    const offenders = sources.filter((path) => /document\.cookie|localStorage|sessionStorage|indexedDB/.test(text(path))).map(rel);
+    expect(offenders).toEqual([]);
+  });
+
+  it('have no inline style and no raw HTML', () => {
+    const offenders = sources.filter((path) => /\sstyle=|dangerouslySetInnerHTML|innerHTML/.test(text(path))).map(rel);
+    expect(offenders).toEqual([]);
+  });
+
+  it('write no prose of their own: every word is in copy.ts (house rule 3)', () => {
+    // JSX text between tags would be prose written in place; copy.ts is the one place the words live.
+    const withoutComments = (source: string) => source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+    const offenders = sources
+      .filter((path) => path.endsWith('.tsx'))
+      .filter((path) => /(?<!=)>\s*[A-Z][a-z]+[^<>{}]*[a-z.]\s*</.test(withoutComments(text(path))))
       .map(rel);
     expect(offenders).toEqual([]);
   });

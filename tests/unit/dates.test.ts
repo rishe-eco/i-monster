@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { feedDate, formatAdminDate, formatEntryDate } from '../../lib/dates.ts';
+import { feedDate, formatAdminDate, formatAdminDay, formatEntryDate } from '../../lib/dates.ts';
 import { NOW } from '../helpers.ts';
 
 const TEHRAN = 'Asia/Tehran'; // UTC+03:30 all year since 2022
@@ -60,6 +60,14 @@ describe('formatEntryDate', () => {
 
   it('uses SITE_TZ (Asia/Tehran by default) when no zone is given', () => {
     expect(formatEntryDate(utc(2026, 11, 2, 17, 44), 'en')).toBe('2 Nov 2026, 21:14');
+  });
+});
+
+describe('formatAdminDay', () => {
+  it('names the day with its year, in the site timezone, and no time', () => {
+    expect(formatAdminDay(utc(2026, 10, 10, 12), TEHRAN)).toBe('10 Oct 2026');
+    // 22:00 UTC is already the next day in Tehran.
+    expect(formatAdminDay(utc(2026, 12, 31, 22), TEHRAN)).toBe('1 Jan 2027');
   });
 });
 

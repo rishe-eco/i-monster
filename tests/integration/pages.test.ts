@@ -209,3 +209,51 @@ describe('/healthz', () => {
     own.cleanup();
   });
 });
+
+describe('the admin shell (PD-21)', () => {
+  it('is one English page for /admin and for every /admin/setup/<code>', async () => {
+    const shell = await html('/admin');
+    expect(shell.startsWith('<!DOCTYPE html>')).toBe(true);
+    expect(shell).toContain('<html lang="en" dir="ltr">');
+    expect(shell).toContain('<div id="admin"></div>');
+    expect(shell).toContain('<meta name="robots" content="noindex"/>');
+    // The code is read from the path by the bundle; the server renders the same bytes whatever it is.
+    expect(await html('/admin/setup/x')).toBe(shell);
+    expect(await html('/admin/setup/K7FQ-2MXP-R9TD')).toBe(shell);
+    expect(await html('/admin/')).toBe(shell);
+  });
+
+  it('never repeats the code in the page', async () => {
+    expect(await html('/admin/setup/K7FQ-2MXP-R9TD')).not.toContain('K7FQ');
+  });
+
+  it('names the site stylesheet, the admin stylesheet and the one admin script, all hashed and served', async () => {
+    const shell = await html('/admin');
+    const css = /<link rel="stylesheet" href="(\/assets\/admin\/admin\.[0-9a-f]{10}\.css)"/.exec(shell)?.[1];
+    const js = /<script type="module" src="(\/assets\/admin\/admin\.[0-9a-f]{10}\.js)"/.exec(shell)?.[1];
+    expect(shell).toMatch(/<link rel="stylesheet" href="\/assets\/css\/site\.[0-9a-f]{10}\.css"/);
+    expect(css).toBeTruthy();
+    expect(js).toBeTruthy();
+    for (const url of [css, js] as string[]) {
+      const res = await app.request(url);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
+      expect(res.headers.get('Set-Cookie')).toBeNull();
+    }
+    expect((await app.request(js as string)).headers.get('Content-Type')).toBe('text/javascript; charset=utf-8');
+  });
+
+  it('holds the shell\'s timezone for the bundle, and no other path under /admin is a page', async () => {
+    expect(await html('/admin')).toContain('<meta name="site-timezone" content="Asia/Tehran"/>');
+    // /admin/api is the API; anything else under /admin is the designed 404, as everywhere.
+    for (const path of ['/admin/nope', '/admin/setup', '/admin/setup/a/b']) {
+      expect((await app.request(path)).status, path).toBe(404);
+    }
+  });
+
+  it('answers HEAD like GET, with no body', async () => {
+    const res = await app.request('/admin', { method: 'HEAD' });
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('');
+  });
+});

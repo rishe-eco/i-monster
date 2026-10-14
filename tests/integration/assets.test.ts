@@ -1,6 +1,6 @@
 // Hashed asset names, long caching, and the self-hosted fonts (PD-26, D-1, D-6).
 import { createHash } from 'node:crypto';
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -154,5 +154,63 @@ describe('buildAssets', () => {
     const assets = buildAssets();
     expect(() => assets.url('nope.css')).toThrow(/Unknown asset/);
     expect(assets.get('/assets/nope.css')).toBeUndefined();
+  });
+});
+
+describe('the admin bundle (PD-21)', () => {
+  const adminPaths = async () => {
+    const shell = await (await app.request('/admin')).text();
+    return {
+      js: /src="(\/assets\/admin\/admin\.[0-9a-f]{10}\.js)"/.exec(shell)?.[1] as string,
+      css: /href="(\/assets\/admin\/admin\.[0-9a-f]{10}\.css)"/.exec(shell)?.[1] as string,
+    };
+  };
+
+  it('is one script and one stylesheet under fixed names: no Vite hashes, no split chunks', () => {
+    expect(readdirSync(join(import.meta.dirname, '..', '..', 'dist', 'admin')).sort()).toEqual(['admin.css', 'admin.js']);
+  });
+
+  it('is served at hashed names like every other asset, and the hash is of its own bytes', async () => {
+    const { js, css } = await adminPaths();
+    for (const path of [js, css]) {
+      const body = Buffer.from(await (await app.request(path)).arrayBuffer());
+      expect(path).toContain(`.${createHash('sha256').update(body).digest('hex').slice(0, 10)}.`);
+    }
+    expect((await app.request(css)).headers.get('Content-Type')).toBe('text/css; charset=utf-8');
+  });
+
+  it('does not serve it at its unhashed name', async () => {
+    for (const path of ['/assets/admin/admin.js', '/assets/admin/admin.css', '/dist/admin/admin.js']) {
+      expect((await app.request(path)).status, path).toBe(404);
+    }
+  });
+
+  it('reads no cookie, store or clock of its own: the session is the server\'s, behind an HttpOnly cookie', async () => {
+    const { js } = await adminPaths();
+    const code = await (await app.request(js)).text();
+    for (const banned of ['localStorage', 'sessionStorage', 'document.cookie', 'indexedDB']) expect(code, banned).not.toContain(banned);
+  });
+
+  it('refuses to build the manifest without the bundle when the bundle is required, as production is', () => {
+    const empty = mkdtempSync(join(tmpdir(), 'imnstr-admin-'));
+    try {
+      expect(() => buildAssets(undefined, { adminDir: empty, requireAdmin: true })).toThrow(/admin bundle is missing/);
+      writeFileSync(join(empty, 'admin.js'), 'export {}');
+      expect(() => buildAssets(undefined, { adminDir: empty, requireAdmin: true })).toThrow(/admin\.css/);
+      writeFileSync(join(empty, 'admin.css'), 'body{}');
+      expect(buildAssets(undefined, { adminDir: empty, requireAdmin: true }).url('admin/admin.js')).toMatch(/^\/assets\/admin\/admin\.[0-9a-f]{10}\.js$/);
+    } finally {
+      rmSync(empty, { recursive: true, force: true });
+    }
+  });
+
+  it('lets development start without it, and names it only when it is there', () => {
+    const empty = mkdtempSync(join(tmpdir(), 'imnstr-admin-'));
+    try {
+      const assets = buildAssets(undefined, { adminDir: empty });
+      expect(() => assets.url('admin/admin.js')).toThrow(/Unknown asset/);
+    } finally {
+      rmSync(empty, { recursive: true, force: true });
+    }
   });
 });

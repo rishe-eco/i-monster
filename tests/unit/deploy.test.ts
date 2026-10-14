@@ -94,3 +94,34 @@ describe('the image', () => {
     expect(read('.dockerignore')).toMatch(/^node_modules$/m);
   });
 });
+
+// The image is built in two stages (plan B4b, PD-21): Vite builds the admin bundle in the first, and
+// the one that runs has no dev dependency. Docker isn't run here; the review builds and runs it.
+describe('Dockerfile', () => {
+  const dockerfile = live(read('Dockerfile'));
+  const stages = dockerfile.split(/^FROM /m).slice(1);
+
+  it('has a build stage and a runtime stage', () => {
+    expect(stages).toHaveLength(2);
+    expect(stages[0]).toMatch(/^node:24-slim AS build/);
+    expect(stages[1]).toMatch(/^node:24-slim\n/);
+  });
+
+  it('builds the bundle in the first stage, with every dependency and no install scripts', () => {
+    expect(stages[0]).toMatch(/RUN npm ci --ignore-scripts\n/);
+    expect(stages[0]).toContain('RUN npm run build');
+  });
+
+  it('installs only runtime dependencies in the second, still without scripts, and runs as it did', () => {
+    expect(stages[1]).toContain('RUN npm ci --omit=dev --ignore-scripts');
+    expect(stages[1]).not.toContain('npm run build');
+    expect(stages[1]).toContain('ENV NODE_ENV=production');
+    expect(stages[1]).toContain('USER node');
+    expect(stages[1]).toContain('CMD ["node", "--import", "tsx", "server.ts"]');
+  });
+
+  it('takes the bundle from the build stage, and never from the host', () => {
+    expect(stages[1]).toContain('COPY --from=build /app/dist/admin ./dist/admin');
+    expect(live(read('.dockerignore'))).toMatch(/^dist$/m);
+  });
+});

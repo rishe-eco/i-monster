@@ -12,6 +12,8 @@ describe('limits', () => {
     expect(limits.pageSize).toBe(20);
     expect(limits.feedSize).toBe(20);
     expect(limits.copiedMs).toBe(2000);
+    expect(limits.signInPauseMs).toBe(5000);
+    expect(limits.passkeyNameMax).toBe(60);
     expect(limits.bodyMaxBytes).toBe(64 * 1024);
   });
 });

@@ -102,6 +102,49 @@ describe('robots.txt', () => {
   });
 });
 
+// The admin's shell is a public page: the same bytes for everyone, no cookie read or set, and the same
+// policy as the rest. Its script is an external hashed file, so the CSP needs no exception (PD-21).
+const ADMIN_PAGES = ['/admin', '/admin/', '/admin/setup/x', '/admin/setup/K7FQ-2MXP-R9TD'];
+
+describe.each(ADMIN_PAGES)('headers on the admin shell %s', (path) => {
+  it('carries the exact CSP and the other security headers', async () => {
+    const res = await app.request(path);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Security-Policy')).toBe(CSP);
+    expect(res.headers.get('Strict-Transport-Security')).toBe('max-age=63072000');
+    expect(res.headers.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin');
+    expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(res.headers.get('Permissions-Policy')).toContain('camera=()');
+  });
+
+  it('never caches', async () => {
+    expect((await app.request(path)).headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('sets no cookie, and is identical with and without a session cookie (D-8)', async () => {
+    const plain = await app.request(path);
+    const cookie = await app.request(path, { headers: { Cookie: '__Host-imnstr_session=0123456789abcdef; other=1' } });
+    expect(plain.headers.get('Set-Cookie')).toBeNull();
+    expect(plain.headers.getSetCookie()).toEqual([]);
+    expect(cookie.headers.get('Set-Cookie')).toBeNull();
+    expect(await cookie.text()).toBe(await plain.text());
+  });
+
+  it('has no inline script and no style attribute, and asks for nothing off its own origin', async () => {
+    const html = await (await app.request(path)).text();
+    expect(html).not.toMatch(/<script(?![^>]*\ssrc=)/i);
+    expect(html).not.toMatch(/\sstyle\s*=|<style/i);
+    expect(html).not.toMatch(/\son[a-z]+\s*=/i);
+    const requested = [...html.matchAll(/<(?:link|script|img|iframe|source)\b[^>]*?\s(?:href|src)="([^"]+)"/g)].map((m) => m[1] as string);
+    expect(requested.length).toBeGreaterThan(0);
+    for (const url of requested) expect(url, url).toMatch(/^(\/(?!\/)|data:)/);
+  });
+
+  it('asks not to be indexed with PRELAUNCH=1, like every other response', async () => {
+    expect((await testApp(t.db, { PRELAUNCH: '1' }).request(path)).headers.get('X-Robots-Tag')).toBe('noindex');
+  });
+});
+
 describe('the admin never caches (PD-18)', () => {
   it('sets no-store on /admin paths, found or not', async () => {
     for (const path of ['/admin', '/admin/api/anything']) {
