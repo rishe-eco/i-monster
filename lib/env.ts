@@ -13,6 +13,10 @@ export interface Env {
   /** Asks search engines not to index the site (PD-22). */
   prelaunch: boolean;
   nodeEnv: NodeEnv;
+  /** The one origin the site is served from, with no path: `https://imnstr.com` in production. Sign-in is bound to it (PD-14). */
+  origin: string;
+  /** The WebAuthn relying-party id: the origin's hostname. Passkeys are bound to it. */
+  rpId: string;
 }
 
 type Source = Record<string, string | undefined>;
@@ -49,6 +53,23 @@ export function loadEnv(source: Source): Env {
     throw new Error(`SITE_TZ is not a timezone this runtime knows: "${siteTz}"`);
   }
 
+  // The origin defaults to the real site in production, so the server's .env
+  // needs no new line, and to the dev server elsewhere. Passkeys and the Origin
+  // check both rest on it, so a value that isn't a bare origin is refused.
+  const originText = source.ORIGIN?.trim() || (nodeEnv === 'production' ? 'https://imnstr.com' : `http://localhost:${port}`);
+  let originUrl: URL;
+  try {
+    originUrl = new URL(originText);
+  } catch {
+    throw new Error(`ORIGIN is not a URL: "${originText}"`);
+  }
+  if (originUrl.origin !== originText || (originUrl.protocol !== 'https:' && originUrl.protocol !== 'http:')) {
+    throw new Error(`ORIGIN must be a bare http(s) origin such as https://imnstr.com, got "${originText}"`);
+  }
+  if (nodeEnv === 'production' && originUrl.protocol !== 'https:') {
+    throw new Error('ORIGIN must be https when NODE_ENV=production');
+  }
+
   return {
     port,
     dbPath: source.DB_PATH?.trim() || '.tmp/dev.db',
@@ -56,6 +77,8 @@ export function loadEnv(source: Source): Env {
     e2eClock,
     prelaunch: flag(source.PRELAUNCH),
     nodeEnv,
+    origin: originUrl.origin,
+    rpId: originUrl.hostname,
   };
 }
 

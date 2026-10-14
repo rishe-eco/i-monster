@@ -10,6 +10,7 @@ import type { Db } from './lib/db.ts';
 import type { Env } from './lib/env.ts';
 import { securityHeaders } from './lib/headers.ts';
 import { langFromPath } from './lib/i18n.ts';
+import { adminApiRoutes } from './routes/admin-api.ts';
 import { logRoutes } from './routes/log.tsx';
 import { notFoundHandler, publicRoutes } from './routes/public.tsx';
 import { systemRoutes } from './routes/system.ts';
@@ -37,12 +38,14 @@ export function createApp({ env, db, assets = buildAssets() }: AppOptions): Hono
   // Hashed assets are immutable and need none.
   const withEtag = etag();
   app.use('*', (c, next) => (c.req.path.startsWith('/assets/') ? next() : withEtag(c, next)));
+  // Sessions are read on /admin/api only, by the guard inside adminApiRoutes (D-8).
   // B8 adds the reader-record middleware here, after language.
 
   app.route('/', systemRoutes(db, { prelaunch: env.prelaunch }));
   app.route('/', publicRoutes({ en: siteEn, fa: siteFa }));
   app.route('/', logRoutes(db));
-  if (env.e2eClock) app.route('/', testRoutes(db));
+  app.route('/', adminApiRoutes(db, env));
+  if (env.e2eClock) app.route('/', testRoutes(db, env));
 
   app.notFound(notFoundHandler);
   app.onError((error, c) => {

@@ -50,7 +50,7 @@ The plan, the spec and the design live in `E:\_root\root-sot\imnstr\modules\01-w
 An e2e run sets its server in the same Bash command (shell state does not persist between calls):
 `PORT=4110 DB_PATH=.tmp/e2e.db E2E_CLOCK=1 npx playwright test tests/e2e/landing.spec.ts -g "name" --workers=1`
 
-Environment variables are read only in `lib/env.ts` and listed in `.env.example`: `PORT`, `DB_PATH`, `SITE_TZ`, `E2E_CLOCK`, `PRELAUNCH`, `NODE_ENV`. The server refuses to boot with `E2E_CLOCK=1` and `NODE_ENV=production`. `PRELAUNCH=1` adds `X-Robots-Tag: noindex` and a disallow-all `robots.txt`.
+Environment variables are read only in `lib/env.ts` and listed in `.env.example`: `PORT`, `DB_PATH`, `SITE_TZ`, `E2E_CLOCK`, `PRELAUNCH`, `NODE_ENV`, `ORIGIN`. The server refuses to boot with `E2E_CLOCK=1` and `NODE_ENV=production`. `PRELAUNCH=1` adds `X-Robots-Tag: noindex` and a disallow-all `robots.txt`.
 
 ## Environment (the build machine)
 

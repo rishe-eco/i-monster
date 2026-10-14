@@ -2,6 +2,7 @@
 import type { AssetManifest } from './assets.ts';
 import type { Env } from './env.ts';
 import type { Lang } from './i18n.ts';
+import type { Session } from './sessions.ts';
 
 export interface AppEnv {
   Variables: {
@@ -9,5 +10,7 @@ export interface AppEnv {
     lang: Lang;
     assets: AssetManifest;
     env: Env;
+    /** Set only by the /admin/api guard, never on a public route (D-8). */
+    session: Session;
   };
 }
