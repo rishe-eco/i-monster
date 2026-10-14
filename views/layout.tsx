@@ -19,7 +19,7 @@ export interface LayoutProps {
 
 // The two families each language reads first, preloaded so the first paint
 // doesn't swap. Each language preloads only its own (PD-26).
-const PRELOAD: Record<Lang, string[]> = {
+export const PRELOAD: Record<Lang, string[]> = {
   en: [
     'fonts/bricolage-grotesque/bricolage-grotesque-latin-800-normal.woff2',
     'fonts/newsreader/newsreader-latin-400-normal.woff2',

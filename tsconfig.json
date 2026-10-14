@@ -16,5 +16,5 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", ".tmp", ".claude", "dist", "test-results", "playwright-report"]
+  "exclude": ["node_modules", ".tmp", ".claude", "admin", "dist", "test-results", "playwright-report"]
 }

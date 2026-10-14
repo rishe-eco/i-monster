@@ -11,6 +11,7 @@ import type { Env } from './lib/env.ts';
 import { securityHeaders } from './lib/headers.ts';
 import { langFromPath } from './lib/i18n.ts';
 import { adminApiRoutes } from './routes/admin-api.ts';
+import { adminRoutes } from './routes/admin.tsx';
 import { logRoutes } from './routes/log.tsx';
 import { notFoundHandler, publicRoutes } from './routes/public.tsx';
 import { systemRoutes } from './routes/system.ts';
@@ -22,7 +23,7 @@ export interface AppOptions {
   assets?: AssetManifest;
 }
 
-export function createApp({ env, db, assets = buildAssets() }: AppOptions): Hono<AppEnv> {
+export function createApp({ env, db, assets = buildAssets(undefined, { requireAdmin: env.nodeEnv === 'production' }) }: AppOptions): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
 
   // Middleware order (D-8): headers, then language. Nothing on a public route
@@ -45,6 +46,7 @@ export function createApp({ env, db, assets = buildAssets() }: AppOptions): Hono
   app.route('/', publicRoutes({ en: siteEn, fa: siteFa }));
   app.route('/', logRoutes(db));
   app.route('/', adminApiRoutes(db, env));
+  app.route('/', adminRoutes());
   if (env.e2eClock) app.route('/', testRoutes(db, env));
 
   app.notFound(notFoundHandler);

@@ -77,16 +77,18 @@ curl -sI https://www.imnstr.com/ | head -3
 
 Look for: `healthy`; the security headers on each response (the app sets them, Nginx adds none) and no `Set-Cookie`; `X-Robots-Tag: noindex` while `PRELAUNCH=1`; a 404 for the third; a 301 to the apex for the last. Then confirm root-app's own URL still answers. Paste the results into the stage record.
 
-From B4a the admin API is live. It has no screens until B4b, so these are checked with `curl` alone:
+From B4a the admin API is live, and from B4b the admin's screens: one HTML shell and one script, which the image's build stage makes (`npm run build`). The routine deploy is the same three lines; `docker compose build` runs both stages. The API and the shell are checked with `curl`:
 
 ```
 curl -si https://imnstr.com/admin/api/session
 curl -si -X POST -H 'Origin: https://evil.example' https://imnstr.com/admin/api/auth/signin/options
 curl -si -X POST -H 'Origin: https://imnstr.com' https://imnstr.com/admin/api/auth/signin/options
 curl -si https://imnstr.com/__test/auth
+curl -sI https://imnstr.com/admin
+curl -sI https://imnstr.com/admin/setup/x
 ```
 
-Look for: 401 with `{"code":"UNAUTHENTICATED"}`; 403 with `{"code":"ORIGIN_REFUSED"}`; 200 with `"rpId":"imnstr.com"` and `"userVerification":"required"`, which proves the server runs with `ORIGIN=https://imnstr.com` (a 403 here means it doesn't, and no passkey could sign in); 404 (the `/__test` routes exist only with `E2E_CLOCK=1`, which the server refuses in production). None of the four sets a cookie.
+Look for: 401 with `{"code":"UNAUTHENTICATED"}`; 403 with `{"code":"ORIGIN_REFUSED"}`; 200 with `"rpId":"imnstr.com"` and `"userVerification":"required"`, which proves the server runs with `ORIGIN=https://imnstr.com` (a 403 here means it doesn't, and no passkey could sign in); 404 (the `/__test` routes exist only with `E2E_CLOCK=1`, which the server refuses in production). None of the four sets a cookie. The two shell checks answer 200 with the same CSP as the public pages, `cache-control: no-store`, and no `Set-Cookie`. The script and stylesheet the shell names (`/assets/admin/admin.<hash>.js` and `.css`; read them from `curl -s https://imnstr.com/admin`) answer 200 with `cache-control: public, max-age=31536000, immutable`. If the image was built without the bundle the container does not start, which `docker compose ps` shows at once.
 
 ## The CLIs
 
@@ -103,7 +105,7 @@ dc exec -T imnstr node --import tsx scripts/backup.ts /backups/imnstr-manual.db
 sudo docker compose -f docker-compose.prod.yml exec imnstr npm run setup-token
 ```
 
-It prints a link, `https://imnstr.com/admin/setup/<token>`, and when it expires (the line after the link; ignore the two `>` lines npm prints first). Open the link in the browser of the device that will hold the passkey. The link works once and dies after 30 minutes unused. It is printed and written nowhere else: the database keeps only its hash, so a lost link means running the command again. The origin in the link comes from `ORIGIN`, which defaults to `https://imnstr.com` when `NODE_ENV=production`, so the server's `.env` needs no new line. Until B4b the page behind the link does not exist, so no token is issued in production before then.
+It prints a link, `https://imnstr.com/admin/setup/<token>`, and when it expires (the line after the link; ignore the two `>` lines npm prints first). Open the link in the browser of the device that will hold the passkey. The link works once and dies after 30 minutes unused. It is printed and written nowhere else: the database keeps only its hash, so a lost link means running the command again. The origin in the link comes from `ORIGIN`, which defaults to `https://imnstr.com` when `NODE_ENV=production`, so the server's `.env` needs no new line. The page behind the link is the admin's setup screen: it asks for a name for the passkey and registers this device; it works on a phone at 360 px.
 
 ## Backups
 

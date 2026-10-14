@@ -5,7 +5,7 @@
 // parts joined, with each font url() rewritten to its hashed address before
 // the stylesheet itself is hashed.
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, extname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,7 +21,18 @@ export interface AssetManifest {
   get(path: string): Asset | undefined;
 }
 
-const ASSETS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'assets');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const ASSETS_DIR = join(ROOT, 'assets');
+/** Where `npm run build` puts the admin bundle: one script and one stylesheet, under fixed names (PD-21). */
+const ADMIN_DIR = join(ROOT, 'dist', 'admin');
+const ADMIN_FILES = ['admin.js', 'admin.css'] as const;
+
+export interface AssetOptions {
+  /** Where the built admin bundle is. Tests point it at a stub. */
+  adminDir?: string;
+  /** Refuse to build the manifest when the bundle is missing: production boots only with it. */
+  requireAdmin?: boolean;
+}
 
 /** The stylesheet's parts, in cascade order. Together they are `css/site.css`. */
 const CSS_PARTS = ['fonts.css', 'tokens.css', 'base.css', 'components.css'];
@@ -54,7 +65,7 @@ function walk(dir: string, prefix = ''): string[] {
   return names;
 }
 
-export function buildAssets(dir: string = ASSETS_DIR): AssetManifest {
+export function buildAssets(dir: string = ASSETS_DIR, options: AssetOptions = {}): AssetManifest {
   const byName = new Map<string, string>();
   const byPath = new Map<string, Asset>();
 
@@ -79,6 +90,17 @@ export function buildAssets(dir: string = ASSETS_DIR): AssetManifest {
     return `url(${path})`;
   });
   add('css/site.css', Buffer.from(rewritten, 'utf8'));
+
+  // Vite writes the admin bundle under fixed names; it is hashed here like every other
+  // asset, so there is one hashing scheme and the shell always names the bytes it serves.
+  const adminDir = options.adminDir ?? ADMIN_DIR;
+  const missing = ADMIN_FILES.filter((file) => !existsSync(join(adminDir, file)));
+  if (missing.length > 0 && options.requireAdmin) {
+    throw new Error(`The admin bundle is missing (${missing.join(', ')} in ${adminDir}). Run \`npm run build\` first.`);
+  }
+  for (const file of ADMIN_FILES) {
+    if (!missing.includes(file)) add(`admin/${file}`, readFileSync(join(adminDir, file)));
+  }
 
   return {
     url(name) {

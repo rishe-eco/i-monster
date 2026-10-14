@@ -13,15 +13,18 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "seed-entry": "tsx scripts/seed-entry.ts",
-    "check": "tsc --noEmit && eslint .",
+    "check": "tsc --noEmit && tsc --noEmit -p admin && eslint .",
     "backup": "tsx scripts/backup.ts",
-    "setup-token": "tsx scripts/setup-token.ts"
+    "setup-token": "tsx scripts/setup-token.ts",
+    "build": "vite build --config admin/vite.config.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.4",
+    "@simplewebauthn/browser": "^14.0.0",
     "@simplewebauthn/server": "^14.0.3",
     "better-sqlite3": "^13.0.3",
     "hono": "^4.13.13",
+    "preact": "^11.0.1",
     "qrcode": "^1.5.4",
     "tsx": "^4.23.15"
   },
@@ -33,6 +36,7 @@
     "eslint": "^10.12.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.1",
+    "vite": "^8.3.4",
     "vitest": "^5.0.3"
   }
 }

@@ -71,6 +71,15 @@ export function formatAdminDate(instant: number, now: number, timeZone: string =
   return `${date}, ${p.hour}:${p.minute}`;
 }
 
+/**
+ * A day as the admin names it where the time of day adds nothing, with the
+ * year always: "10 Oct 2026". The passkey list uses it for "added" (AC-22).
+ */
+export function formatAdminDay(instant: number, timeZone: string = env.siteTz): string {
+  const p = partsOf(instant, 'en-US', { timeZone, day: 'numeric', month: 'short', year: 'numeric' });
+  return `${p.day} ${p.month} ${p.year}`;
+}
+
 /** The offset of a timezone at an instant, as "+03:30" or "-05:00". */
 function offsetOf(instant: number, timeZone: string): string {
   const name = partsOf(instant, 'en-US', { timeZone, timeZoneName: 'longOffset', hour: 'numeric' })

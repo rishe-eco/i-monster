@@ -25,10 +25,11 @@ export default defineConfig({
     { name: 'dark', use: { colorScheme: 'dark' } },
   ],
   webServer: {
-    command: 'npx tsx server.ts',
+    // The admin bundle is built first: the server serves it but doesn't build it (PD-21).
+    command: 'npm run build && npx tsx server.ts',
     url: `http://localhost:${port}/healthz`,
     reuseExistingServer: false,
-    timeout: 30_000,
+    timeout: 90_000,
     env: {
       PORT: String(port),
       DB_PATH: dbPath,

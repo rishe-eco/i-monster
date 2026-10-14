@@ -34,7 +34,7 @@ The plan, the spec and the design live in `E:\_root\root-sot\imnstr\modules\01-w
 
 ## Layout
 
-`server.ts` boots; `app.ts` assembles. `lib/` holds the one-rule files, `routes/` the routes, `views/` the JSX pages, `locales/` the public strings, `content/` the landing content (placeholder until P0-6), `migrations/` the numbered SQL, `assets/` the CSS and self-hosted fonts (served hashed, built at startup, no build step), `tests/{unit,integration,e2e}/`, `docs/development/` the stage list and records.
+`server.ts` boots; `app.ts` assembles. `lib/` holds the one-rule files, `routes/` the routes, `views/` the JSX pages, `locales/` the public strings, `content/` the landing content (placeholder until P0-6), `migrations/` the numbered SQL, `assets/` the CSS and self-hosted fonts (served hashed, built at startup, no build step), `admin/` the Preact admin bundle (the one thing that is built: Vite writes `dist/admin/admin.js` and `admin.css`, which the server hashes and serves like any asset), `tests/{unit,integration,e2e}/`, `docs/development/` the stage list and records.
 
 ## Commands
 
@@ -42,10 +42,11 @@ The plan, the spec and the design live in `E:\_root\root-sot\imnstr\modules\01-w
 |---|---|
 | `npm install --ignore-scripts` | once, at the repo root and in every new worktree (see *Environment*) |
 | `npm run dev` / `npm start` | the server, on `PORT` (default 4100) |
+| `npm run build` | the admin bundle, into `dist/admin/`. Production refuses to boot without it; Vitest and Playwright build it themselves when it is missing or stale. `npm run dev` doesn't, so run it once, and again after changing `admin/` |
 | `npm test` | Vitest: unit and integration, one temporary SQLite file per test file |
 | `npx vitest run tests/unit/dates.test.ts` | one file. A lane runs only its own files |
 | `npm run e2e` | Playwright on Edge, both colour schemes, 360 px |
-| `npm run check` | `tsc --noEmit` and ESLint. Cheap; run it before every commit |
+| `npm run check` | `tsc --noEmit` (the server, then `admin/`, which is Preact and has its own `tsconfig.json`) and ESLint. Cheap; run it before every commit |
 
 An e2e run sets its server in the same Bash command (shell state does not persist between calls):
 `PORT=4110 DB_PATH=.tmp/e2e.db E2E_CLOCK=1 npx playwright test tests/e2e/landing.spec.ts -g "name" --workers=1`

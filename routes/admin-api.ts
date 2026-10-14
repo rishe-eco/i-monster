@@ -14,6 +14,7 @@ import type { AppEnv } from '../lib/context.ts';
 import { CSRF_HEADER, csrfMatches } from '../lib/csrf.ts';
 import type { Db } from '../lib/db.ts';
 import type { Env } from '../lib/env.ts';
+import { limits } from '../lib/limits.ts';
 import { originGuard } from '../lib/origin.ts';
 import {
   SESSION_COOKIE,
@@ -64,7 +65,7 @@ const readJson = async (c: Context<AppEnv>): Promise<Record<string, unknown> | n
 };
 
 const INDEPENDENCE_KEY = 'independence_note_dismissed';
-const NAME_MAX = 60;
+const NAME_MAX = limits.passkeyNameMax;
 
 /** A passkey's name: trimmed, one line, 1 to 60 characters. Otherwise the code to refuse with. */
 function cleanName(value: unknown): { name: string } | { refusal: 'NAME_REQUIRED' | 'REQUEST_INVALID' } {

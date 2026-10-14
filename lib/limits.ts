@@ -18,6 +18,10 @@ export const limits = {
   enrolmentCodeMs: 10 * MINUTE,
   /** A WebAuthn challenge (PD-17). */
   webauthnChallengeMs: 5 * MINUTE,
+  /** After repeated sign-in failures the admin's button waits this long before it comes back (plate 6). */
+  signInPauseMs: 5 * SECOND,
+  /** The longest passkey name, in characters (B4a; the admin field and the API both read it). */
+  passkeyNameMax: 60,
   /** Entries and episodes per public page (AC-30). */
   pageSize: 20,
   /** Entries in the Atom feed (AC-3). */
