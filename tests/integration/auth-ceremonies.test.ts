@@ -73,6 +73,7 @@ describe('registering the first passkey with a setup token', () => {
       rp: { id: 'localhost' },
       attestation: 'none',
       authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
+      timeout: limits.webauthnChallengeMs,
     });
     expect(res.json.excludeCredentials).toEqual([]);
   });
@@ -191,6 +192,7 @@ describe('signing in', () => {
     expect(res.status).toBe(200);
     expect(res.json.rpId).toBe('localhost');
     expect(res.json.userVerification).toBe('required');
+    expect(res.json.timeout).toBe(limits.webauthnChallengeMs);
     expect(res.json.allowCredentials ?? []).toEqual([]);
   });
 

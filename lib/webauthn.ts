@@ -4,7 +4,9 @@
 // credential refuses to make a second one. Sign-in is discoverable: the
 // browser shows the passkeys it has, and the site never says which exist.
 //
-// Challenges live in memory for 5 minutes and work once. A restart loses them,
+// Challenges live in memory for 5 minutes and work once, and the browser is
+// told the same 5 minutes (the library's default is 60 s, short for a phone
+// reached by QR code, and WebAuthn advises 5 to 10 when the user is verified). A restart loses them,
 // which only means retrying. Nothing here logs: a challenge is a secret until it
 // is spent, and the library's own errors can quote it, so every failure is
 // swallowed into a null.
@@ -121,6 +123,7 @@ export async function registrationOptions(db: Db, env: Env, bind: string): Promi
     authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
     excludeCredentials: existing.map((c) => ({ id: c.id, transports: parseTransports(c.transports) })),
     supportedAlgorithmIDs: ALGORITHMS,
+    timeout: limits.webauthnChallengeMs,
   });
   remember(options.challenge, 'register', bind);
   return options;
@@ -169,7 +172,11 @@ export async function verifyRegistration(env: Env, response: unknown, bind: stri
 
 /** Discoverable: no `allowCredentials`, user verification required. `bind` is a session's id hash for a re-authentication. */
 export async function authenticationOptions(env: Env, kind: 'signin' | 'reauth', bind = ''): Promise<PublicKeyCredentialRequestOptionsJSON> {
-  const options = await generateAuthenticationOptions({ rpID: env.rpId, userVerification: 'required' });
+  const options = await generateAuthenticationOptions({
+    rpID: env.rpId,
+    userVerification: 'required',
+    timeout: limits.webauthnChallengeMs,
+  });
   remember(options.challenge, kind, bind);
   return options;
 }
