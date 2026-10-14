@@ -7,7 +7,7 @@ The build is nine stages, in the order of build plan §3 (`root-sot/imnstr/modul
 | B1 | Foundation: server, schema, dates, tokens and fonts, page shell in both languages, harness | L | P0-1 | MS1 (with B2) | verified 2026-10-11 · [record](B1.md) |
 | B2 | Deploy: image, compose, Nginx, TLS, backups, log retention | S | B1, P0-2, P0-3 | MS1 | verified 2026-10-14 · [record](B2.md) |
 | B3 | Public log and feed: doc schema, render, bidi, landing, `/log`, feed | L | B1 | MS2 | verified 2026-10-11 · [record](B3.md) |
-| B4a | Passkeys and sessions (server) | L | B1 | MS2 | planned |
+| B4a | Passkeys and sessions (server) | L | B1 | MS2 | verified 2026-10-14 · [record](B4a.md) |
 | B4b | Auth screens: sign-in, setup, passkeys, codes | M | B4a | MS2 | planned |
 | B5 | Entries API, admin shell, entries list | M | B3, B4b | MS3 | planned |
 | B6 | The editor: buffers, failures, in-place sign-in | L | B5 | MS3 | planned |
@@ -30,7 +30,7 @@ A stage that leaves something for a later one lists it in its own record, and it
 
 | What | To | From |
 |---|---|---|
-| The 401 test that enumerates the admin router (house rule 7) | B4a | B1 |
+| ~~The 401 test that enumerates the admin router (house rule 7)~~ done | B4a | B1 |
 | ~~Isolate inline Latin in the Persian copy through `lib/bidi.ts`; recheck the placeholder Persian~~ done | B3 | B1 |
 | Nav and 404 links to `/podcast` answer 404 until the route exists (`/log` and the feed done in B3) | B7 | B1 |
 | Insert an episode as a draft, add a link, then publish (extra trigger); supply `episode.date`, today in `SITE_TZ` | B7 | B1 |
@@ -41,7 +41,11 @@ A stage that leaves something for a later one lists it in its own record, and it
 | Refuse XML-forbidden control characters in `DOC_INVALID`, or strip them on paste (they are dropped at render now) | B5, B6 | B3 |
 | ~~Install with `npm ci --ignore-scripts` in the image~~ done | B2 | B3 |
 | Clear rows seeded on production with `reset-content` | B8 | B3 |
-| Tune `imnstr_auth`'s rate and burst against the real sign-in flow | B4a | B2 |
+| ~~Tune `imnstr_auth`'s rate and burst against the real sign-in flow~~ kept at 30r/m burst 10, with a floor test | B4a | B2 |
 | Raise `client_max_body_size` (1m) if a request body needs more | B5, B7 | B2 |
 | Optional: `server_tokens off;` in `imnstr.conf` | any deploy | B2 |
 | Contrast of B3's new dark pairs (dates, lede, empty state, feed link) | B9 | B3 |
+| JSON `NOT_FOUND` for an unknown `/admin/api` path when signed in (now the public HTML 404) | B5 | B4a |
+| Routers go inside `adminApiRoutes` after the guard, never under `auth/` (`auth-guard.test.ts` lists that prefix exactly) | B5, B7 | B4a |
+| `@simplewebauthn/browser`; the `/admin/setup/<code>` page the CLI's link opens; each platform's `excludeCredentials` refusal | B4b | B4a |
+| Correct the stale "B4a puts routes here" comment in `imnstr.conf` | next conf change | B4a |
