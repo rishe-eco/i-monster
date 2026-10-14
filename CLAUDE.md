@@ -67,3 +67,5 @@ Windows 10. The Bash tool runs Git Bash; npm runs package scripts through **cmd.
 ## Git
 
 Work on your stage's branch from `main`. Add files by name, never `git add -A`. The repo is public: no secrets, no `.env`, no personal data in any commit.
+
+A push to `main` deploys. Only `verify` pushes `main`. A new deploy check goes in `deploy/checks.sh`.

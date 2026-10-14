@@ -22,7 +22,7 @@ IMNSTR is a co-tenant on root-app's VPS (Ubuntu 22.04, Docker, Compose, Nginx 1.
    ```
    `PRELAUNCH=1` keeps the site out of search engines until launch. Do not set `E2E_CLOCK`: the server refuses to boot with it in production.
 
-3. **Start the app** (see *Routine deploys*) and check it answers on loopback: `curl -s http://127.0.0.1:4100/healthz` prints `ok`.
+3. **Start the app** (the three lines under *Deploying by hand*) and check it answers on loopback: `curl -s http://127.0.0.1:4100/healthz` prints `ok`.
 
 4. **Nginx, first the bootstrap file.** The final config points at a certificate that does not exist yet, and `nginx -t` refuses that. So start with the port-80-only file:
    ```
@@ -49,6 +49,26 @@ IMNSTR is a co-tenant on root-app's VPS (Ubuntu 22.04, Docker, Compose, Nginx 1.
 
 ## Routine deploys
 
+**A push to `main` deploys.** The workflow `.github/workflows/deploy.yml` runs on every push to `main`:
+
+1. The `check` job runs `npm ci --ignore-scripts`, `npm run check`, `npm run build` and `npm test` on Node 24 (no Playwright: the Edge e2e stays local, at the milestones).
+2. If that is green, the `deploy` job opens one SSH connection to the box as `imnstr-deploy`. That key can only run `/usr/local/sbin/imnstr-deploy`, as root through `sudo`, with no arguments (*Server setup for CI*, below). The job runs only for `main`, and only while the repository variable `DEPLOY_ENABLED` is `true`; any other value switches automatic deploys off, and `check` still runs.
+3. The script fast-forwards `/srv/imnstr`, builds the image on the box, runs `up -d --wait`, checks the container's health and `nginx -t`, then runs `deploy/checks.sh` as `nobody`. A green run ends with `DEPLOYED <sha>`, and the job says whether that is the pushed commit or a newer one.
+
+Only `verify` pushes `main`, so only reviewed code deploys. Watch the run on the repository's Actions page; it is public, and so is its log, which holds no secret and no line of `.env`.
+
+**The script never changes Nginx, the compose file or itself.** If `deploy/nginx/imnstr.conf` differs from the live copy, `docker-compose.prod.yml` changed, or `deploy/imnstr-deploy.sh` differs from the installed copy, it stops before changing anything and exits 2 (*What each exit code means*). It never reloads Nginx and never prunes images. A one-off server step (a setup token, a cron line, a new `.env` line) is still yours, by hand, before the push that needs it: the app boots on defaults without a new `.env` line.
+
+### Deploying by hand
+
+The same deploy, under the same lock, from your own shell:
+
+```
+sudo /usr/local/sbin/imnstr-deploy
+```
+
+It prints what it does and ends with `DEPLOYED <sha>`. It is also the fallback when CI is off or red, and the way to re-run after a manual step. Before the script is installed (the first time, or when it stopped on a stop file), the three plain lines are:
+
 ```
 cd /srv/imnstr && sudo git pull
 sudo docker compose -f docker-compose.prod.yml build
@@ -64,31 +84,140 @@ sudo nginx -t && sudo systemctl reload nginx || sudo cp /tmp/imnstr.conf.prev /e
 
 Shorthand used below: `dc` is `sudo docker compose -f docker-compose.prod.yml`, run from `/srv/imnstr`.
 
+### What each exit code means
+
+| Exit | Meaning | What to do |
+|---|---|---|
+| **0** | Deployed, and every check passed. The last line is `DEPLOYED <sha>`. | Nothing. |
+| **2** | **Stopped, and nothing was changed.** The running container is as it was. The line says why, and the line after it says what to do by hand. | The list below, then re-run: *Re-run all jobs* on the failed run, or **Run workflow** on the Actions page, or `sudo /usr/local/sbin/imnstr-deploy`. |
+| **1** | **Failed after something may have changed.** The line names the step: `build`, `up`, `health`, `nginx` or `checks`. The site is left on the new image: there is no automatic rollback, because migrations run at boot and old code against a migrated database is the riskier move. | Read the step's output, fix forward on `main`, or roll back by hand (below). A failed `build` leaves the old container serving. |
+
+What to do for each exit 2:
+
+- **Another deploy holds the lock.** Wait for it, then re-run.
+- **The checkout has uncommitted changes.** `cd /srv/imnstr && sudo git status` shows them. Commit, stash or discard them by hand, then re-run.
+- **`origin/main` is not a fast-forward** (history was rewritten, as on 2026-10-14). The script never resets the checkout. Look at `sudo git log` against `origin/main` in `/srv/imnstr`, decide there, then re-run.
+- **`imnstr.conf` differs from the live conf.** Bring the commit in, copy the file, check and reload (the three lines above), then re-run:
+  ```
+  cd /srv/imnstr && sudo git pull
+  ```
+- **`docker-compose.prod.yml` changed.** Deploy by hand (*Deploying by hand*: pull, build, `up -d`), then re-run.
+- **The installed script differs from the commit's.** Bring the commit in, reinstall the script, then re-run:
+  ```
+  cd /srv/imnstr && sudo git pull
+  sudo install -o root -g root -m 0755 /srv/imnstr/deploy/imnstr-deploy.sh /usr/local/sbin/imnstr-deploy
+  ```
+
+A re-run when the checkout is already current does not move it. It still builds (cached, so seconds), runs `up -d` (which changes nothing when the image is unchanged) and runs every check, so a run is only green when what is running passed.
+
+### Rolling back by hand
+
+A bad deploy stays up until you act. Roll back only when the bad commit added no migration (`cd /srv/imnstr && sudo git diff --stat <good>..HEAD -- migrations` prints nothing): a migrated database under old code is worse than the bug. If it did add one, fix forward, or restore a backup (*Restoring a backup into a scratch container*, below, and its last paragraph).
+
+1. In GitHub, **Settings, Secrets and variables, Actions, Variables**: set `DEPLOY_ENABLED` to `false`, so a push can't redeploy the bad commit while you work.
+2. On the box, put the last good commit (`sudo git log --oneline -10` shows them) back in the checkout and rebuild:
+   ```
+   cd /srv/imnstr
+   sudo git checkout --detach <good sha>
+   sudo docker compose -f docker-compose.prod.yml build
+   sudo docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 120
+   bash /srv/imnstr/deploy/checks.sh 1
+   ```
+   (`1` while `PRELAUNCH=1` is in `.env`; `0` after launch.)
+3. On your own machine, revert the bad commit on `main` and have `verify` push it. Then, on the box, return the checkout to the branch, and set `DEPLOY_ENABLED` back to `true`:
+   ```
+   cd /srv/imnstr
+   sudo git checkout main
+   ```
+   The next push deploys the revert on top of what `main` holds.
+
 ### Checks after every deploy
 
-```
-sudo docker inspect --format '{{.State.Health.Status}}' imnstr-imnstr-1
-sudo nginx -t
-curl -sI https://imnstr.com/
-curl -sI https://imnstr.com/fa/
-curl -sI https://imnstr.com/no-such-page
-curl -sI https://www.imnstr.com/ | head -3
-```
-
-Look for: `healthy`; the security headers on each response (the app sets them, Nginx adds none) and no `Set-Cookie`; `X-Robots-Tag: noindex` while `PRELAUNCH=1`; a 404 for the third; a 301 to the apex for the last. Then confirm root-app's own URL still answers. Paste the results into the stage record.
-
-From B4a the admin API is live, and from B4b the admin's screens: one HTML shell and one script, which the image's build stage makes (`npm run build`). The routine deploy is the same three lines; `docker compose build` runs both stages. The API and the shell are checked with `curl`:
+`deploy/checks.sh` is the one list. The deploy script runs it as `nobody` from the new checkout, so a stage that adds a deploy check edits that file in its own diff, and nobody reinstalls the root script. By hand, from any machine:
 
 ```
-curl -si https://imnstr.com/admin/api/session
-curl -si -X POST -H 'Origin: https://evil.example' https://imnstr.com/admin/api/auth/signin/options
-curl -si -X POST -H 'Origin: https://imnstr.com' https://imnstr.com/admin/api/auth/signin/options
-curl -si https://imnstr.com/__test/auth
-curl -sI https://imnstr.com/admin
-curl -sI https://imnstr.com/admin/setup/x
+bash deploy/checks.sh 1
 ```
 
-Look for: 401 with `{"code":"UNAUTHENTICATED"}`; 403 with `{"code":"ORIGIN_REFUSED"}`; 200 with `"rpId":"imnstr.com"` and `"userVerification":"required"`, which proves the server runs with `ORIGIN=https://imnstr.com` (a 403 here means it doesn't, and no passkey could sign in); 404 (the `/__test` routes exist only with `E2E_CLOCK=1`, which the server refuses in production). None of the four sets a cookie. The two shell checks answer 200 with the same CSP as the public pages, `cache-control: no-store`, and no `Set-Cookie`. The script and stylesheet the shell names (`/assets/admin/admin.<hash>.js` and `.css`; read them from `curl -s https://imnstr.com/admin`) answer 200 with `cache-control: public, max-age=31536000, immutable`. If the image was built without the bundle the container does not start, which `docker compose ps` shows at once.
+The argument is `1` while `PRELAUNCH=1` is in the server's `.env` (the checks expect `X-Robots-Tag: noindex`), `0` after launch (they expect it absent). Optional second and third arguments are the site's origin (default `https://imnstr.com`) and root-app's URL (default `https://m-root.com/`). It stops at the first failure and prints `FAILED <check name>: <why>`. It never reads `.env`.
+
+It covers: the security headers, no `Set-Cookie`, and noindex on `/`, `/fa/` and a 404; `www` to the apex and `http` to `https`, both 301; the admin API (B4a: 401 `UNAUTHENTICATED`, 403 `ORIGIN_REFUSED`, 200 sign-in options with `"rpId":"imnstr.com"` and `"userVerification":"required"`, which proves the server runs with `ORIGIN` set, and 404 for the test routes, which exist only with `E2E_CLOCK=1`); the admin shell on `/admin` and `/admin/setup/x` (200, the CSP, `no-store`); the bundle's script and stylesheet that the shell names (200, `immutable`); and root-app's own URL answering 200. It sends one POST, the sign-in options, which leaves a 5-minute challenge in the server's memory and nothing else.
+
+The two checks that need root stay in the script: the container's `healthy` (`sudo docker inspect --format '{{.State.Health.Status}}' imnstr-imnstr-1`) and `sudo nginx -t`. If the image was built without the bundle the container does not start, which `docker compose ps` shows at once.
+
+Paste the output into the stage record.
+
+## Server setup for CI
+
+Once, by the founder, as a sudo user, with the commit that carries these files already deployed by hand (*Deploying by hand*), so that `/srv/imnstr/deploy/imnstr-deploy.sh` exists. One command per line, `sudo` on each. **`imnstr-deploy` is a separate account from your own sudo user (`deploy` on this box). Never give CI's key to `deploy`.**
+
+1. **The key pair, on your own machine, never on the box and never in the repository.** No passphrase, because CI cannot type one:
+   ```
+   ssh-keygen -t ed25519 -N '' -C imnstr-ci -f ./imnstr-ci-key
+   ```
+   `imnstr-ci-key.pub` is the public half, one line. `imnstr-ci-key` is the private half. Both are deleted at step 8.
+
+2. **The user:** no password, `/bin/sh` as its shell (`sshd` runs the forced command through the user's shell, so `nologin` would block it), and no group but its own:
+   ```
+   sudo adduser --disabled-password --gecos '' --shell /bin/sh imnstr-deploy
+   ```
+   If a login later says the account is locked, `sudo usermod -p '*' imnstr-deploy` makes the password unusable without locking the account.
+
+3. **The key's line,** with the forced command. Paste the public key where `<public key>` is, keeping the single quotes. The directory and the file belong to root, so the user cannot rewrite its own line:
+   ```
+   sudo install -d -m 0755 -o root -g root /home/imnstr-deploy/.ssh
+   printf '%s\n' 'restrict,command="sudo -n /usr/local/sbin/imnstr-deploy" <public key>' | sudo tee /home/imnstr-deploy/.ssh/authorized_keys
+   sudo chmod 0644 /home/imnstr-deploy/.ssh/authorized_keys
+   ```
+   The line must read `restrict,command="sudo -n /usr/local/sbin/imnstr-deploy" ssh-ed25519 AAAA… imnstr-ci`. `restrict` gives no pty, no forwarding and no agent. Any command the client sends runs the script and nothing else.
+
+4. **The sudoers line.** A broken file in `/etc/sudoers.d/` breaks `sudo` for everyone on the box, so write it to a temporary file, check it with `visudo -cf`, and only then install it. The name has no dot, because `sudo` skips names with one. The empty `""` forbids arguments:
+   ```
+   F=$(mktemp /tmp/imnstr-deploy.XXXXXX)
+   printf 'imnstr-deploy ALL=(root) NOPASSWD: /usr/local/sbin/imnstr-deploy ""\n' > "$F"
+   sudo visudo -cf "$F"
+   ```
+   Only if the last command printed `parsed OK`:
+   ```
+   sudo install -m 0440 -o root -g root "$F" /etc/sudoers.d/imnstr-deploy
+   rm "$F"
+   sudo -n true
+   ```
+   The last line proves your own `sudo` still works.
+
+5. **The script,** from the checkout:
+   ```
+   sudo install -o root -g root -m 0755 /srv/imnstr/deploy/imnstr-deploy.sh /usr/local/sbin/imnstr-deploy
+   ```
+
+6. **Prove the account.** `id` shows no `docker` group; `sudo -l` lists the one command with `""`; the third is refused; and `nobody` can run the checks:
+   ```
+   id imnstr-deploy
+   sudo -l -U imnstr-deploy
+   sudo -u imnstr-deploy docker ps
+   sudo runuser -u nobody -- bash /srv/imnstr/deploy/checks.sh 1
+   ```
+
+7. **On GitHub (web),** in `rishe-eco/i-monster`. Settings, **Environments**, `production` (deployment branches: `main` only; no reviewers and no wait timer, since either would make every deploy wait for a click). Add four **environment secrets**:
+   - `DEPLOY_HOST`: the box's hostname or address;
+   - `DEPLOY_PORT`: `22`;
+   - `DEPLOY_KEY`: the whole private key file, including its `-----BEGIN` and `-----END` lines;
+   - `DEPLOY_KNOWN_HOSTS`: one line, the box's own host key. Make it on the box, with the same name or address as `DEPLOY_HOST` in place of `<host>`:
+     ```
+     echo "<host> $(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)"
+     ```
+
+   Then, under Settings, **Secrets and variables, Actions, Variables**, the repository variable `DEPLOY_ENABLED` = `true`. **Set it last.** Anything but `true` switches automatic deploys off.
+
+8. **Delete the private half** once it is pasted into `DEPLOY_KEY`, on your own machine:
+   ```
+   rm imnstr-ci-key imnstr-ci-key.pub
+   ```
+   (`Remove-Item` in PowerShell.) GitHub keeps the secret; nobody can read it back.
+
+9. **Re-run the workflow** (Actions, **Run workflow**). The checkout is current, so it builds from cache, ups, and runs the checks: green, with `DEPLOYED <sha>` equal to the pushed commit.
+
+If a run cannot connect: the provider's own firewall may limit SSH by address (hosted runners come from a wide, changing range), or the key line is wrong; `sudo journalctl -u ssh --since '10 minutes ago'` on the box says which. If `AllowUsers` or `AllowGroups` is ever added to `sshd_config`, add `imnstr-deploy` to it, then `sudo sshd -t && sudo systemctl reload ssh`.
 
 ## The CLIs
 
