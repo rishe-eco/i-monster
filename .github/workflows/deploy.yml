@@ -1,0 +1,92 @@
+# A push to main checks, then deploys. Only `verify` moves main, so what runs here is reviewed code.
+# The deploy is one SSH connection as the deploy user, whose key is locked to the one root-owned
+# script (deploy/README.md, "Server setup for CI"). This file can't widen what that key does.
+# The repo is public, so this log is public: nothing below prints a secret, and nothing sets -x.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  # For a re-run after a manual step (a conf copy, a compose change, a reinstalled script).
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      # --ignore-scripts, as in the image: better-sqlite3's binding.gyp would run node-gyp, and its
+      # prebuilt binary is loaded at run time anyway.
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+      # Vitest's global setup builds the bundle when it is missing; this step makes a broken
+      # bundle fail on its own line.
+      - run: npm run build
+      - run: npm test
+        env:
+          TZ: UTC
+
+  deploy:
+    needs: check
+    # DEPLOY_ENABLED is a repository variable: anything but "true" switches automatic deploys off.
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    environment: production
+    # One deploy at a time. A newer push waits behind the running one and replaces any older
+    # waiting run, which is harmless: the script deploys the tip of main.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      # Only to compare the pushed commit with the one the box reports (the verdict below).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/deploy_key"
+          known_hosts="$RUNNER_TEMP/known_hosts"
+          out="$RUNNER_TEMP/deploy.out"
+          printf '%s\n' "$DEPLOY_KEY" > "$key"
+          # The host key comes from a secret, never from ssh-keyscan at run time.
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$known_hosts"
+          # No remote command: the key's forced command runs the deploy script, whatever is sent.
+          # The script's output is the log; it prints no secret and no .env line. `|| status=$?`
+          # keeps the remote exit code (0 deployed, 2 stopped, 1 failed) for the verdict below.
+          status=0
+          ssh -T -i "$key" -p "$DEPLOY_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts" \
+            "imnstr-deploy@$DEPLOY_HOST" </dev/null 2>&1 | tee "$out" || status=$?
+          rm -f "$key" "$known_hosts"
+          deployed=$(sed -n 's/^DEPLOYED \([0-9a-f]\{40\}\)$/\1/p' "$out" | tail -n 1)
+          if [ "$status" -ne 0 ]; then
+            echo "The deploy script exited $status (0 deployed, 2 stopped with nothing changed, 1 failed)."
+            exit "$status"
+          fi
+          if [ -z "$deployed" ]; then
+            echo "No DEPLOYED line came back, so this run is not a deploy."
+            exit 1
+          fi
+          if [ "$deployed" = "$GITHUB_SHA" ]; then
+            echo "DEPLOYED $deployed is the pushed commit."
+          elif git fetch --quiet origin main && git merge-base --is-ancestor "$GITHUB_SHA" "$deployed" 2>/dev/null; then
+            echo "DEPLOYED $deployed is newer than the pushed commit $GITHUB_SHA."
+          else
+            echo "DEPLOYED $deployed is not the pushed commit $GITHUB_SHA, and this runner can't tell whether it is newer."
+            exit 1
+          fi
