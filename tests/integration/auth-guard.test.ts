@@ -78,6 +78,33 @@ describe('AC-8: every admin API route answers 401 without a session', () => {
     }
   });
 
+  // The guard skips the whole auth/ prefix, so a route added there would escape it
+  // and the enumeration above. The prefix holds exactly these, and a new one fails
+  // here until a review places it.
+  it('leaves only the ceremonies outside the guard', () => {
+    const unguarded = [...new Set(app.routes.filter((r) => r.method !== 'ALL' && r.path.startsWith('/admin/api/auth/')).map((r) => `${r.method} ${r.path}`))];
+    expect(unguarded.sort()).toEqual(
+      [
+        'POST /admin/api/auth/register/options',
+        'POST /admin/api/auth/register/verify',
+        'POST /admin/api/auth/reauth/options',
+        'POST /admin/api/auth/reauth/verify',
+        'POST /admin/api/auth/signin/options',
+        'POST /admin/api/auth/signin/verify',
+        'POST /admin/api/auth/signout',
+      ].sort(),
+    );
+  });
+
+  it('returns 401 from the ceremonies that check a session themselves, when there is none', async () => {
+    // Registration without a code is from a session; re-authentication always is.
+    for (const path of ['/admin/api/auth/register/options', '/admin/api/auth/register/verify', '/admin/api/auth/reauth/options', '/admin/api/auth/reauth/verify']) {
+      const res = await new Client(app, env).post(path, {});
+      expect(res.status, path).toBe(401);
+      expect(res.text, path).toBe(UNAUTHENTICATED);
+    }
+  });
+
   it('returns 401 for a path that is no route at all, so the guard covers what a later stage adds', async () => {
     for (const path of ['/admin/api/entries', '/admin/api/episodes', '/admin/api/zzz', '/admin/api']) {
       const res = await new Client(app, env).get(path);

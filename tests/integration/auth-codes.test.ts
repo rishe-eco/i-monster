@@ -153,6 +153,18 @@ describe('the enrolment code (AC-20)', () => {
     expect((await new Client(app, env).registerWithCode(newAuthenticator(env), code)).text).toBe(CODE_REFUSED);
   });
 
+  it('ends the session the enrolling request arrived with, as a sign-in does (AC-10)', async () => {
+    const { client } = await signedIn(app, t.db, env);
+    const code = await enrolmentCode(client);
+    const before = client.cookie;
+    expect((await client.registerWithCode(newAuthenticator(env), code, 'Phone')).status).toBe(200);
+    expect(client.cookie).not.toBe(before);
+    expect(count('SELECT count(*) AS n FROM session')).toBe(1);
+    const stale = new Client(app, env);
+    stale.cookie = before;
+    expect((await stale.get('/admin/api/session')).status).toBe(401);
+  });
+
   it('is refused after 10 minutes', async () => {
     const { client } = await signedIn(app, t.db, env);
     const code = await enrolmentCode(client);

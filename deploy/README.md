@@ -82,10 +82,11 @@ From B4a the admin API is live. It has no screens until B4b, so these are checke
 ```
 curl -si https://imnstr.com/admin/api/session
 curl -si -X POST -H 'Origin: https://evil.example' https://imnstr.com/admin/api/auth/signin/options
+curl -si -X POST -H 'Origin: https://imnstr.com' https://imnstr.com/admin/api/auth/signin/options
 curl -si https://imnstr.com/__test/auth
 ```
 
-Look for: 401 with `{"code":"UNAUTHENTICATED"}`; 403 with `{"code":"ORIGIN_REFUSED"}`; 404 (the `/__test` routes exist only with `E2E_CLOCK=1`, which the server refuses in production). None of the three sets a cookie.
+Look for: 401 with `{"code":"UNAUTHENTICATED"}`; 403 with `{"code":"ORIGIN_REFUSED"}`; 200 with `"rpId":"imnstr.com"` and `"userVerification":"required"`, which proves the server runs with `ORIGIN=https://imnstr.com` (a 403 here means it doesn't, and no passkey could sign in); 404 (the `/__test` routes exist only with `E2E_CLOCK=1`, which the server refuses in production). None of the four sets a cookie.
 
 ## The CLIs
 

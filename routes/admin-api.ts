@@ -197,6 +197,10 @@ export function adminApiRoutes(db: Db, env: Env): Hono<AppEnv> {
         const outcome = db.transaction(() => {
           if (redeemCode(db, body.code) === 'CODE_REFUSED') return null;
           insertCredential(db, name.name, verified);
+          // Enrolling signs this device in, so, as at sign-in, a session the
+          // request arrived with is ended rather than left behind (AC-10).
+          const old = cookieValue(c);
+          if (old) destroySession(db, hashSessionId(old));
           return createSession(db, verified.id);
         })();
         if (!outcome) return refuse(c, 'CODE_REFUSED');
