@@ -255,7 +255,7 @@ export function adminApiRoutes(db: Db, env: Env): Hono<AppEnv> {
 
   api.get('/passkeys', (c) => {
     const session = c.get('session');
-    const rows = db.prepare('SELECT id, name, created_at FROM credential ORDER BY created_at, id').all() as {
+    const rows = db.prepare('SELECT id, name, created_at FROM credential ORDER BY created_at, rowid').all() as {
       id: string;
       name: string;
       created_at: number;

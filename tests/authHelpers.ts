@@ -3,7 +3,7 @@
 // helpers.ts so the auth lane and the others never edit the same file.
 import type { Hono } from 'hono';
 import type { AppEnv } from '../lib/context.ts';
-import { issueSetupToken, issueEnrolmentCode } from '../lib/codes.ts';
+import { issueSetupToken } from '../lib/codes.ts';
 import type { Db } from '../lib/db.ts';
 import type { Env } from '../lib/env.ts';
 import { clearChallenges } from '../lib/webauthn.ts';
@@ -134,4 +134,3 @@ export async function enrolmentCode(client: Client): Promise<string> {
   return res.json.code as string;
 }
 
-export { issueEnrolmentCode };

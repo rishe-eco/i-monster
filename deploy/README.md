@@ -77,6 +77,16 @@ curl -sI https://www.imnstr.com/ | head -3
 
 Look for: `healthy`; the security headers on each response (the app sets them, Nginx adds none) and no `Set-Cookie`; `X-Robots-Tag: noindex` while `PRELAUNCH=1`; a 404 for the third; a 301 to the apex for the last. Then confirm root-app's own URL still answers. Paste the results into the stage record.
 
+From B4a the admin API is live. It has no screens until B4b, so these are checked with `curl` alone:
+
+```
+curl -si https://imnstr.com/admin/api/session
+curl -si -X POST -H 'Origin: https://evil.example' https://imnstr.com/admin/api/auth/signin/options
+curl -si https://imnstr.com/__test/auth
+```
+
+Look for: 401 with `{"code":"UNAUTHENTICATED"}`; 403 with `{"code":"ORIGIN_REFUSED"}`; 404 (the `/__test` routes exist only with `E2E_CLOCK=1`, which the server refuses in production). None of the three sets a cookie.
+
 ## The CLIs
 
 Run them inside the container, which has the database mounted:
@@ -85,6 +95,14 @@ Run them inside the container, which has the database mounted:
 dc exec -T imnstr node --import tsx scripts/seed-entry.ts --lang en --body-file /tmp/entry.txt
 dc exec -T imnstr node --import tsx scripts/backup.ts /backups/imnstr-manual.db
 ```
+
+**The setup token** is how the first passkey is made, and how both are recovered if both are lost (spec §4.3). It needs server access, so it is made here and nowhere else:
+
+```
+sudo docker compose -f docker-compose.prod.yml exec imnstr npm run setup-token
+```
+
+It prints a link, `https://imnstr.com/admin/setup/<token>`, and when it expires (the line after the link; ignore the two `>` lines npm prints first). Open the link in the browser of the device that will hold the passkey. The link works once and dies after 30 minutes unused. It is printed and written nowhere else: the database keeps only its hash, so a lost link means running the command again. The origin in the link comes from `ORIGIN`, which defaults to `https://imnstr.com` when `NODE_ENV=production`, so the server's `.env` needs no new line. Until B4b the page behind the link does not exist, so no token is issued in production before then.
 
 ## Backups
 

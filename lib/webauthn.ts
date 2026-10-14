@@ -110,7 +110,7 @@ const parseTransports = (text: string | null): string[] | undefined => {
 };
 
 export async function registrationOptions(db: Db, env: Env, bind: string): Promise<PublicKeyCredentialCreationOptionsJSON> {
-  const existing = db.prepare('SELECT id, transports FROM credential ORDER BY created_at, id').all() as { id: string; transports: string | null }[];
+  const existing = db.prepare('SELECT id, transports FROM credential ORDER BY created_at, rowid').all() as { id: string; transports: string | null }[];
   const options = await generateRegistrationOptions({
     rpName: RP_NAME,
     rpID: env.rpId,

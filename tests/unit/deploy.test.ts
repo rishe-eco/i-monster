@@ -49,6 +49,17 @@ describe('deploy/nginx/imnstr.conf', () => {
     expect(conf).toMatch(/location \/admin\/api\/auth\/ \{[^}]*limit_req zone=imnstr_auth/);
   });
 
+  // S-8 (B4a): a sign-in is two requests (options, verify), and so are a re-authentication and a
+  // registration. The founder does a few of these a minute at most, so 30 a minute with a burst of 10
+  // is room for several ceremonies at once and still stops a script. It is per address; the
+  // app's own back-off (PD-15) is what bounds guessing across addresses.
+  it('keeps the auth zone at a rate and burst that fit whole ceremonies, two requests each', () => {
+    const rate = Number(/zone=imnstr_auth:\w+ rate=(\d+)r\/m/.exec(conf)?.[1]);
+    const burst = Number(/limit_req zone=imnstr_auth burst=(\d+)/.exec(conf)?.[1]);
+    expect(rate).toBeGreaterThanOrEqual(30);
+    expect(burst).toBeGreaterThanOrEqual(10);
+  });
+
   // In nginx 1.18, http2 on one listen line turns it on for every site on that port.
   it('listens on 443 over IPv4 and IPv6, without http2', () => {
     expect(conf).toContain('listen 443 ssl;');

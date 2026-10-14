@@ -100,6 +100,19 @@ describe('registering the first passkey with a setup token', () => {
     expect(row<{ n: number }>('SELECT count(*) AS n FROM auth_code WHERE used_at IS NOT NULL').n).toBe(0);
   });
 
+  it('keeps any ordinary name, folds whitespace to single spaces, and refuses control characters', async () => {
+    const client = new Client(app, env);
+    const token = setupToken(t.db);
+    const options = await client.post('/admin/api/auth/register/options', { code: token });
+    const response = newAuthenticator(env).register(options.json as never);
+    const bell = await client.post('/admin/api/auth/register/verify', { code: token, name: 'Lap\u0007top', response });
+    expect(bell.json).toEqual({ code: 'REQUEST_INVALID' });
+    // A name that happens to be a word the code uses is still a name.
+    const ok = await client.post('/admin/api/auth/register/verify', { code: token, name: 'EMPTY\n\tphone', response });
+    expect(ok.status).toBe(200);
+    expect(row<{ name: string }>('SELECT name FROM credential').name).toBe('EMPTY phone');
+  });
+
   it('refuses a registration that was not user-verified, and keeps the code live', async () => {
     const client = new Client(app, env);
     const token = setupToken(t.db);
