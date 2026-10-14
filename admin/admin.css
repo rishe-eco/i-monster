@@ -1,0 +1,362 @@
+/* The admin's screens (plan B4b). They sit on the site's own stylesheet (tokens,
+   base, the wordmark), which the shell loads first, so this file holds only what
+   the admin adds. Logical properties and tokens only: the same rules the site's
+   sheets keep, and the same test reads this one. Dark follows prefers-color-scheme
+   through the tokens (AC-32); nothing here names a colour. */
+
+.screen {
+  max-inline-size: 30rem;
+  margin-inline: auto;
+  padding: 0 var(--pad-page) var(--space-6);
+  font-family: var(--font-ui);
+}
+
+/* The signed-in shell has room for lists and the QR. */
+.screen--wide {
+  max-inline-size: var(--measure-read);
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  padding-block-start: var(--space-3);
+}
+
+.admin-link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--hit);
+  min-inline-size: var(--hit);
+  font-weight: 500;
+  font-size: var(--size-ui);
+  color: var(--ink);
+}
+
+/* The sign-in view's eyes arrive in B9. Until then the slot keeps their room, so
+   nothing moves when they do, and it draws nothing. */
+.eyes-slot {
+  min-block-size: var(--hero-min);
+}
+
+.title {
+  margin-block: var(--space-5) var(--space-2);
+  font-weight: 800;
+  font-size: var(--size-cta);
+  line-height: 1.05;
+  letter-spacing: var(--tracking-display);
+  text-wrap: balance;
+}
+
+/* A heading takes focus when its screen appears; it needs no ring for that. */
+.title:focus {
+  outline: none;
+}
+
+.lede {
+  margin-block-end: var(--space-4);
+  font-family: var(--font-read);
+  font-size: var(--size-read);
+  line-height: 1.5;
+  color: var(--body-2);
+  text-wrap: pretty;
+}
+
+.hint {
+  margin-block-start: var(--space-xs);
+  font-size: var(--size-meta);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* ── Fields ── */
+
+.field {
+  margin-block-end: var(--space-3);
+}
+
+.field__label {
+  display: block;
+  margin-block-end: var(--space-xs);
+  font-weight: 700;
+  font-size: var(--size-ui);
+  color: var(--ink);
+}
+
+.field__input {
+  display: block;
+  inline-size: 100%;
+  min-block-size: var(--hit);
+  padding-inline: var(--space-2);
+  border: var(--rule) solid var(--field-edge);
+  border-radius: var(--radius-field);
+  background: var(--input-fill);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--size-button);
+}
+
+.field__input::placeholder {
+  color: var(--placeholder);
+}
+
+/* A code or a link is read letter by letter, so it gets room between them. */
+.field__input--code {
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+}
+
+/* ── Buttons ── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--hit);
+  padding-inline: var(--space-3);
+  border: var(--rule) solid var(--field-edge);
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--size-ui);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+
+.btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* The primary action is the highlighter, with an ink edge so it stands out on the paper in both modes. */
+.btn--primary {
+  min-block-size: var(--hit-button);
+  border-color: var(--rule-strong);
+  background: var(--highlight);
+  color: var(--highlight-ink);
+  font-size: var(--size-button);
+}
+
+/* Solid ink, for the one action that can't be undone (HIG #5). */
+.btn--solid {
+  border-color: var(--button-fill);
+  background: var(--button-fill);
+  color: var(--button-ink);
+}
+
+.btn--quiet {
+  font-weight: 600;
+}
+
+.btn--block {
+  display: flex;
+  inline-size: 100%;
+}
+
+/* ── Notices: success, error and the neutral "not now" ── */
+
+.notice {
+  margin-block: var(--space-2);
+  padding: var(--space-lg) var(--space-2);
+  border: var(--rule) solid var(--rule-soft);
+  border-radius: var(--radius-button);
+  font-size: var(--size-ui);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.notice--success {
+  border-color: var(--success-edge);
+  background: var(--success-fill);
+}
+
+.notice--error {
+  border-color: var(--error-edge);
+  background: var(--error-fill);
+  color: var(--error-ink);
+}
+
+/* ── Sections of the signed-in shell ── */
+
+.section {
+  margin-block-start: var(--space-4);
+  padding-block-start: var(--space-xs);
+  border-block-start: var(--rule) solid var(--rule-strong);
+}
+
+.section--last {
+  border-block-start: var(--rule) solid var(--rule-soft);
+}
+
+.section__heading {
+  margin: 0;
+}
+
+.disclosure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  inline-size: 100%;
+  min-block-size: var(--hit-button);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--size-project);
+  cursor: pointer;
+}
+
+.next {
+  margin-block-end: var(--space-2);
+  font-size: var(--size-ui);
+  color: var(--link);
+  font-weight: 600;
+}
+
+.passkey-list {
+  margin-block-end: var(--space-2);
+}
+
+.passkey {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-block-size: var(--hit-button);
+  padding-block: var(--space-md);
+  border-block-end: var(--rule-soft-width) solid var(--rule-soft);
+}
+
+.passkey__text {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.passkey__name {
+  font-weight: 700;
+  font-size: var(--size-button);
+  overflow-wrap: anywhere;
+}
+
+.passkey__meta {
+  font-size: var(--size-meta);
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-block: var(--space-2);
+}
+
+/* ── Panels in place: add a passkey, enrol a device ── */
+
+.panel {
+  margin-block: var(--space-3);
+  padding: var(--space-3);
+  border: var(--rule) solid var(--rule-soft);
+  border-radius: var(--radius-dialog);
+}
+
+.panel__title {
+  margin-block-end: var(--space-2);
+  font-weight: 800;
+  font-size: var(--size-project);
+}
+
+.qr {
+  display: block;
+  inline-size: min(100%, 15rem);
+  block-size: auto;
+  margin-block: var(--space-2);
+  border-radius: var(--radius-field);
+}
+
+.code {
+  margin-block-end: var(--space-2);
+  font-weight: 800;
+  font-size: var(--size-intro);
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  user-select: all;
+}
+
+/* The one-time note about independent passkeys (AC-24). */
+.note {
+  margin-block-start: var(--space-3);
+  padding: var(--space-2);
+  border-inline-start: var(--space-sm) solid var(--monster);
+  background: var(--success-fill);
+  font-size: var(--size-ui);
+  line-height: 1.45;
+}
+
+.note p + p {
+  margin-block-start: var(--space-1);
+}
+
+.note__title {
+  margin-block-end: var(--space-xs);
+  font-weight: 800;
+  font-size: var(--size-ui);
+}
+
+.note .btn {
+  margin-block-start: var(--space-md);
+}
+
+/* ── Dialogs: remove a passkey, show it's you ── */
+
+.modal {
+  inline-size: min(100% - 2 * var(--pad-page), 26rem);
+  padding: var(--space-3);
+  border: var(--rule) solid var(--rule-strong);
+  border-radius: var(--radius-dialog);
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+/* A veil in the page's own ground colour, so it fades the page in light and in dark alike. */
+.modal::backdrop {
+  background: var(--ground);
+  opacity: 0.85;
+}
+
+.modal__title {
+  margin-block-end: var(--space-1);
+  font-weight: 800;
+  font-size: var(--size-title);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.modal__body {
+  margin-block-end: var(--space-2);
+  font-family: var(--font-read);
+  font-size: var(--size-read);
+  line-height: 1.45;
+}
+
+.modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+@media (min-width: 48em) {
+  .screen {
+    padding-block-end: var(--space-8);
+  }
+}
