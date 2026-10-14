@@ -59,7 +59,7 @@ Windows 10. The Bash tool runs Git Bash; npm runs package scripts through **cmd.
 - **Install with `--ignore-scripts`** (`npm install` and `npm ci` alike). better-sqlite3 has a `binding.gyp`, so npm runs `node-gyp rebuild` for it, and that fails here: there is no Windows SDK. The package ships its own prebuilt binaries (`prebuilds/win32-x64.node`), which it loads at run time, so nothing needs compiling.
 - Node 24. **No `VAR=value cmd` prefixes inside `package.json` scripts**: cmd.exe cannot run them. Set variables in the Bash command that runs the suite.
 - **There is no Chrome.** Playwright runs on Edge (`channel: 'msedge'`). Do not install Playwright's Chromium.
-- **No Docker in development.** SQLite is a file. The Dockerfile (B2) is built only on the server.
+- **No Docker in development.** SQLite is a file. The one exception is a deploy stage's review, which builds and runs the image once (Docker Desktop) before it reaches the server.
 - **Background Bash commands ignore a leading `cd`.** Wrap them as `bash -c 'cd <worktree> && …'` and check the paths in the output.
 - No access to the server from a lane: anything that needs the VPS is written as files and a README.
 
