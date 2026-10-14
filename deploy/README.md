@@ -4,23 +4,21 @@ IMNSTR is a co-tenant on root-app's VPS (Ubuntu 22.04, Docker, Compose, Nginx 1.
 
 **Rules for the box.** Run `nginx -t` before every reload. Reload (`systemctl reload nginx`); never restart. A zone name or a `default_server` that clashes with another site fails `nginx -t` for all of them.
 
-## First-time setup
+**Every command here is written for a normal user with sudo,** one command per line, so each line can be pasted on its own. `sudo` covers the command, not a shell redirect after it: `sudo printf … > /etc/file` fails, because your own shell opens the file before `sudo` runs. So files that root owns are written through `sudo tee`.
 
-Done once, as root or with sudo.
+## First-time setup
 
 1. **Clone and directories.**
    ```
-   git clone https://github.com/rishe-eco/i-monster /srv/imnstr
-   mkdir -p /srv/imnstr/data /srv/imnstr/backups
-   chown 1000:1000 /srv/imnstr/data /srv/imnstr/backups
+   sudo git clone https://github.com/rishe-eco/i-monster /srv/imnstr
+   sudo mkdir -p /srv/imnstr/data /srv/imnstr/backups
+   sudo chown 1000:1000 /srv/imnstr/data /srv/imnstr/backups
    ```
    The container runs as `node` (uid 1000). It cannot write to a directory root owns.
 
 2. **The `.env`**, at `/srv/imnstr/.env` (never committed; `.env.example` lists every variable):
    ```
-   DB_PATH=/data/imnstr.db
-   PRELAUNCH=1
-   NODE_ENV=production
+   printf 'DB_PATH=/data/imnstr.db\nPRELAUNCH=1\nNODE_ENV=production\n' | sudo tee /srv/imnstr/.env
    ```
    `PRELAUNCH=1` keeps the site out of search engines until launch. Do not set `E2E_CLOCK`: the server refuses to boot with it in production.
 
@@ -28,54 +26,56 @@ Done once, as root or with sudo.
 
 4. **Nginx, first the bootstrap file.** The final config points at a certificate that does not exist yet, and `nginx -t` refuses that. So start with the port-80-only file:
    ```
-   cp /srv/imnstr/deploy/nginx/imnstr.bootstrap.conf /etc/nginx/sites-available/imnstr
-   ln -s /etc/nginx/sites-available/imnstr /etc/nginx/sites-enabled/imnstr
-   nginx -t && systemctl reload nginx
+   sudo cp /srv/imnstr/deploy/nginx/imnstr.bootstrap.conf /etc/nginx/sites-available/imnstr
+   sudo ln -s /etc/nginx/sites-available/imnstr /etc/nginx/sites-enabled/imnstr
+   sudo nginx -t && sudo systemctl reload nginx
    ```
    The live file is a **copy**, not a link into the repo, for two reasons. certbot's nginx plugin edits the live file for a moment at every renewal, and that must not happen inside the git checkout. And a `git pull` must not change what the box's next reload loads (root-app's, or certbot's) before anyone has run `nginx -t` on it.
 
 5. **The certificate**, without certbot editing any file in the repo:
    ```
-   certbot certonly --nginx -d imnstr.com -d www.imnstr.com      --deploy-hook 'nginx -t && systemctl reload nginx'
+   sudo certbot certonly --nginx -d imnstr.com -d www.imnstr.com --deploy-hook 'nginx -t && systemctl reload nginx'
    ```
-   DNS for both names must already point at the box. `certonly` writes the certificate and touches no config. certbot keeps the deploy hook and runs it after each renewal, so Nginx loads the new certificate.
+   DNS for both names must already point at the box. `certonly` writes the certificate and leaves the config as it was: the live file is still the bootstrap file afterwards, so the next step overwrites nothing of certbot's. certbot keeps the deploy hook and runs it after each renewal, so Nginx loads the new certificate.
 
 6. **Swap in the final config.**
    ```
-   cp /srv/imnstr/deploy/nginx/imnstr.conf /etc/nginx/sites-available/imnstr
-   nginx -t && systemctl reload nginx
+   sudo cp /srv/imnstr/deploy/nginx/imnstr.conf /etc/nginx/sites-available/imnstr
+   sudo nginx -t && sudo systemctl reload nginx
    ```
-   The certbot timer renews the certificate; `imnstr.conf` reads it from `/etc/letsencrypt/live/imnstr.com/`. Check with `certbot renew --dry-run`.
+   If `nginx -t` fails here, put the bootstrap file back before anything else reloads. The certbot timer renews the certificate; `imnstr.conf` reads it from `/etc/letsencrypt/live/imnstr.com/`. Check with `sudo certbot renew --dry-run --cert-name imnstr.com`.
 
 7. **Backups** (below): set up the cron line and the off-box target.
 
 ## Routine deploys
 
 ```
-cd /srv/imnstr && git pull && docker compose -f docker-compose.prod.yml build && docker compose -f docker-compose.prod.yml up -d
+cd /srv/imnstr && sudo git pull
+sudo docker compose -f docker-compose.prod.yml build
+sudo docker compose -f docker-compose.prod.yml up -d
 ```
 
-Migrations run at boot. If `deploy/nginx/imnstr.conf` changed, copy it over the live file, then check and reload. If `nginx -t` fails, put the old file back before anything else reloads:
+Migrations run at boot. If `deploy/nginx/imnstr.conf` changed, copy it over the live file, then check and reload. Keep the old file first, and if `nginx -t` fails, put it back before anything else reloads:
 ```
-cp /etc/nginx/sites-available/imnstr /tmp/imnstr.conf.prev
-cp /srv/imnstr/deploy/nginx/imnstr.conf /etc/nginx/sites-available/imnstr
-nginx -t && systemctl reload nginx || cp /tmp/imnstr.conf.prev /etc/nginx/sites-available/imnstr
+sudo cp /etc/nginx/sites-available/imnstr /tmp/imnstr.conf.prev
+sudo cp /srv/imnstr/deploy/nginx/imnstr.conf /etc/nginx/sites-available/imnstr
+sudo nginx -t && sudo systemctl reload nginx || sudo cp /tmp/imnstr.conf.prev /etc/nginx/sites-available/imnstr
 ```
 
-Shorthand used below: `dc` is `docker compose -f docker-compose.prod.yml`.
+Shorthand used below: `dc` is `sudo docker compose -f docker-compose.prod.yml`, run from `/srv/imnstr`.
 
 ### Checks after every deploy
 
 ```
-docker inspect --format '{{.State.Health.Status}}' imnstr-imnstr-1     # healthy
-nginx -t                                                                # before any reload
-curl -I https://imnstr.com/
-curl -I https://imnstr.com/fa/
-curl -I https://imnstr.com/no-such-page                                 # 404
-curl -I https://www.imnstr.com/                                         # 301 to the apex
+sudo docker inspect --format '{{.State.Health.Status}}' imnstr-imnstr-1
+sudo nginx -t
+curl -sI https://imnstr.com/
+curl -sI https://imnstr.com/fa/
+curl -sI https://imnstr.com/no-such-page
+curl -sI https://www.imnstr.com/ | head -3
 ```
 
-Look for: the security headers on each response (the app sets them, Nginx adds none), `X-Robots-Tag: noindex` while `PRELAUNCH=1`. Then confirm root-app's own URL still answers. Paste the results into the stage record.
+Look for: `healthy`; the security headers on each response (the app sets them, Nginx adds none) and no `Set-Cookie`; `X-Robots-Tag: noindex` while `PRELAUNCH=1`; a 404 for the third; a 301 to the apex for the last. Then confirm root-app's own URL still answers. Paste the results into the stage record.
 
 ## The CLIs
 
@@ -88,37 +88,43 @@ dc exec -T imnstr node --import tsx scripts/backup.ts /backups/imnstr-manual.db
 
 ## Backups
 
-`deploy/backup.sh` backs up with SQLite's online backup API (inside the container, so the app keeps running), checks the copy with `PRAGMA integrity_check`, keeps 14 days in `/srv/imnstr/backups`, and copies the directory off the box with `rsync -e ssh` to `$BACKUP_REMOTE`. If `$BACKUP_REMOTE` is unset it still makes the local backup, says so on stderr and exits 1, so cron reports it.
+`deploy/backup.sh` backs up with SQLite's online backup API (inside the container, so the app keeps running), checks the copy with `PRAGMA integrity_check`, keeps 14 days in `/srv/imnstr/backups`, and copies the directory off the box with `rsync -e ssh` to `$BACKUP_REMOTE`. If `$BACKUP_REMOTE` is unset it still makes the local backup, says so on stderr and exits 1, so cron reports it. Each backup is one self-contained file.
 
-The off-box target is another host (P0-4). Give the root user an ssh key that the target accepts, then in `/etc/cron.d/imnstr-backup`:
+The off-box target is another host (P0-4). Give the root user an ssh key that the target accepts, then write `/etc/cron.d/imnstr-backup`:
 
 ```
-BACKUP_REMOTE=backup@other-host:/backups/imnstr/
-17 3 * * * root /srv/imnstr/deploy/backup.sh
+printf 'BACKUP_REMOTE=backup@other-host:/backups/imnstr/\n17 3 * * * root /srv/imnstr/deploy/backup.sh\n' | sudo tee /etc/cron.d/imnstr-backup
 ```
 
 Until the off-box target exists, the cron line can go in without the `BACKUP_REMOTE` line: the daily local copy is still made, and the run exits 1 so the missing copy off the box stays visible.
 
-Try it by hand once before trusting cron: `BACKUP_REMOTE=... /srv/imnstr/deploy/backup.sh`, then look at `/srv/imnstr/backups` and the target.
+```
+printf '17 3 * * * root /srv/imnstr/deploy/backup.sh\n' | sudo tee /etc/cron.d/imnstr-backup
+```
+
+Try it by hand once before trusting cron: `sudo BACKUP_REMOTE=... /srv/imnstr/deploy/backup.sh`, then look at `/srv/imnstr/backups` and the target.
 
 ### Restoring a backup into a scratch container
 
 Prove a backup reads back, without touching the live data. This uses the live image but a throwaway data directory and another port:
 
 ```
-mkdir -p /tmp/imnstr-restore && cp /srv/imnstr/backups/imnstr-<stamp>.db /tmp/imnstr-restore/imnstr.db
-chown -R 1000:1000 /tmp/imnstr-restore
-docker run --rm -d --name imnstr-scratch -p 127.0.0.1:4199:4100 \
-  -e DB_PATH=/data/imnstr.db -e PRELAUNCH=1 \
-  -v /tmp/imnstr-restore:/data imnstr:latest
-curl -s http://127.0.0.1:4199/healthz            # ok
-curl -s http://127.0.0.1:4199/log | head         # the entries are there
-docker exec imnstr-scratch node --import tsx scripts/backup.ts /data/check.db   # copies and integrity-checks it
-docker stop imnstr-scratch && rm -rf /tmp/imnstr-restore
+B=$(ls -t /srv/imnstr/backups/imnstr-*.db | head -1)
+sudo mkdir -p /tmp/imnstr-restore
+sudo cp "$B" /tmp/imnstr-restore/imnstr.db
+sudo chown -R 1000:1000 /tmp/imnstr-restore
+sudo docker run --rm -d --name imnstr-scratch -p 127.0.0.1:4199:4100 -e DB_PATH=/data/imnstr.db -e PRELAUNCH=1 -v /tmp/imnstr-restore:/data imnstr:latest
+curl -s http://127.0.0.1:4199/healthz
+curl -s http://127.0.0.1:4199/log | head
+sudo docker exec imnstr-scratch node --import tsx scripts/backup.ts /data/check.db
+sudo docker stop imnstr-scratch
+sudo rm -rf /tmp/imnstr-restore
 ```
 
-To restore for real: `dc stop`, move the live `imnstr.db` (and any `-wal`/`-shm` beside it) aside, copy the backup in as `/srv/imnstr/data/imnstr.db`, `chown 1000:1000` it, `dc up -d`.
+`/healthz` prints `ok`, `/log` shows the entries, and the last `backup.ts` copies and integrity-checks the restored file.
+
+To restore for real: `dc stop`, move the live `imnstr.db` (and any `-wal`/`-shm` beside it) aside, copy the backup in as `/srv/imnstr/data/imnstr.db`, `sudo chown 1000:1000` it, `dc up -d`.
 
 ## Not covered here
 
-root-app's own `deploy/README.md` gets one line under "Somewhere else on the box", pointing at this file. That edit is made on root-app's `main`, by the orchestrator, not by a lane.
+root-app's own `deploy/README.md` has one line under "Somewhere else on the box", pointing at this file. That is the only edit to root-app, made on its `main` at B2's verify.
