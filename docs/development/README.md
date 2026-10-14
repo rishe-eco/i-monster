@@ -8,7 +8,7 @@ The build is nine stages, in the order of build plan §3 (`root-sot/imnstr/modul
 | B2 | Deploy: image, compose, Nginx, TLS, backups, log retention | S | B1, P0-2, P0-3 | MS1 | verified 2026-10-14 · [record](B2.md) |
 | B3 | Public log and feed: doc schema, render, bidi, landing, `/log`, feed | L | B1 | MS2 | verified 2026-10-11 · [record](B3.md) |
 | B4a | Passkeys and sessions (server) | L | B1 | MS2 | verified 2026-10-14 · [record](B4a.md) |
-| B4b | Auth screens: sign-in, setup, passkeys, codes | M | B4a | MS2 | planned |
+| B4b | Auth screens: sign-in, setup, passkeys, codes | M | B4a | MS2 | verified 2026-10-15 · [record](B4b.md) |
 | B5 | Entries API, admin shell, entries list | M | B3, B4b | MS3 | planned |
 | B6 | The editor: buffers, failures, in-place sign-in | L | B5 | MS3 | planned |
 | B7 | Podcast: public pages and the admin form | L | B6 | MS3 | planned |
@@ -47,5 +47,6 @@ A stage that leaves something for a later one lists it in its own record, and it
 | Contrast of B3's new dark pairs (dates, lede, empty state, feed link) | B9 | B3 |
 | JSON `NOT_FOUND` for an unknown `/admin/api` path when signed in (now the public HTML 404) | B5 | B4a |
 | Routers go inside `adminApiRoutes` after the guard, never under `auth/` (`auth-guard.test.ts` lists that prefix exactly) | B5, B7 | B4a |
-| `@simplewebauthn/browser`; the `/admin/setup/<code>` page the CLI's link opens; each platform's `excludeCredentials` refusal | B4b | B4a |
+| ~~`@simplewebauthn/browser`; the `/admin/setup/<code>` page the CLI's link opens~~ done; each platform's `excludeCredentials` wording moves to MS2 | B4b, MS2 | B4a |
+| "this device" after a hybrid sign-in names the other device's passkey (`device_credential` defaults to `opened_by`); look at it with a real hybrid sign-in | MS2 | B4b |
 | Correct the stale "B4a puts routes here" comment in `imnstr.conf` | next conf change | B4a |
