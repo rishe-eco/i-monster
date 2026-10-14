@@ -10,7 +10,7 @@ Done once, as root or with sudo.
 
 1. **Clone and directories.**
    ```
-   git clone https://github.com/rishe-eco/imnstr /srv/imnstr
+   git clone https://github.com/rishe-eco/i-monster /srv/imnstr
    mkdir -p /srv/imnstr/data /srv/imnstr/backups
    chown 1000:1000 /srv/imnstr/data /srv/imnstr/backups
    ```
