@@ -9,6 +9,7 @@ The build is nine stages, in the order of build plan §3 (`root-sot/imnstr/modul
 | B3 | Public log and feed: doc schema, render, bidi, landing, `/log`, feed | L | B1 | MS2 | verified 2026-10-11 · [record](B3.md) |
 | B4a | Passkeys and sessions (server) | L | B1 | MS2 | verified 2026-10-14 · [record](B4a.md) |
 | B4b | Auth screens: sign-in, setup, passkeys, codes | M | B4a | MS2 | verified 2026-10-15 · [record](B4b.md) |
+| CD1 | Deploy on push to `main`: workflow, root deploy script, `deploy/checks.sh` (change note 04, not in the plan's nine) | M | B2, B4b | — | verified 2026-10-15 · [record](CD1.md) |
 | B5 | Entries API, admin shell, entries list | M | B3, B4b | MS3 | planned |
 | B6 | The editor: buffers, failures, in-place sign-in | L | B5 | MS3 | planned |
 | B7 | Podcast: public pages and the admin form | L | B6 | MS3 | planned |
@@ -50,3 +51,5 @@ A stage that leaves something for a later one lists it in its own record, and it
 | ~~`@simplewebauthn/browser`; the `/admin/setup/<code>` page the CLI's link opens~~ done; each platform's `excludeCredentials` wording moves to MS2 | B4b, MS2 | B4a |
 | "this device" after a hybrid sign-in names the other device's passkey (`device_credential` defaults to `opened_by`); look at it with a real hybrid sign-in | MS2 | B4b |
 | Correct the stale "B4a puts routes here" comment in `imnstr.conf` | next conf change | B4a |
+| Prune old `imnstr` images on the box, filtered by label or repository, never a global prune | any deploy | CD1 |
+| A stage that adds a deploy check adds it to `deploy/checks.sh`; a stop file (`imnstr.conf`, the compose file, `deploy/imnstr-deploy.sh`) or a new `.env` line in a stage's diff is planned before its push | every stage | CD1 |

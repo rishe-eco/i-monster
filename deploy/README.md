@@ -207,7 +207,7 @@ Once, by the founder, as a sudo user, with the commit that carries these files a
      echo "<host> $(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)"
      ```
 
-   Then, under Settings, **Secrets and variables, Actions, Variables**, the repository variable `DEPLOY_ENABLED` = `true`. **Set it last.** Anything but `true` switches automatic deploys off.
+   Then, under Settings, **Secrets and variables, Actions, Variables**, the repository variable `DEPLOY_ENABLED` = `true`, under *Repository variables*. **Set it last.** Anything but `true` switches automatic deploys off. **Not as an environment variable of `production`:** GitHub decides whether to run a job before it loads the job's environment, so the `deploy` job's `if` can't see one there, and every run shows `deploy` as skipped (found at CD1's verify).
 
 8. **Delete the private half** once it is pasted into `DEPLOY_KEY`, on your own machine:
    ```
