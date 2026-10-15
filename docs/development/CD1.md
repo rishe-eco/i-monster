@@ -74,6 +74,6 @@ From the note's list, for the founder to accept as **F-10**:
 
 **How the checklist was checked.** §6 by reading and on the box: no Nginx reload anywhere in the script (`nginx -t` only), no prune, the conf and compose untouched (stop files), `E2E_CLOCK` untouched, commands for a sudo user. §2 rule 10 by reading and by test: no secret or `.env` line printed (the harness's `.env` holds a marker that must not reach the output), no `set -x`. §1, §3 to §5: the diff touches no app code, route, schema or UI.
 
-**CI-11, the first automatic deploy of a real commit:** this record's push. Its run and verdict follow in the next commit.
+**CI-11, the first automatic deploy of a real commit:** this record's push, `0cbfdc1`. [Run 4](https://github.com/rishe-eco/i-monster/actions/runs/38662817219), on the push, with no one at the box: `check` green in 29 s (00:56:00–00:56:29 UTC), then `deploy` green in 29 s (00:56:33–00:57:02). The job passes only when a `DEPLOYED` line comes back and equals the pushed commit or a newer one, and `main` held nothing newer, so the box deployed `0cbfdc1`. Its 14 checks passed, or the script would have exited 1. The log itself needs a signed-in viewer, so the `checks.sh` lines are the server paste above, from the same script. `https://imnstr.com/` answered 200 afterwards. This commit deploys again, harmlessly.
 
-**Verified; on `main`, deployed by hand and by CI.**
+**Verified; on `main`, deployed by hand and by CI (CI-1 to CI-11).**
