@@ -25,6 +25,8 @@ jobs:
       # --ignore-scripts, as in the image: better-sqlite3's binding.gyp would run node-gyp, and its
       # prebuilt binary is loaded at run time anyway.
       - run: npm ci --ignore-scripts
+      # The runner image ships shellcheck. The deploy script runs as root on a shared box.
+      - run: shellcheck deploy/imnstr-deploy.sh deploy/checks.sh
       - run: npm run check
       # Vitest's global setup builds the bundle when it is missing; this step makes a broken
       # bundle fail on its own line.

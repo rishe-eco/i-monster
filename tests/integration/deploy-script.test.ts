@@ -146,7 +146,8 @@ function makeBox(): Box {
   const installed = join(dir, 'installed-imnstr-deploy');
   writeFileSync(liveConf, CONF);
   copyFileSync(SCRIPT, installed);
-  for (const [name, body] of Object.entries(STUBS)) writeFileSync(join(dir, 'bin', name), body);
+  // Executable, because the script runs them by path: Git Bash doesn't care, Linux (CI) does.
+  for (const [name, body] of Object.entries(STUBS)) writeFileSync(join(dir, 'bin', name), body, { mode: 0o755 });
   return { dir, origin, srv, work, liveConf, installed, log: join(dir, 'calls.log') };
 }
 

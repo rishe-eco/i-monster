@@ -44,6 +44,8 @@ describe('the workflow: the check job (CI-1)', () => {
     expect(check).toContain('run: npm run check');
     expect(check).toContain('run: npm run build');
     expect(check).toContain('run: npm test');
+    // The runner image ships shellcheck; Docker Desktop, for the local run, often isn't up.
+    expect(check).toContain('run: shellcheck deploy/imnstr-deploy.sh deploy/checks.sh');
     const order = ['npm ci', 'npm run check', 'npm run build', 'npm test'].map((s) => check.indexOf(s));
     expect(order).toEqual([...order].sort((a, b) => a - b));
   });
@@ -123,7 +125,7 @@ describe('deploy/imnstr-deploy.sh (CI-5, CI-6, CI-7, CI-10)', () => {
   it('takes a non-blocking flock on the one lock file, and only fast-forwards', () => {
     expect(deployLive).toMatch(/"\$FLOCK" -n 9/);
     expect(deployLive).toContain('FLOCK="${IMNSTR_FLOCK:-flock}"');
-    expect(deployLive).toContain('LOCK="${IMNSTR_LOCK:-/run/lock/imnstr-deploy.lock}"');
+    expect(deployLive).toContain('LOCK="${IMNSTR_LOCK:-/run/imnstr-deploy.lock}"');
     expect(deployLive).toContain('--ff-only');
     expect(deployLive).toContain('merge-base --is-ancestor');
   });

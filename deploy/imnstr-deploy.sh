@@ -24,7 +24,7 @@ set -euo pipefail
 # sudo's env_reset strips the environment of the deploy user, so none of these can be set from
 # outside the SSH session; the defaults below are what runs there.
 DIR="${IMNSTR_DIR:-/srv/imnstr}"
-LOCK="${IMNSTR_LOCK:-/run/lock/imnstr-deploy.lock}"
+LOCK="${IMNSTR_LOCK:-/run/imnstr-deploy.lock}"
 LIVE_CONF="${IMNSTR_LIVE_CONF:-/etc/nginx/sites-available/imnstr}"
 INSTALLED="${IMNSTR_INSTALLED:-/usr/local/sbin/imnstr-deploy}"
 CONTAINER="${IMNSTR_CONTAINER:-imnstr-imnstr-1}"
@@ -55,7 +55,9 @@ die() {
 }
 
 # ── 1. The lock ──
-# One deploy at a time, whether it came from CI or from the founder's shell.
+# One deploy at a time, whether it came from CI or from the founder's shell. The file is in /run,
+# which only root can write, not in the world-writable /run/lock, where another account on this
+# shared box could plant it first and hold it.
 exec 9>"$LOCK"
 if ! "$FLOCK" -n 9; then
   echo "STOP (exit 2, nothing changed): another deploy holds $LOCK"
