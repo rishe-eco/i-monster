@@ -90,7 +90,7 @@ A second run, to measure the build stage under a 384 MiB cap, failed. Docker Des
 - `/` and `/fa/`: `200`, `no-cache`, the same CSP and headers as B4a's deploy, no `Set-Cookie`.
 - `/admin/api/session`: `401`, 26 bytes of JSON, `no-store`.
 - `npm run setup-token` in the container printed the `https://imnstr.com/admin/setup/…` link with a 30-minute expiry.
-- **The first real passkey (V-7 starts).** The founder opened the link on their phone, created the passkey, signed out, and signed back in. All of it worked.
+- **The first real passkey (V-7 starts).** The founder opened the link on their Windows desktop (Chrome, Google Password Manager), created the passkey, signed out, and signed back in. All of it worked. *Corrected at MS2, 2026-10-15: this record first said "phone".*
 - Not in the pasted output: the container's health after `starting`, and root-app's own URL. Nothing outside `/srv/imnstr` changed at this deploy.
 
 **The ceiling** (review checklist §8):
@@ -98,7 +98,7 @@ A second run, to measure the build stage under a 384 MiB cap, failed. Docker Des
 | Item | Status |
 |---|---|
 | Headers through Nginx | **done**, above |
-| Real passkeys on the founder's phone and laptop; hybrid sign-in; enrolment by code | **phone: done** (setup, sign-out, sign-in); laptop, hybrid sign-in and enrolment by code owed, MS2 |
+| Real passkeys on the founder's phone and laptop; hybrid sign-in; enrolment by code | **desktop: done** (setup, sign-out, sign-in; first recorded as the phone, corrected at MS2); laptop and enrolment by code done at MS2; phone and hybrid sign-in owed (V-7) |
 | AC-24, independent credentials | owed, MS2 and before launch |
 | Contrast of the dark pairs | owed, B9 |
 

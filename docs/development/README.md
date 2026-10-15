@@ -23,6 +23,24 @@ Milestones (plan §3). At each, the full suites run one at a time and the counts
 - **MS3 (B5–B8):** every feature exists; E1 (M3, AC-15) has passed at B6.
 - **MS4 (B9):** the launch gate: full suites and the access sweep pass.
 
+### MS2 · 2026-10-15
+
+Run in the main checkout on the milestone script (`root-sot/lifecycle/projects/imnstr/config.md` §6), one heavy runner at a time.
+
+| Suite | Result | On |
+|---|---|---|
+| `npm run check` | clean | `main @ 4c2b9b2`, and again after CD1 |
+| `npm test` | **32 files, 599 tests passed** (30 files, 549 tests before CD1's two test files) | after CD1 (`faceda1`) |
+| `npm run e2e` | **213 passed, 9 skipped**, one worker (the skips are `auth.spec.ts`'s dark runs, by design) | `4c2b9b2` plus the one-worker fix; CD1 changed no app or e2e file |
+
+**Fixed at the milestone:** the first full `npm run e2e` ran on two workers, the light and dark projects side by side against one server, database and test clock. Five enrolment-code tests in `admin-auth.spec.ts` failed on each other's state (208 passed, 5 failed). `playwright.config.ts` now sets `workers: 1`.
+
+**By hand:**
+- **Seeded on production by the CLI:** one English entry (titled) and one Persian (untitled), through `seed-entry` in the container. `/log`, `/fa/log` and both feeds answer `200` and list them. B8's `reset-content` clears them before launch.
+- **Real passkeys, two computers:** the Windows desktop (Chrome, Google Password Manager) holds the first passkey, from B4b's setup token. The Ubuntu laptop (Chrome, Google Password Manager, a different Google account) was enrolled by code from the desktop's link. Each device signs in with its own passkey, and each list marks the right one "this device". The independence note shows.
+- **`excludeCredentials` on Chrome with Google Password Manager,** Windows and Linux alike: "Add a passkey on this device" asks for the manager's PIN, then the page shows "This device already has a passkey for this site." Chrome shows no wording of its own.
+- **Owed, with the phone (V-7):** a phone passkey; the hybrid (QR) sign-in, and "this device" after it (S-15); the QR scanned by a camera; the phone keyboard at 360 px; and **AC-24**, deferred by the founder (it runs again before launch anyway).
+
 Parallel lanes: never more than two at once. B2 and B3 can run together; B3 and B4a can run together; B5 and B8 can run together. The only shared file at risk is `app.ts`, which gains one line per stage.
 
 ## Owed
@@ -48,8 +66,8 @@ A stage that leaves something for a later one lists it in its own record, and it
 | Contrast of B3's new dark pairs (dates, lede, empty state, feed link) | B9 | B3 |
 | JSON `NOT_FOUND` for an unknown `/admin/api` path when signed in (now the public HTML 404) | B5 | B4a |
 | Routers go inside `adminApiRoutes` after the guard, never under `auth/` (`auth-guard.test.ts` lists that prefix exactly) | B5, B7 | B4a |
-| ~~`@simplewebauthn/browser`; the `/admin/setup/<code>` page the CLI's link opens~~ done; each platform's `excludeCredentials` wording moves to MS2 | B4b, MS2 | B4a |
-| "this device" after a hybrid sign-in names the other device's passkey (`device_credential` defaults to `opened_by`); look at it with a real hybrid sign-in | MS2 | B4b |
+| ~~`@simplewebauthn/browser`; the `/admin/setup/<code>` page the CLI's link opens~~ done; each platform's `excludeCredentials` wording: Chrome with Google Password Manager done at MS2, the phone's owed | B4b, phone check (V-7) | B4a |
+| "this device" after a hybrid sign-in names the other device's passkey (`device_credential` defaults to `opened_by`); look at it with a real hybrid sign-in | phone check (V-7) | B4b |
 | Correct the stale "B4a puts routes here" comment in `imnstr.conf` | next conf change | B4a |
 | Prune old `imnstr` images on the box, filtered by label or repository, never a global prune | any deploy | CD1 |
 | A stage that adds a deploy check adds it to `deploy/checks.sh`; a stop file (`imnstr.conf`, the compose file, `deploy/imnstr-deploy.sh`) or a new `.env` line in a stage's diff is planned before its push | every stage | CD1 |
