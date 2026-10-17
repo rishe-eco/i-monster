@@ -567,3 +567,554 @@ test('at 200% zoom (180 px) nothing scrolls sideways and the toolbar, the action
   await expectColourScheme(page, info);
   expect(admin.problems).toEqual([]);
 });
+
+// ── Nothing is lost (plan B6, PD-12, AC-16, AC-43): buffers, failures, and signing in over the text ──
+
+const MINUTE = 60_000;
+
+/** A buffer as the page keeps it on this device, or null. */
+async function buffer(page: Page, name: 'unsent' | 'edit' | 'kept'): Promise<Record<string, unknown> | null> {
+  const raw = await page.evaluate((key) => localStorage.getItem(key), `imnstr:entry:${name}`);
+  return raw === null ? null : (JSON.parse(raw) as Record<string, unknown>);
+}
+
+const publishedNotice = (page: Page) => page.getByRole('status').filter({ hasText: "Published. It's out there." });
+const alertWith = (page: Page, text: string) => page.getByRole('alert').filter({ hasText: text });
+
+/** Going offline makes the browser log a failed load, which is the point of the test and not a problem with the page. */
+const forgiveOffline = (admin: Admin) => {
+  admin.problems.splice(0, admin.problems.length, ...admin.problems.filter((message) => !/ERR_INTERNET_DISCONNECTED/.test(message)));
+};
+
+/** The publish keys of every request that creates an entry, in order. */
+function watchKeys(page: Page): string[] {
+  const keys: string[] = [];
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && r.url().endsWith('/admin/api/entries')) keys.push((r.postDataJSON() as { publishKey: string }).publishKey);
+  });
+  return keys;
+}
+
+/** Seed one published entry and return its id. */
+async function seedPublished(request: Parameters<typeof resetAdmin>[0], lang: Lang = 'en'): Promise<string> {
+  const id = 'a000000010';
+  const res = await request.post('/__test/entries', { data: { entries: [{ id, lang, title: 'An old entry', text: 'Broken link here, see the paper.', firstPublishedAt: NOW - 2 * DAY }] } });
+  expect(res.ok()).toBe(true);
+  return id;
+}
+
+async function openEdit(page: Page): Promise<void> {
+  const entries = page.getByRole('button', { name: 'Entries', exact: true });
+  if ((await entries.getAttribute('aria-expanded')) !== 'true') await entries.click();
+  await page.getByRole('button', { name: 'Edit An old entry' }).click();
+  await expect(page.locator('.frame .frame__status')).toContainText('Editing');
+}
+
+test('J3.1, J3.2: the network drops during a publish. It says so, keeps the text, sends nothing by itself, and a tap sends it again with the same key: one entry (AC-16, AC-25, G4)', async ({ browser, baseURL, request }, info) => {
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  const keys = watchKeys(page);
+  await titleField(page).fill('On the train');
+  await write(page, 'Written with no signal.');
+  await expect(page.getByText('Kept on this phone', { exact: true })).toBeVisible();
+
+  await admin.context.setOffline(true);
+  await publishButton(page).click();
+  const failure = alertWith(page, 'Not published yet.');
+  await expect(failure).toContainText('The connection dropped. Your text is kept on this phone.');
+  // The one fact first, in words; and the error sits right above the actions, where the eye is (W5).
+  const [fail, actions] = [await failure.boundingBox(), await page.locator('.composer__actions').boundingBox()];
+  expect((actions?.y ?? 0) - ((fail?.y ?? 0) + (fail?.height ?? 0))).toBeLessThan(24);
+  expect((actions?.y ?? 0) - ((fail?.y ?? 0) + (fail?.height ?? 0))).toBeGreaterThanOrEqual(-1);
+  // The text is exactly where it was, editable, and on the device.
+  await expect(titleField(page)).toHaveValue('On the train');
+  await expect(body(page)).toHaveText('Written with no signal.');
+  await expect(body(page)).toHaveAttribute('contenteditable', 'true');
+  await expect(page.getByText('Kept on this phone', { exact: true })).toBeVisible();
+  expect(await buffer(page, 'unsent')).toMatchObject({ title: 'On the train', lang: 'en', key: keys[0] });
+  forgiveOffline(admin);
+  await expectFits(admin, info);
+
+  // Back online, nothing is sent by itself: only a tap retries.
+  await admin.context.setOffline(false);
+  await page.waitForTimeout(1500);
+  expect(keys).toHaveLength(1);
+  expect(await listed(admin)).toHaveLength(0);
+  await expect(failure).toBeVisible();
+
+  await failure.getByRole('button', { name: 'Try again' }).click();
+  await expect(publishedNotice(page)).toBeVisible();
+  // The same key, so the server could only ever make one entry of it.
+  expect(keys).toHaveLength(2);
+  expect(keys[1]).toBe(keys[0]);
+  const entries = await listed(admin);
+  expect(entries.map((entry) => [entry.title, entry.state])).toEqual([['On the train', 'published']]);
+  // Only now is the buffer cleared and the editor empty.
+  expect(await buffer(page, 'unsent')).toBeNull();
+  await expect(body(page)).toHaveText('');
+  await expect(page.getByText('Kept on this phone', { exact: true })).toHaveCount(0);
+  await expectFits(admin, info);
+});
+
+test('G4, AC-25: the server got the publish and the answer was lost. The retry finds the same entry: one entry, however many taps', async ({ browser, baseURL, request }) => {
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  let lost = true;
+  await page.route('**/admin/api/entries', async (route) => {
+    if (route.request().method() === 'POST' && lost) {
+      lost = false;
+      // The server does the work; the answer never arrives.
+      await route.fetch();
+      await route.abort('connectionreset');
+      return;
+    }
+    await route.continue();
+  });
+  await write(page, 'Sent, and the answer was lost.');
+  await publishButton(page).click();
+  await alertWith(page, 'Not published yet.').getByRole('button', { name: 'Try again' }).click();
+  await expect(publishedNotice(page)).toBeVisible();
+  expect(await listed(admin)).toHaveLength(1);
+  await expect(body(page)).toHaveText('');
+});
+
+test('a retry after the person changed the text sends what is there now, onto the row the first try made', async ({ browser, baseURL, request }) => {
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  let lost = true;
+  await page.route('**/admin/api/entries', async (route) => {
+    if (route.request().method() === 'POST' && lost) {
+      lost = false;
+      await route.fetch();
+      await route.abort('connectionreset');
+      return;
+    }
+    await route.continue();
+  });
+  await write(page, 'First version.');
+  await publishButton(page).click();
+  const failure = alertWith(page, 'Not published yet.');
+  await expect(failure).toBeVisible();
+  // The text is editable after a failure, and what is there at the retry is what is sent.
+  await body(page).click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Second thoughts.');
+  await failure.getByRole('button', { name: 'Try again' }).click();
+  await expect(publishedNotice(page)).toBeVisible();
+  const entries = await listed(admin);
+  expect(entries).toHaveLength(1);
+  expect(await (await request.get(`/log/${entries[0]?.id}`)).text()).toContain('Second thoughts.');
+});
+
+test('AC-16: Save on a live entry that fails says the live entry has not changed, and a tap saves it', async ({ browser, baseURL, request }, info) => {
+  const id = await seedPublished(request);
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await openEdit(page);
+  const frame = page.locator('.frame');
+  await body(page).click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Now fixed.');
+  await expect(frame.getByText('Kept on this phone', { exact: true })).toBeVisible();
+  await admin.context.setOffline(true);
+  await frame.getByRole('button', { name: 'Save', exact: true }).click();
+  const failure = alertWith(page, 'Not saved.');
+  await expect(failure).toContainText("The connection dropped. Your changes are kept here, and the live entry hasn't changed.");
+  await admin.context.setOffline(false);
+  expect(await (await request.get(`/log/${id}`)).text()).not.toContain('Now fixed.');
+  await expect(body(page)).toContainText('Now fixed.');
+  expect(await buffer(page, 'edit')).toMatchObject({ id });
+  forgiveOffline(admin);
+  await expectFits(admin, info);
+  await failure.getByRole('button', { name: 'Try again' }).click();
+  await expect(frame.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
+  expect(await (await request.get(`/log/${id}`)).text()).toContain('Now fixed.');
+  // Saved: the edit buffer is gone and the marker with it.
+  expect(await buffer(page, 'edit')).toBeNull();
+  await expect(frame.getByText('Kept on this phone', { exact: true })).toHaveCount(0);
+});
+
+test('AC-16: Unpublish that fails says it is still live, and nothing has changed', async ({ browser, baseURL, request }) => {
+  const id = await seedPublished(request);
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await openEdit(page);
+  const frame = page.locator('.frame');
+  await frame.getByRole('button', { name: 'Unpublish', exact: true }).click();
+  await admin.context.setOffline(true);
+  await page.getByRole('dialog').getByRole('button', { name: 'Unpublish' }).click();
+  await expect(alertWith(page, 'Not unpublished.')).toContainText("It's still live.");
+  await admin.context.setOffline(false);
+  expect((await request.get(`/log/${id}`)).status()).toBe(200);
+  await frame.getByRole('button', { name: 'Unpublish', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Unpublish' }).click();
+  await expect(frame.getByRole('status').filter({ hasText: 'Unpublished.' })).toBeVisible();
+  expect((await request.get(`/log/${id}`)).status()).toBe(404);
+});
+
+test('J3.4, J3.5, W6: the session ends while writing. The text stays, Sign in and publish signs in over it, and the publish runs once on the new session', async ({ browser, baseURL, request }, info) => {
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  const keys = watchKeys(page);
+  await titleField(page).fill('Interrupted');
+  await write(page, 'Interrupted for seventy minutes, then finished.');
+  // Typing alone does not keep a session alive, so an hour idle ends it (S-17).
+  expect((await request.post('/__test/clock', { data: { now: NOW + 70 * MINUTE } })).ok()).toBe(true);
+  await publishButton(page).click();
+  const failure = alertWith(page, 'Not published yet.');
+  await expect(failure).toContainText('You were signed out after an hour idle. Sign in to finish. Your text stays right here.');
+  // The editor was not unmounted: it is the same text, still editable, and the app did not leave for the sign-in view.
+  await expect(body(page)).toHaveText('Interrupted for seventy minutes, then finished.');
+  await expect(titleField(page)).toHaveValue('Interrupted');
+  await expect(page.getByRole('heading', { name: "It's you, right?" })).toHaveCount(0);
+  const signIn = failure.getByRole('button', { name: 'Sign in and publish' });
+  await expect(signIn).toBeVisible();
+  expect((await signIn.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(43.5);
+  await expectFits(admin, info);
+
+  await signIn.click();
+  // Signed in over the editor, then the publish ran once: one entry, from the same key, and the editor empty.
+  await expect(publishedNotice(page)).toBeVisible();
+  const entries = await listed(admin);
+  expect(entries.map((entry) => [entry.title, entry.state])).toEqual([['Interrupted', 'published']]);
+  expect(keys).toHaveLength(2);
+  expect(keys[1]).toBe(keys[0]);
+  await expect(body(page)).toHaveText('');
+  expect(await buffer(page, 'unsent')).toBeNull();
+  // The new session is the page's now: later writes work, and Passkeys still marks this device.
+  await write(page, 'The next one.');
+  await publishButton(page).click();
+  await expect(publishedNotice(page)).toBeVisible();
+  await page.getByRole('button', { name: 'Passkeys', exact: true }).click();
+  await expect(page.locator('.passkey').filter({ hasText: 'this device' })).toHaveCount(1);
+  await expectFits(admin, info);
+});
+
+test('W6: a second refusal after signing in says so again and never loops; the text is still there', async ({ browser, baseURL, request }) => {
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  let posts = 0;
+  // Every write is refused as signed-out, however fresh the session: the worst case for a loop.
+  await page.route('**/admin/api/entries', async (route) => {
+    if (route.request().method() === 'POST') {
+      posts += 1;
+      await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: 'UNAUTHENTICATED' }) });
+      return;
+    }
+    await route.continue();
+  });
+  await write(page, 'Refused twice.');
+  await publishButton(page).click();
+  const failure = alertWith(page, 'Not published yet.');
+  await failure.getByRole('button', { name: 'Sign in and publish' }).click();
+  // Signed in once, the action ran once more, was refused, and the notice is back: exactly two requests, and the person decides what next.
+  await expect(failure.getByRole('button', { name: 'Sign in and publish' })).toBeVisible();
+  await page.waitForTimeout(1000);
+  expect(posts).toBe(2);
+  await expect(body(page)).toHaveText('Refused twice.');
+  expect(await listed(admin)).toHaveLength(0);
+});
+
+test('Sign in and save, over an edit: the session ended, the changes stay, and the save runs once after signing in (W6, AC-16)', async ({ browser, baseURL, request }) => {
+  const id = await seedPublished(request);
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await openEdit(page);
+  const frame = page.locator('.frame');
+  await body(page).click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Fixed after an hour.');
+  expect((await request.post('/__test/clock', { data: { now: NOW + 90 * MINUTE } })).ok()).toBe(true);
+  await frame.getByRole('button', { name: 'Save', exact: true }).click();
+  const failure = alertWith(page, 'Not saved.');
+  await expect(failure).toContainText('Sign in to finish.');
+  await failure.getByRole('button', { name: 'Sign in and save' }).click();
+  await expect(frame.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
+  expect(await (await request.get(`/log/${id}`)).text()).toContain('Fixed after an hour.');
+});
+
+test('a cancelled passkey sheet is not an error: it says so, and the text and the way back stay', async ({ browser, baseURL, request }) => {
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await write(page, 'Still here.');
+  expect((await request.post('/__test/clock', { data: { now: NOW + 70 * MINUTE } })).ok()).toBe(true);
+  await publishButton(page).click();
+  const failure = alertWith(page, 'Not published yet.');
+  // The browser's sheet is closed without choosing: the ceremony rejects with NotAllowedError.
+  await page.evaluate(() => {
+    navigator.credentials.get = () => Promise.reject(new DOMException('The operation was cancelled.', 'NotAllowedError'));
+  });
+  await failure.getByRole('button', { name: 'Sign in and publish' }).click();
+  await expect(page.getByText("Not signed in. Try again when you're ready.")).toBeVisible();
+  await expect(failure.getByRole('button', { name: 'Sign in and publish' })).toBeEnabled();
+  await expect(body(page)).toHaveText('Still here.');
+});
+
+for (const lang of ['en', 'fa'] as const) {
+  test(`J3.3: a closed tab. The page opens with the ${lang === 'fa' ? 'Persian' : 'English'} text offered back, marked not published, and Put it back restores it with its key (AC-16)`, async ({ browser, baseURL, request }, info) => {
+    const admin = await signedInAdmin(browser, baseURL as string, request);
+    const { page } = admin;
+    if (lang === 'fa') await language(page, 'fa').check();
+    const words = lang === 'fa' ? 'متنی که ارسال نشد.' : 'Text that was never sent.';
+    await titleField(page).fill('Left behind');
+    await write(page, words);
+    const before = await buffer(page, 'unsent');
+    expect(before).toMatchObject({ lang, title: 'Left behind' });
+
+    // The tab is closed and the page opened again.
+    await page.reload();
+    const offer = page.getByRole('status').filter({ hasText: 'You left something here.' });
+    await expect(offer).toContainText("Unsent text from earlier on this phone. It isn't published.");
+    // The editor is first and empty in view, with the offer above it (J2.2); the text is set aside, not dropped.
+    await expect(body(page)).toHaveText('');
+    expect(await buffer(page, 'unsent')).toBeNull();
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('imnstr:entry:kept') ?? '[]'))).toHaveLength(1);
+    // No time, no count: "from earlier", never "3 hours ago".
+    expect(await offer.innerText()).not.toMatch(/\d/);
+    for (const button of await offer.getByRole('button').all()) expect((await button.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(43.5);
+    await expectFits(admin, info);
+
+    // Typing in the empty editor does not write over the offered text.
+    await body(page).click();
+    await page.keyboard.type('New.');
+    await expect(offer).toBeVisible();
+    // Put it back: the earlier text returns with its title, its language and its key, and what was typed since is set aside in turn.
+    await offer.getByRole('button', { name: 'Put it back' }).click();
+    await expect(body(page)).toHaveText(words);
+    await expect(titleField(page)).toHaveValue('Left behind');
+    await expect(language(page, lang)).toBeChecked();
+    expect(await buffer(page, 'unsent')).toMatchObject({ key: before?.key, lang, title: 'Left behind' });
+    await expect(offer).toBeVisible();
+    await offer.getByRole('button', { name: 'Put it back' }).click();
+    await expect(body(page)).toHaveText('New.');
+    await offer.getByRole('button', { name: 'Put it back' }).click();
+    await expect(body(page)).toHaveText(words);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('imnstr:entry:kept') ?? '[]'))).toHaveLength(1);
+
+    // And it publishes, once, under the key it had.
+    await page.getByRole('button', { name: 'Discard' }).first().click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Keep it' }).click();
+    await publishButton(page).click();
+    await expect(publishedNotice(page)).toBeVisible();
+    expect((await listed(admin)).map((entry) => [entry.lang, entry.title])).toEqual([[lang, 'Left behind']]);
+    expect(await buffer(page, 'unsent')).toBeNull();
+    await expectFits(admin, info);
+  });
+}
+
+test('Discard asks once more, and a text that was offered back is gone only when the person says so twice (J3.3, PD-12)', async ({ browser, baseURL, request }) => {
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await write(page, 'To be discarded, or not.');
+  await page.reload();
+  const offer = page.getByRole('status').filter({ hasText: 'You left something here.' });
+  await offer.getByRole('button', { name: 'Discard' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Discard this text?' });
+  await expect(dialog).toContainText("It's only on this phone.");
+  await dialog.getByRole('button', { name: 'Keep it' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(offer).toBeVisible();
+  await page.reload();
+  await expect(offer).toBeVisible();
+  await offer.getByRole('button', { name: 'Discard' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Discard' }).click();
+  await expect(offer).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem('imnstr:entry:kept'))).toBeNull();
+  await page.reload();
+  await expect(offer).toHaveCount(0);
+});
+
+test('J2.6a, AC-43: Edit over unsent text keeps it and says so, and Save brings it back, with Discard asking once more', async ({ browser, baseURL, request }, info) => {
+  const id = await seedPublished(request);
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await titleField(page).fill('Not sent yet');
+  await write(page, 'Coming back is the habit.');
+  await openEdit(page);
+  const frame = page.locator('.frame');
+  // Said before anything is replaced; the unsent text is in the kept buffer, out of the editor.
+  await expect(frame.getByRole('status').filter({ hasText: 'Your unsent entry is kept.' })).toContainText('It comes back when you save or cancel here.');
+  expect(await buffer(page, 'unsent')).toBeNull();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('imnstr:entry:kept') ?? '[]'))).toHaveLength(1);
+  await expect(frame.getByRole('textbox', { name: 'Entry text' })).toHaveText('Broken link here, see the paper.');
+  await expectFits(admin, info);
+
+  await body(page).click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Fixed.');
+  await frame.getByRole('button', { name: 'Save', exact: true }).click();
+  // The edit is done: the frame closes, says what it did, and the unsent entry is back in the editor, not published.
+  await expect(page.locator('.frame')).toHaveCount(0);
+  await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toContainText("Its link and date haven't changed.");
+  const back = page.getByRole('status').filter({ hasText: 'Back to your unsent entry.' });
+  await expect(back).toContainText("It isn't published.");
+  await expect(titleField(page)).toHaveValue('Not sent yet');
+  await expect(body(page)).toHaveText('Coming back is the habit.');
+  expect(await (await request.get(`/log/${id}`)).text()).toContain('Fixed.');
+  expect(await listed(admin)).toHaveLength(1);
+  await expectFits(admin, info);
+
+  // Discard asks once more; Keep it leaves everything.
+  await back.getByRole('button', { name: 'Discard' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Keep it' }).click();
+  await expect(body(page)).toHaveText('Coming back is the habit.');
+  await back.getByRole('button', { name: 'Discard' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Discard' }).click();
+  await expect(body(page)).toHaveText('');
+  await expect(titleField(page)).toHaveValue('');
+  expect(await buffer(page, 'unsent')).toBeNull();
+});
+
+test('AC-43: Cancel on the edit brings the unsent text back too', async ({ browser, baseURL, request }) => {
+  await seedPublished(request);
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await write(page, 'Unsent, and kept while I look at something.');
+  await openEdit(page);
+  await page.locator('.frame').getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.locator('.frame')).toHaveCount(0);
+  await expect(page.getByRole('status').filter({ hasText: 'Back to your unsent entry.' })).toBeVisible();
+  await expect(body(page)).toHaveText('Unsent, and kept while I look at something.');
+});
+
+test('AC-43: two edits in a row, before the unsent text is chosen, lose nothing: each comes back in its turn', async ({ browser, baseURL, request }) => {
+  await seedPublished(request);
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await write(page, 'First unsent text.');
+  await page.reload();
+  // The page opened with text: it is offered, not in the editor. Writing something else, then editing, sets both aside.
+  await write(page, 'Second unsent text.');
+  await openEdit(page);
+  await page.locator('.frame').getByRole('button', { name: 'Cancel' }).click();
+  await expect(body(page)).toHaveText('Second unsent text.');
+  const offer = page.getByRole('status').filter({ hasText: 'You left something here.' });
+  await expect(offer).toBeVisible();
+  await offer.getByRole('button', { name: 'Put it back' }).click();
+  await expect(body(page)).toHaveText('First unsent text.');
+});
+
+test('leaving an edit that holds unsaved changes asks first; Keep editing leaves everything, Leave drops only the changes', async ({ browser, baseURL, request }) => {
+  const id = await seedPublished(request);
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await openEdit(page);
+  const frame = page.locator('.frame');
+  // Nothing changed: Cancel closes at once, with nothing asked.
+  await frame.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.locator('.frame')).toHaveCount(0);
+  await openEdit(page);
+  await body(page).click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Unsaved.');
+  await frame.getByRole('button', { name: 'Cancel' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Leave without saving?' });
+  await expect(dialog).toContainText("The changes to this entry aren't saved yet.");
+  await dialog.getByRole('button', { name: 'Keep editing' }).click();
+  await expect(body(page)).toContainText('Unsaved.');
+  await frame.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Leave' }).click();
+  await expect(page.locator('.frame')).toHaveCount(0);
+  expect(await buffer(page, 'edit')).toBeNull();
+  expect(await (await request.get(`/log/${id}`)).text()).not.toContain('Unsaved.');
+});
+
+test('changes left in an edit when the page was closed are offered back, and Put them back opens the entry with them (AC-16)', async ({ browser, baseURL, request }) => {
+  const id = await seedPublished(request);
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await openEdit(page);
+  await body(page).click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Typed before the tab closed.');
+  await titleField(page).fill('A new title');
+  expect(await buffer(page, 'edit')).toMatchObject({ id, title: 'A new title' });
+  await page.reload();
+  const offer = page.getByRole('status').filter({ hasText: 'You left changes here.' });
+  await expect(offer).toContainText("They aren't saved, and the entry hasn't changed.");
+  await expect(page.locator('.frame')).toHaveCount(0);
+  await offer.getByRole('button', { name: 'Put them back' }).click();
+  const frame = page.locator('.frame');
+  await expect(frame.getByLabel('Title (optional)')).toHaveValue('A new title');
+  await expect(frame.getByRole('textbox', { name: 'Entry text' })).toContainText('Typed before the tab closed.');
+  await frame.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(frame.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
+  expect(await (await request.get(`/log/${id}`)).text()).toContain('Typed before the tab closed.');
+  expect(await buffer(page, 'edit')).toBeNull();
+
+  // Discard, with the second ask.
+  await body(page).click();
+  await page.keyboard.type(' Another.');
+  await page.reload();
+  await page.getByRole('status').filter({ hasText: 'You left changes here.' }).getByRole('button', { name: 'Discard' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Discard' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'You left changes here.' })).toHaveCount(0);
+  expect(await buffer(page, 'edit')).toBeNull();
+});
+
+test('"Kept on this phone" is the only draft signal: it shows while text is on the device, and nothing counts or times anything (W7, house rule 1)', async ({ browser, baseURL, request }, info) => {
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  const kept = page.getByText('Kept on this phone', { exact: true });
+  await expect(kept).toHaveCount(0);
+  await write(page, 'Eleven words are not counted anywhere, and neither are letters.');
+  await expect(kept).toBeVisible();
+  await saveDraftButton(page).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Draft saved.' })).toBeVisible();
+  // Nothing in the editor's slot counts words or characters, or says "saving…" or "saved 2 min ago".
+  const text = await page.locator('.composer').innerText();
+  expect(text).not.toMatch(/\b\d+\s*(words?|characters?|chars?|letters?|minutes?|mins?|seconds?|secs?|ago)\b/i);
+  expect(text).not.toMatch(/saving|saved \d|last saved|autosav/i);
+  await body(page).click();
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Control+A');
+  await page.keyboard.press('Backspace');
+  await titleField(page).fill('');
+  // A draft on the server has its row, so its buffer stays (it works by id); an empty composition with no row has none.
+  expect(await buffer(page, 'unsent')).toMatchObject({ id: expect.any(String) });
+  await expectFits(admin, info);
+});
+
+test('an empty composition with no row keeps nothing on the device', async ({ browser, baseURL, request }) => {
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await write(page, 'x');
+  expect(await buffer(page, 'unsent')).not.toBeNull();
+  await page.keyboard.press('Backspace');
+  expect(await buffer(page, 'unsent')).toBeNull();
+  await expect(page.getByText('Kept on this phone', { exact: true })).toHaveCount(0);
+});
+
+test('a browser that will not store text is told, not lied to: the failure does not claim the text is kept', async ({ browser, baseURL, request }) => {
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  // Storage is full: every write is refused.
+  await page.evaluate(() => {
+    Storage.prototype.setItem = () => {
+      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+    };
+  });
+  await write(page, 'Nowhere to keep this.');
+  await expect(page.getByText('Kept on this phone', { exact: true })).toHaveCount(0);
+  await admin.context.setOffline(true);
+  await publishButton(page).click();
+  await expect(alertWith(page, 'Not published yet.')).toContainText("this browser isn't keeping a copy");
+  await expect(alertWith(page, 'Not published yet.')).not.toContainText('kept on this phone');
+  await admin.context.setOffline(false);
+});
+
+test('Persian: the failure and its retry read the same in a Persian entry, and the text keeps its direction (AC-16, AC-42)', async ({ browser, baseURL, request }) => {
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await language(page, 'fa').check();
+  await write(page, MIXED.fa.text.replace(/==/g, ''));
+  await admin.context.setOffline(true);
+  await publishButton(page).click();
+  const failure = alertWith(page, 'Not published yet.');
+  await expect(failure).toBeVisible();
+  await expect(body(page)).toHaveAttribute('dir', 'rtl');
+  await admin.context.setOffline(false);
+  await failure.getByRole('button', { name: 'Try again' }).click();
+  await expect(publishedNotice(page)).toBeVisible();
+  expect((await listed(admin)).map((entry) => entry.lang)).toEqual(['fa']);
+});
