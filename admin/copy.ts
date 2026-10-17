@@ -173,6 +173,48 @@ export const copy = {
     published: { head: "Published. It's out there.", open: 'Open', copy: 'Copy link', copied: 'Copied' },
     savedLive: { head: 'Saved.', body: "The live entry shows this now. Its link and date haven't changed." },
     savedDraft: { head: 'Draft saved.', body: "It's in Entries, not on the site. Open it from any signed-in device." },
+    // The only draft signal (W7): no count, no words, no "saving…", no "saved 2 min ago".
+    kept: 'Kept on this phone',
+
+    // When a write fails, the one fact first: it is not done. The text is kept and still editable (AC-16, W5).
+    failure: {
+      heads: { publish: 'Not published yet.', save: 'Not saved.', unpublish: 'Not unpublished.' },
+      network: {
+        text: 'The connection dropped. Your text is kept on this phone.',
+        edit: "The connection dropped. Your changes are kept here, and the live entry hasn't changed.",
+        stillLive: "It's still live.",
+        // The browser refused to store the text, so "kept on this phone" would be untrue.
+        notKept: "The connection dropped. Your text is still here, but this browser isn't keeping a copy, so leave this page open.",
+      },
+      // The one session limit, an hour idle (AC-10); typing alone doesn't keep a session alive, so this is an ordinary case (J3.4).
+      signedOut: 'You were signed out after an hour idle. Sign in to finish. Your text stays right here.',
+      retry: 'Try again',
+      signInAnd: { publish: 'Sign in and publish', save: 'Sign in and save', unpublish: 'Sign in and unpublish' },
+    },
+
+    // Nothing unsent is ever dropped (AC-43, J3.3). Each of these is said before anything is replaced.
+    left: { head: 'You left something here.', body: "Unsent text from earlier on this phone. It isn't published.", put: 'Put it back', discard: 'Discard' },
+    leftEdit: {
+      head: 'You left changes here.',
+      body: "Edits to an entry, from earlier on this phone. They aren't saved, and the entry hasn't changed.",
+      put: 'Put them back',
+      discard: 'Discard',
+    },
+    keptNote: { head: 'Your unsent entry is kept.', body: 'It comes back when you save or cancel here.' },
+    back: { head: 'Back to your unsent entry.', body: "It isn't published.", discard: 'Discard' },
+    // Discard asks once more.
+    discardDialog: {
+      title: 'Discard this text?',
+      body: "It's only on this phone. Once it's discarded, it can't be brought back.",
+      keep: 'Keep it',
+      discard: 'Discard',
+    },
+    leaveDialog: {
+      title: 'Leave without saving?',
+      body: "The changes to this entry aren't saved yet. If you leave, they're dropped, and the entry stays as it is.",
+      stay: 'Keep editing',
+      leave: 'Leave',
+    },
   },
 
   // The edit view's frame (plate 8): the editor sits in it.

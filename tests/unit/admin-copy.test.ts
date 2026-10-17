@@ -52,7 +52,8 @@ describe('the admin copy', () => {
   it('shows no count and no countdown (house rule 1)', () => {
     const everything = JSON.stringify([refusals, copy, copy.setup.button('phone'), copy.passkeys.added('10 Oct 2026')]);
     expect(everything).not.toMatch(/\b\d+ (seconds?|tries|attempts|passkeys?|devices?)\b/i);
-    expect(everything).not.toMatch(/\bleft\b|\bremaining\b/i);
+    // "You left something here" is the plate's own wording for text found again; what is forbidden is a count of what is left.
+    expect(everything).not.toMatch(/\b\d+\s+\w+\s+left\b|\bremaining\b/i);
   });
 });
 

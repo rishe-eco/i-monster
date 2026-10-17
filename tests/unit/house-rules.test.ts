@@ -75,9 +75,22 @@ describe('the admin bundle sources (plan B4b)', () => {
     expect(sources.length).toBeGreaterThan(5);
   });
 
-  it('keep nothing in the browser: no cookie, no localStorage, no sessionStorage, no IndexedDB (AC-10)', () => {
-    const offenders = sources.filter((path) => /document\.cookie|localStorage|sessionStorage|indexedDB/.test(text(path))).map(rel);
+  it('keep nothing in the browser: no cookie, no sessionStorage, no IndexedDB, and localStorage only in browser-storage.ts, for the text buffers (AC-10, PD-12)', () => {
+    const offenders = sources.filter((path) => /document\.cookie|sessionStorage|indexedDB/.test(text(path))).map(rel);
     expect(offenders).toEqual([]);
+    // B6 keeps the person's unsent text on the device (plan B6, PD-12): the one place the browser's storage is reached.
+    const storage = sources.filter((path) => /localStorage/.test(text(path))).map(rel);
+    expect(storage).toEqual(['admin/browser-storage.ts']);
+  });
+
+  it('keep only the three text buffers in that storage: nothing about a session, a token or a setting (AC-10)', () => {
+    const buffers = text(join(ROOT, 'admin', 'buffers.ts'));
+    // Every key the buffers write is `imnstr:<kind>:<unsent|edit|kept>`.
+    expect([...buffers.matchAll(/`imnstr:\$\{kind\}:(\w+)`/g)].map((m) => m[1]).sort()).toEqual(['edit', 'kept', 'unsent']);
+    for (const path of ['admin/buffers.ts', 'admin/browser-storage.ts']) {
+      const code = text(join(ROOT, path)).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+      expect(code, path).not.toMatch(/csrf|session|token|cookie/i);
+    }
   });
 
   it('have no inline style and no raw HTML', () => {

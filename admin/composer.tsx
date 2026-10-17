@@ -1,19 +1,27 @@
 // The slot at the top of the signed-in shell (plan B6, W1): the editor that writes a new entry,
-// and the frame that opens an existing one in the same editor (plates 7, 8, 12, 14).
+// and the frame that opens an existing one in the same editor (plates 7, 8, 9, 12, 14).
 //
 // `NewEntry` is always what the shell shows when nothing is being edited, so the editor comes first
 // and empty on day 1 and on day 23 alike (J2.2, AC-5). `EntryFrame` is B5's frame, with its header
 // lines, and the editor where B5 drew the text read-only.
+//
+// Nothing is lost (AC-16, AC-43, PD-12). Every change is written to a local buffer as it is made
+// (`buffers.ts`), and a buffer is cleared only when the server has confirmed what it was waiting for:
+// the one `await` that sends is followed by the one place that clears. A failed write says plainly that
+// it did not happen, keeps the text where it is, and waits for a tap: nothing is sent again by itself.
+// A session that ended is signed back in over the text, once, and never in a loop (W6, J3.4).
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { formatAdminDay } from '../lib/dates.ts';
 import { dirOf, localePath, type Lang } from '../lib/i18n.ts';
 import { limits } from '../lib/limits.ts';
 import { stripXmlForbidden, type Doc } from '../shared/doc.ts';
-import { api, type Code, type EntryDetail, type Settings } from './api.ts';
+import { api, type Code, type EntryDetail, type SessionInfo, type Settings } from './api.ts';
+import type { Buffers, EditBuffer, Snapshot, Unsent } from './buffers.ts';
 import { copy, refusals } from './copy.ts';
 import { Editor } from './editor.tsx';
 import { EMPTY_DOC } from './editor-model.ts';
+import { signIn } from './passkey.ts';
 import { Modal, Notice, siteTimeZone } from './ui.tsx';
 import { unpublishEntry, writeEdit, writeNew, type Write } from './writes.ts';
 
@@ -32,6 +40,126 @@ function newKey(): string {
 
 /** The title is one line: the characters the server refuses in one (control characters) and the ones XML forbids are dropped as they arrive, say from a paste. */
 const cleanTitle = (title: string): string => stripXmlForbidden(title).replace(/\p{Cc}/gu, ' ');
+
+/** What the editor holds, as one comparable string: an edit is unsaved while this differs from the entry as the server has it. */
+const signature = (title: string, doc: Doc): string => JSON.stringify([title.trim(), doc]);
+
+// ── Writing: one write at a time, its failures, and signing in over the text ──
+
+interface Failure {
+  action: Action;
+  code: Code;
+}
+
+/**
+ * The state every write shares. `attempt` runs one write, once: a second call while one is in flight
+ * does nothing (a double tap is one write). `signInHere` is the passkey sign-in, run over the editor:
+ * not re-authentication, which needs a live session and answers 401 when there is none.
+ */
+function useWriter(onSession: (session: SessionInfo) => void) {
+  const [busy, setBusy] = useState<Action | 'signin' | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
+  const [signInProblem, setSignInProblem] = useState<Code | null>(null);
+  const running = useRef(false);
+
+  const clear = () => {
+    setFailure(null);
+    setSignInProblem(null);
+  };
+
+  /**
+   * The person changed the text. A refusal about the text is stale now and goes. But "not published" and "not saved" stay:
+   * they are still true until a write succeeds, and the button that carries on is still right there.
+   */
+  const edited = () => {
+    setFailure((current) => (current && (current.code === 'UNAUTHENTICATED' || NEEDS_TAP.has(current.code)) ? current : null));
+    setSignInProblem(null);
+  };
+
+  const attempt = async (action: Action, send: () => Promise<Write>): Promise<Write | null> => {
+    // Synchronous, so a second tap in the same frame finds this one still running: one tap, one write.
+    if (running.current) return null;
+    running.current = true;
+    setBusy(action);
+    clear();
+    const result = await send();
+    running.current = false;
+    setBusy(null);
+    if (!result.ok) setFailure({ action, code: result.code });
+    return result;
+  };
+
+  const signInHere = async (): Promise<boolean> => {
+    if (running.current) return false;
+    running.current = true;
+    setBusy('signin');
+    setSignInProblem(null);
+    const result = await signIn();
+    running.current = false;
+    setBusy(null);
+    if (result.ok) {
+      // The new session and its CSRF token are in place; the caller learns of them so "this device" stays right.
+      onSession(result.data);
+      return true;
+    }
+    setSignInProblem(result.code);
+    return false;
+  };
+
+  return { busy, failure, signInProblem, clear, edited, attempt, signInHere };
+}
+
+type Writer = ReturnType<typeof useWriter>;
+
+const NEEDS_TAP = new Set<Code>(['NETWORK', 'UNEXPECTED', 'CSRF_INVALID', 'ORIGIN_REFUSED']);
+
+/**
+ * A failure, in the one place the eye already is: just above the actions (W5). It says first that the
+ * thing did not happen, then what is true of the text, then the one button that carries on. The editor
+ * is still editable; nothing here sends again by itself.
+ */
+function FailureNotice({ writer, kept, onRetry, onSignIn }: { writer: Writer; kept: boolean; onRetry: () => void; onSignIn: () => void }) {
+  const { failure, signInProblem, busy } = writer;
+  const t = copy.editor.failure;
+  if (!failure && !signInProblem) return null;
+  const action = failure?.action;
+  const head = action === 'publish' ? t.heads.publish : action === 'unpublish' ? t.heads.unpublish : t.heads.save;
+  let body = '';
+  if (failure?.code === 'NETWORK') {
+    if (action === 'unpublish') body = t.network.stillLive;
+    else if (!kept) body = t.network.notKept;
+    else body = action === 'save' ? t.network.edit : t.network.text;
+  } else if (failure?.code === 'UNAUTHENTICATED') {
+    body = t.signedOut;
+  } else if (failure) {
+    body = refusals[failure.code];
+  }
+  const signInLabel = action === 'publish' ? t.signInAnd.publish : action === 'unpublish' ? t.signInAnd.unpublish : t.signInAnd.save;
+  return (
+    <>
+      {failure ? (
+        <div class="notice notice--error failure" role="alert">
+          <p>
+            {failure.code === 'BODY_REQUIRED' ? null : <strong>{head} </strong>}
+            {body}
+          </p>
+          {failure.code === 'UNAUTHENTICATED' ? (
+            <button type="button" class="btn btn--primary" disabled={busy !== null} onClick={onSignIn}>
+              {signInLabel}
+            </button>
+          ) : NEEDS_TAP.has(failure.code) ? (
+            <button type="button" class="btn" disabled={busy !== null} onClick={onRetry}>
+              {t.retry}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {busy === 'signin' ? <Notice kind="neutral">{copy.signIn.waiting}</Notice> : null}
+      {signInProblem === 'CANCELLED' ? <Notice kind="neutral">{copy.signIn.cancelled}</Notice> : null}
+      {signInProblem && signInProblem !== 'CANCELLED' ? <Notice kind="error">{refusals[signInProblem]}</Notice> : null}
+    </>
+  );
+}
 
 // ── Pieces both forms share ──
 
@@ -61,12 +189,13 @@ interface FieldsProps {
   doc: Doc;
   onDoc: (doc: Doc) => void;
   readOnly: boolean;
-  toolbarEnd?: ComponentChildren;
+  /** Whether a copy of the text is in the local buffer: "Kept on this phone", the only draft signal (W7). */
+  kept: boolean;
   dock: ComponentChildren;
 }
 
 /** The title and the body, in the entry's language and direction (AC-42). */
-function Fields({ idBase, lang, title, onTitle, doc, onDoc, readOnly, toolbarEnd, dock }: FieldsProps) {
+function Fields({ idBase, lang, title, onTitle, doc, onDoc, readOnly, kept, dock }: FieldsProps) {
   const t = copy.editor;
   return (
     <>
@@ -93,7 +222,7 @@ function Fields({ idBase, lang, title, onTitle, doc, onDoc, readOnly, toolbarEnd
         readOnly={readOnly}
         labelId={`${idBase}-body`}
         placeholder={t.placeholder}
-        toolbarEnd={toolbarEnd}
+        toolbarEnd={kept ? <span class="toolbar__kept">{t.kept}</span> : null}
         dock={dock}
       />
     </>
@@ -155,16 +284,68 @@ function Said({ head, body }: { head: string; body: string }) {
   );
 }
 
+/** A notice about text that is set aside or found again, with the choices it offers. */
+function Offer({ head, body, children }: { head: string; body: string; children?: ComponentChildren }) {
+  return (
+    <div class="notice notice--neutral offer" role="status">
+      <p>
+        <strong>{head}</strong> {body}
+      </p>
+      {children ? <div class="offer__actions">{children}</div> : null}
+    </div>
+  );
+}
+
+/** Discard asks once more: the text is only on this phone, and it can't come back. */
+function DiscardDialog({ onKeep, onDiscard }: { onKeep: () => void; onDiscard: () => void }) {
+  const t = copy.editor.discardDialog;
+  return (
+    <Modal titleId="discard-title" onCancel={onKeep}>
+      <h2 class="modal__title" id="discard-title">
+        {t.title}
+      </h2>
+      <p class="modal__body">{t.body}</p>
+      <div class="modal__actions">
+        <button type="button" class="btn" onClick={onKeep}>
+          {t.keep}
+        </button>
+        <button type="button" class="btn" onClick={onDiscard}>
+          {t.discard}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 // ── A new entry ──
+
+/** What an edit that ended in the editor's slot leaves to say above the new entry. */
+export type SaidNote = { kind: 'saved' } | { kind: 'draftSaved' } | { kind: 'published'; id: string; lang: Lang; head: string };
+
+/** The edit is over and set-aside text came back (AC-43), and what the edit last did, if it should still be said. */
+export interface Returned {
+  restored: boolean;
+  said: SaidNote | null;
+}
+
+interface NewProps {
+  buffers: Buffers;
+  returned: Returned | null;
+  onChanged: () => void;
+  onSession: (session: SessionInfo) => void;
+}
 
 /**
  * What the shell shows when nothing is being edited: the language, then the title, the body and
  * the actions, empty and ready (plate 7). It starts in the language last used, which the server
- * remembers (PD-10), so the language is known before anything is drawn.
+ * remembers (PD-10), so the language is known before anything is drawn; or in the language of text
+ * that was put back.
  */
-export function NewEntry({ onChanged }: { onChanged: () => void }) {
-  const [lang, setLang] = useState<Lang | null>(null);
+export function NewEntry(props: NewProps) {
+  const [initial] = useState(() => props.buffers.read().unsent);
+  const [lang, setLang] = useState<Lang | null>(initial?.lang ?? null);
   useEffect(() => {
+    if (initial) return undefined;
     let live = true;
     void api<Settings>('GET', 'settings').then((result) => {
       // A failed read leaves the default: English is never wrong to start in, only to stay in.
@@ -174,64 +355,147 @@ export function NewEntry({ onChanged }: { onChanged: () => void }) {
       live = false;
     };
   }, []);
-  return lang === null ? null : <NewForm initialLang={lang} onChanged={onChanged} />;
+  return lang === null ? null : <NewForm {...props} initial={initial} initialLang={lang} />;
 }
 
-function NewForm({ initialLang, onChanged }: { initialLang: Lang; onChanged: () => void }) {
-  const [lang, setLang] = useState<Lang>(initialLang);
-  const [title, setTitle] = useState('');
-  const [doc, setDoc] = useState<Doc>(EMPTY_DOC);
-  const [busy, setBusy] = useState<'publish' | 'saveDraft' | null>(null);
-  const [failure, setFailure] = useState<Code | null>(null);
+function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession }: NewProps & { initial: Unsent | null; initialLang: Lang }) {
+  const [lang, setLang] = useState<Lang>(initial?.lang ?? initialLang);
+  const [title, setTitle] = useState(initial?.title ?? '');
+  const [doc, setDoc] = useState<Doc>(initial?.doc ?? EMPTY_DOC);
+  // What is set aside or kept, as the buffers hold it now. Whether the last write to them landed.
+  const [snap, setSnap] = useState<Snapshot>(() => buffers.read());
+  const [stored, setStored] = useState(true);
   // What the last write made, shown above the editor (published) or beside the actions (draft).
   const [published, setPublished] = useState<{ id: string; lang: Lang } | null>(null);
   const [draftSaved, setDraftSaved] = useState(false);
+  // "Back to your unsent entry" stays until the person does something else.
+  const [back, setBack] = useState(returned?.restored ?? false);
+  const [said, setSaid] = useState<SaidNote | null>(returned?.said ?? null);
+  const [discarding, setDiscarding] = useState<'kept' | 'unsent' | null>(null);
+  const writer = useWriter(onSession);
   // The key is made at the first keystroke and kept until the server confirms a publish; the id is the row once there is one (PD-11).
-  const key = useRef<string | null>(null);
-  const rowId = useRef<string | null>(null);
-  const writing = useRef(false);
+  const key = useRef<string | null>(initial?.key ?? null);
+  const rowId = useRef<string | null>(initial?.id ?? null);
+  // Whether a request with this key has been sent: the key then belongs to that language (see `onLang`).
+  const attempted = useRef(false);
   const live = useRef({ lang, title, doc });
   live.current = { lang, title, doc };
 
-  const touched = () => {
-    key.current ??= newKey();
+  const store = (event: Parameters<Buffers['apply']>[0]) => {
+    const result = buffers.apply(event);
+    setSnap(result.snapshot);
+    setStored(result.stored);
+    return result.snapshot;
+  };
+
+  /** Every change is written to the buffer as it is made, before anything else happens. */
+  const change = (next: Partial<{ lang: Lang; title: string; doc: Doc }>) => {
+    const merged = { ...live.current, ...next };
+    live.current = merged;
+    // A composition with nothing in it, and no row, is no composition: it has no key. The first keystroke makes one.
+    const empty = merged.title.trim() === '' && merged.doc.content.length === 0;
+    if (empty && rowId.current === null) key.current = null;
+    else key.current ??= newKey();
+    store({ type: 'typed', unsent: key.current === null ? null : { key: key.current, id: rowId.current, ...merged } });
     setPublished(null);
     setDraftSaved(false);
-    setFailure(null);
+    setBack(false);
+    setSaid(null);
+    writer.edited();
+    if (next.lang !== undefined) setLang(next.lang);
+    if (next.title !== undefined) setTitle(next.title);
+    if (next.doc !== undefined) setDoc(next.doc);
+  };
+
+  const onLang = (next: Lang) => {
+    // A request with this key may have reached the server, which would hold the language it was sent in
+    // and answer a retry with that row. Another language is another composition.
+    if (attempted.current && rowId.current === null) {
+      key.current = newKey();
+      attempted.current = false;
+    }
+    change({ lang: next });
   };
 
   const write = async (action: 'publish' | 'saveDraft') => {
-    // Synchronous, so a second tap in the same frame finds this one still running: one tap, one write.
-    if (writing.current) return;
-    writing.current = true;
-    setBusy(action);
-    setFailure(null);
     key.current ??= newKey();
     const current = live.current;
-    const result = await writeNew({ ...current, key: key.current, id: rowId.current }, action === 'publish', (id) => {
-      rowId.current = id;
-    });
-    writing.current = false;
-    setBusy(null);
-    if (!result.ok) return setFailure(result.code);
+    const sent = key.current;
+    attempted.current = true;
+    const result = await writer.attempt(action, () =>
+      writeNew({ ...current, key: sent, id: rowId.current }, action === 'publish', (id) => {
+        // The server made a row: from here the text is worked on by its id, and the buffer says so,
+        // so a closed tab and a reopened page carry on with the same row.
+        rowId.current = id;
+        store({ type: 'typed', unsent: { key: sent, id, ...current } });
+      }),
+    );
+    if (!result?.ok) return;
     const entry = result.data.entry;
     onChanged();
     if (entry.state === 'published') {
-      // The server has it. Only now does the editor empty, and the next entry starts in the language just used.
+      // The server has it. Only now is the buffer cleared and the editor emptied; the next entry starts in the language just used.
+      store({ type: 'confirmed' });
       key.current = null;
       rowId.current = null;
+      attempted.current = false;
+      live.current = { lang: live.current.lang, title: '', doc: EMPTY_DOC };
       setTitle('');
       setDoc(EMPTY_DOC);
       setDraftSaved(false);
+      setBack(false);
+      setSaid(null);
       setPublished({ id: entry.id, lang: entry.lang });
     } else {
       setDraftSaved(true);
     }
   };
 
+  const signInAndRetry = async () => {
+    const action = writer.failure?.action;
+    if (action !== 'publish' && action !== 'saveDraft') return;
+    // Signed in, the same action runs once more, on the new session and its token. A second 401 says so again and stops.
+    if (await writer.signInHere()) await write(action);
+  };
+
+  const putBack = () => {
+    const next = store({ type: 'restored' }).unsent;
+    if (!next) return;
+    key.current = next.key;
+    rowId.current = next.id;
+    attempted.current = false;
+    live.current = { lang: next.lang, title: next.title, doc: next.doc };
+    setLang(next.lang);
+    setTitle(next.title);
+    setDoc(next.doc);
+    setBack(false);
+    setDraftSaved(false);
+    setPublished(null);
+    writer.clear();
+  };
+
+  const discard = () => {
+    const which = discarding;
+    setDiscarding(null);
+    if (which === null) return;
+    store({ type: 'discarded', which });
+    if (which === 'unsent') {
+      key.current = null;
+      rowId.current = null;
+      attempted.current = false;
+      live.current = { lang: live.current.lang, title: '', doc: EMPTY_DOC };
+      setTitle('');
+      setDoc(EMPTY_DOC);
+      setBack(false);
+      setDraftSaved(false);
+      writer.clear();
+    }
+  };
+
+  const busy = writer.busy;
   const dock = (
     <>
-      {failure ? <Notice kind="error">{refusals[failure]}</Notice> : null}
+      <FailureNotice writer={writer} kept={stored} onRetry={() => void write(writer.failure?.action === 'saveDraft' ? 'saveDraft' : 'publish')} onSignIn={() => void signInAndRetry()} />
       <div class="composer__actions">
         <button type="button" class="btn" disabled={busy !== null || draftSaved} onClick={() => void write('saveDraft')}>
           {draftSaved ? copy.editor.saved : copy.editor.saveDraft}
@@ -244,39 +508,70 @@ function NewForm({ initialLang, onChanged }: { initialLang: Lang; onChanged: () 
     </>
   );
 
+  const t = copy.editor;
   return (
     <div class="composer">
-      {published ? <PublishedNotice id={published.id} lang={published.lang} head={copy.editor.published.head} /> : null}
+      {said?.kind === 'saved' ? <Said head={t.savedLive.head} body={t.savedLive.body} /> : null}
+      {said?.kind === 'draftSaved' ? <Said head={t.savedDraft.head} body={t.savedDraft.body} /> : null}
+      {said?.kind === 'published' ? <PublishedNotice id={said.id} lang={said.lang} head={said.head} /> : null}
+      {published ? <PublishedNotice id={published.id} lang={published.lang} head={t.published.head} /> : null}
+      {/* Text found again when the page opened, or set aside while another entry was edited and not yet put back. */}
+      {snap.kept.length > 0 ? (
+        <Offer head={t.left.head} body={t.left.body}>
+          <button type="button" class="btn" disabled={busy !== null} onClick={putBack}>
+            {t.left.put}
+          </button>
+          <button type="button" class="btn" disabled={busy !== null} onClick={() => setDiscarding('kept')}>
+            {t.left.discard}
+          </button>
+        </Offer>
+      ) : null}
+      {back && snap.unsent ? (
+        <Offer head={t.back.head} body={t.back.body}>
+          <button type="button" class="btn" disabled={busy !== null} onClick={() => setDiscarding('unsent')}>
+            {t.back.discard}
+          </button>
+        </Offer>
+      ) : null}
       {/* Once a draft is saved the row has a language, and a PUT never changes it: the control is fixed from then on. */}
-      <LanguageControl
-        lang={lang}
-        locked={busy !== null || rowId.current !== null}
-        onChange={(next) => {
-          touched();
-          setLang(next);
-        }}
-      />
+      <LanguageControl lang={lang} locked={busy !== null || rowId.current !== null} onChange={onLang} />
       <Fields
         idBase="new"
         lang={lang}
         title={title}
-        onTitle={(next) => {
-          touched();
-          setTitle(next);
-        }}
+        onTitle={(next) => change({ title: next })}
         doc={doc}
-        onDoc={(next) => {
-          touched();
-          setDoc(next);
-        }}
+        onDoc={(next) => change({ doc: next })}
         readOnly={busy !== null}
+        kept={stored && snap.unsent !== null}
         dock={dock}
       />
+      {discarding ? <DiscardDialog onKeep={() => setDiscarding(null)} onDiscard={discard} /> : null}
     </div>
   );
 }
 
 // ── An existing entry, in B5's frame ──
+
+/** What the last write did, said under the actions. */
+type Note = 'saved' | 'draftSaved' | 'unpublished' | 'published' | 'republished';
+
+interface FrameProps {
+  id: string;
+  buffers: Buffers;
+  /** Changes left in the edit buffer by an earlier visit, offered back and chosen: they are put over the entry. */
+  resume: EditBuffer | null;
+  /** Unsent text was set aside when this edit opened, and comes back when it ends (AC-43). */
+  keptNote: boolean;
+  /** The person asked to leave. The shell decides, because it can see whether there are unsaved changes. */
+  onCancel: () => void;
+  /** The edit is done (saved or published) and set-aside text came back: the shell closes the frame and says what was done above it. */
+  onDone: (said: SaidNote) => void;
+  onChanged: () => void;
+  onSession: (session: SessionInfo) => void;
+  /** Whether the editor holds changes the server doesn't have. */
+  onDirty: (dirty: boolean) => void;
+}
 
 /**
  * The edit view's frame, in the editor's slot (plate 8). Its header says what is being edited: a published
@@ -285,7 +580,8 @@ function NewForm({ initialLang, onChanged }: { initialLang: Lang; onChanged: () 
  * confirmation and no reason asked (F19, AC-14); a draft can be saved or published, and one that was live
  * says where it will return before it does, and again after (G9, AC-34).
  */
-export function EntryFrame({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
+export function EntryFrame(props: FrameProps) {
+  const { id, onCancel } = props;
   const [entry, setEntry] = useState<EntryDetail | null>(null);
   const [loadFailed, setLoadFailed] = useState<Code | null>(null);
   const status = useRef<HTMLParagraphElement>(null);
@@ -309,7 +605,7 @@ export function EntryFrame({ id, onClose, onChanged }: { id: string; onClose: ()
           <button type="button" class="btn" onClick={() => void load()}>
             {copy.entry.retry}
           </button>
-          <button type="button" class="btn btn--quiet" onClick={onClose}>
+          <button type="button" class="btn btn--quiet" onClick={onCancel}>
             {copy.entry.cancel}
           </button>
         </div>
@@ -327,34 +623,36 @@ export function EntryFrame({ id, onClose, onChanged }: { id: string; onClose: ()
     );
   }
 
-  return <EditForm loaded={entry} statusRef={status} onClose={onClose} onChanged={onChanged} />;
+  return <EditForm {...props} loaded={entry} statusRef={status} />;
 }
-
-/** What the last write did, said under the actions. */
-type Note = 'saved' | 'draftSaved' | 'unpublished' | 'published' | 'republished';
 
 function EditForm({
   loaded,
   statusRef,
-  onClose,
+  buffers,
+  resume,
+  keptNote,
+  onCancel,
+  onDone,
   onChanged,
-}: {
-  loaded: EntryDetail;
-  statusRef: { current: HTMLParagraphElement | null };
-  onClose: () => void;
-  onChanged: () => void;
-}) {
+  onSession,
+  onDirty,
+}: FrameProps & { loaded: EntryDetail; statusRef: { current: HTMLParagraphElement | null } }) {
   // What the server says about the entry changes as it is published and unpublished; the text is the person's.
   const [entry, setEntry] = useState(loaded);
-  const [title, setTitle] = useState(loaded.title ?? '');
-  const [doc, setDoc] = useState<Doc>(loaded.body);
-  const [busy, setBusy] = useState<Action | null>(null);
-  const [failure, setFailure] = useState<Code | null>(null);
+  const [title, setTitle] = useState(resume ? resume.title : (loaded.title ?? ''));
+  const [doc, setDoc] = useState<Doc>(resume ? resume.doc : loaded.body);
+  // The text as the server has it, so "unsaved" means a difference from it, and a change put back isn't one.
+  const [base, setBase] = useState(() => signature(loaded.title ?? '', loaded.body));
+  const [stored, setStored] = useState(true);
   const [note, setNote] = useState<Note | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const writing = useRef(false);
-  const live = useRef({ title, doc, entry });
-  live.current = { title, doc, entry };
+  const writer = useWriter(onSession);
+  const live = useRef({ title, doc, entry, base });
+  live.current = { title, doc, entry, base };
+
+  const dirty = signature(title, doc) !== base;
+  useEffect(() => onDirty(dirty), [dirty]);
 
   const zone = siteTimeZone();
   const day = (instant: number) => formatAdminDay(instant, zone);
@@ -366,33 +664,58 @@ function EditForm({
         ? copy.entry.draftWasLive(day(first))
         : copy.entry.draft;
 
-  const touched = () => {
-    setFailure(null);
-    // Saying "Saved" or "Published" about text that has changed since would be wrong; what the server did stays true, so unpublish's answer stays.
+  /** Every change is written to the edit buffer as it is made, for as long as it differs from the entry. */
+  const change = (next: Partial<{ title: string; doc: Doc }>) => {
+    const merged = { ...live.current, ...next };
+    live.current = merged;
+    const differs = signature(merged.title, merged.doc) !== merged.base;
+    const result = buffers.apply(differs ? { type: 'edit-typed', edit: { id: loaded.id, title: merged.title, doc: merged.doc } } : { type: 'discarded', which: 'edit' });
+    setStored(result.stored);
+    writer.edited();
+    // Saying "Saved" or "Published" about text that has changed since would be wrong; what the server did to the entry's state stays true.
     setNote((current) => (current === 'unpublished' ? current : null));
+    if (next.title !== undefined) setTitle(next.title);
+    if (next.doc !== undefined) setDoc(next.doc);
   };
 
   const run = async (action: Action) => {
-    // Synchronous, so a second tap in the same frame finds this one still running.
-    if (writing.current) return;
-    writing.current = true;
-    setConfirming(false);
-    setBusy(action);
-    setFailure(null);
     const before = live.current.entry;
-    const result: Write = action === 'unpublish' ? await unpublishEntry(before.id) : await writeEdit(before.id, live.current, action === 'publish');
-    writing.current = false;
-    setBusy(null);
-    if (!result.ok) return setFailure(result.code);
+    const sent = { title: live.current.title, doc: live.current.doc };
+    const result = await writer.attempt(action, () => (action === 'unpublish' ? unpublishEntry(before.id) : writeEdit(before.id, sent, action === 'publish')));
+    if (!result?.ok) return;
     const next = result.data.entry;
     setEntry(next);
     onChanged();
-    if (action === 'unpublish') setNote('unpublished');
-    else if (action === 'publish') setNote(before.wasLive ? 'republished' : 'published');
-    else setNote(next.state === 'published' ? 'saved' : 'draftSaved');
+    if (action === 'unpublish') return setNote('unpublished');
+    // The server has the text: the edit buffer is cleared, and what is unsaved is measured from here.
+    setBase(signature(sent.title, sent.doc));
+    live.current = { ...live.current, base: signature(sent.title, sent.doc) };
+    const keptBefore = buffers.read().kept.length > 0;
+    const after = buffers.apply({ type: 'edit-confirmed' });
+    setStored(after.stored);
+    const done: Note = action === 'publish' ? (before.wasLive ? 'republished' : 'published') : next.state === 'published' ? 'saved' : 'draftSaved';
+    setNote(done);
+    // Set-aside text comes back when the edit is done (AC-43): the frame closes, and says what it did above the unsent entry.
+    if (keptBefore) {
+      const day0 = next.firstPublishedAt;
+      onDone(
+        done === 'saved'
+          ? { kind: 'saved' }
+          : done === 'draftSaved'
+            ? { kind: 'draftSaved' }
+            : { kind: 'published', id: next.id, lang: next.lang, head: done === 'republished' && day0 !== null ? copy.entry.published(day(day0)) : copy.editor.published.head },
+      );
+    }
+  };
+
+  const signInAndRetry = async () => {
+    const action = writer.failure?.action;
+    if (!action) return;
+    if (await writer.signInHere()) await run(action);
   };
 
   const t = copy.editor;
+  const busy = writer.busy;
   const dock = (
     <>
       {entry.wasLive && first !== null ? (
@@ -402,7 +725,7 @@ function EditForm({
           {copy.entry.republish.after}
         </p>
       ) : null}
-      {failure ? <Notice kind="error">{refusals[failure]}</Notice> : null}
+      <FailureNotice writer={writer} kept={stored} onRetry={() => void (writer.failure && run(writer.failure.action))} onSignIn={() => void signInAndRetry()} />
       <div class="composer__actions">
         {entry.state === 'published' ? (
           <>
@@ -440,25 +763,21 @@ function EditForm({
         <p class="frame__status" tabIndex={-1} ref={statusRef}>
           {header}
         </p>
-        <button type="button" class="text-btn" onClick={onClose}>
+        <button type="button" class="text-btn" onClick={onCancel}>
           {copy.entry.cancel}
         </button>
       </div>
+      {keptNote ? <Offer head={t.keptNote.head} body={t.keptNote.body} /> : null}
 
       <Fields
         idBase="edit"
         lang={entry.lang}
         title={title}
-        onTitle={(next) => {
-          touched();
-          setTitle(next);
-        }}
+        onTitle={(next) => change({ title: next })}
         doc={doc}
-        onDoc={(next) => {
-          touched();
-          setDoc(next);
-        }}
+        onDoc={(next) => change({ doc: next })}
         readOnly={busy !== null}
+        kept={stored && dirty}
         dock={dock}
       />
 
@@ -472,12 +791,67 @@ function EditForm({
             <button type="button" class="btn" onClick={() => setConfirming(false)}>
               {copy.entry.confirm.keep}
             </button>
-            <button type="button" class="btn" onClick={() => void run('unpublish')}>
+            <button
+              type="button"
+              class="btn"
+              onClick={() => {
+                setConfirming(false);
+                void run('unpublish');
+              }}
+            >
               {copy.entry.confirm.unpublish}
             </button>
           </div>
         </Modal>
       ) : null}
     </section>
+  );
+}
+
+/** The dialog the shell shows when a person would leave an edit that holds changes the server doesn't have. */
+export function LeaveDialog({ onStay, onLeave }: { onStay: () => void; onLeave: () => void }) {
+  const t = copy.editor.leaveDialog;
+  return (
+    <Modal titleId="leave-title" onCancel={onStay}>
+      <h2 class="modal__title" id="leave-title">
+        {t.title}
+      </h2>
+      <p class="modal__body">{t.body}</p>
+      <div class="modal__actions">
+        <button type="button" class="btn" onClick={onStay}>
+          {t.stay}
+        </button>
+        <button type="button" class="btn" onClick={onLeave}>
+          {t.leave}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/** The offer for changes left in the edit buffer when the page opened: put them back, or discard (asking once more). */
+export function EditOffer({ onPut, onDiscard }: { onPut: () => void; onDiscard: () => void }) {
+  const t = copy.editor.leftEdit;
+  const [asking, setAsking] = useState(false);
+  return (
+    <>
+      <Offer head={t.head} body={t.body}>
+        <button type="button" class="btn" onClick={onPut}>
+          {t.put}
+        </button>
+        <button type="button" class="btn" onClick={() => setAsking(true)}>
+          {t.discard}
+        </button>
+      </Offer>
+      {asking ? (
+        <DiscardDialog
+          onKeep={() => setAsking(false)}
+          onDiscard={() => {
+            setAsking(false);
+            onDiscard();
+          }}
+        />
+      ) : null}
+    </>
   );
 }

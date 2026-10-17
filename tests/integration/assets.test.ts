@@ -185,10 +185,11 @@ describe('the admin bundle (PD-21)', () => {
     }
   });
 
-  it('reads no cookie, store or clock of its own: the session is the server\'s, behind an HttpOnly cookie', async () => {
+  it('reads no cookie, session store or clock of its own: the session is the server\'s, behind an HttpOnly cookie', async () => {
     const { js } = await adminPaths();
     const code = await (await app.request(js)).text();
-    for (const banned of ['localStorage', 'sessionStorage', 'document.cookie', 'indexedDB']) expect(code, banned).not.toContain(banned);
+    // `localStorage` is the one store it uses, for the editor's text buffers (B6, PD-12); tests/unit/house-rules.test.ts pins where it is named and what it keeps.
+    for (const banned of ['sessionStorage', 'document.cookie', 'indexedDB']) expect(code, banned).not.toContain(banned);
   });
 
   it('refuses to build the manifest without the bundle when the bundle is required, as production is', () => {

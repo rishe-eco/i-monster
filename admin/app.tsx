@@ -3,10 +3,12 @@
 //   /admin               → the session decides: sign-in, or the shell
 //   the shell            → the editor's slot, Entries, Podcast (B7), Passkeys, Sign out
 // There is no router: two paths, and the rest is state.
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { api, forgetSession, whenSignedOut, type Code, type SessionInfo } from './api.ts';
 import { copy, refusals } from './copy.ts';
-import { EntryFrame, NewEntry } from './composer.tsx';
+import { browserStorage } from './browser-storage.ts';
+import { createBuffers, type EditBuffer } from './buffers.ts';
+import { EditOffer, EntryFrame, LeaveDialog, NewEntry, type Returned } from './composer.tsx';
 import { EntriesSection } from './entries.tsx';
 import { PasskeysSection } from './passkeys.tsx';
 import { ReauthHost } from './reauth.tsx';
@@ -100,6 +102,8 @@ export function App() {
             forgetSession();
             setScreen({ kind: 'signin', ended: true });
           }}
+          // The editor signed in again over the text (W6): the new session replaces the old one here, so "this device" stays right.
+          onSessionRenewed={(renewed) => setScreen((current) => (current.kind === 'home' ? { ...current, session: renewed } : current))}
         />
       );
       break;
@@ -119,18 +123,55 @@ function Home({
   onSignedOut,
   onRemovedHere,
   onSessionEnded,
+  onSessionRenewed,
 }: {
   session: SessionInfo;
   welcome: string | null;
   onSignedOut: () => void;
   onRemovedHere: (name: string) => void;
   onSessionEnded: () => void;
+  onSessionRenewed: (session: SessionInfo) => void;
 }) {
   const [signingOut, setSigningOut] = useState(false);
   const [signOutFailed, setSignOutFailed] = useState<Code | null>(null);
   // The entry open in the editor's slot, if any; and a counter the list watches, so it reads again after the frame changed an entry.
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; resume: EditBuffer | null; keptNote: boolean } | null>(null);
   const [entriesChanged, setEntriesChanged] = useState(0);
+
+  // The three text buffers (PD-12). The page has just opened, so unsent text found in the buffer is set aside:
+  // it is offered back, and typing in the empty editor can't write over it (J3.3).
+  const [buffers] = useState(() => createBuffers(browserStorage(), 'entry'));
+  const [opened] = useState(() => buffers.apply({ type: 'opened' }).snapshot);
+  // Changes to an entry that were left in the edit buffer, offered back until they are put back or discarded.
+  const [editOffer, setEditOffer] = useState<EditBuffer | null>(opened.edit);
+  // What the last edit leaves to say above the new entry: set-aside text came back (AC-43), and what the edit did.
+  const [returned, setReturned] = useState<Returned | null>(null);
+  // An action that would leave an edit with unsaved changes waits here for the person's word.
+  const [leaving, setLeaving] = useState<(() => void) | null>(null);
+  const unsaved = useRef(false);
+
+  const startEdit = (id: string, resume: EditBuffer | null = null) => {
+    // Unsent text, if there is any, is set aside before the entry opens, and says so (AC-43).
+    const snapshot = buffers.apply({ type: 'edit-started' }).snapshot;
+    unsaved.current = false;
+    setReturned(null);
+    setEditing({ id, resume, keptNote: snapshot.kept.length > 0 });
+  };
+
+  /** Run `then` now, or after the person has said they mean to leave changes that are not saved. */
+  const guard = (then: () => void) => {
+    if (unsaved.current || editOffer) setLeaving(() => then);
+    else then();
+  };
+
+  const closeFrame = () => {
+    const keptBefore = buffers.read().kept.length > 0;
+    const snapshot = buffers.apply({ type: 'edit-cancelled' }).snapshot;
+    unsaved.current = false;
+    setEditing(null);
+    // What was set aside comes back into the editor, and says so.
+    setReturned({ restored: keptBefore && snapshot.unsent !== null, said: null });
+  };
 
   const signOut = async () => {
     setSigningOut(true);
@@ -151,14 +192,60 @@ function Home({
       <Header signedIn />
       {welcome ? <Notice kind="success">{welcome}</Notice> : null}
       {/* W1 order. The editor's slot: the editor is first, empty, whenever nothing is being edited; Edit puts an entry in the same editor, in its frame. */}
+      {editOffer && !editing ? (
+        <EditOffer
+          onPut={() => {
+            setEditOffer(null);
+            startEdit(editOffer.id, editOffer);
+          }}
+          onDiscard={() => {
+            buffers.apply({ type: 'discarded', which: 'edit' });
+            setEditOffer(null);
+          }}
+        />
+      ) : null}
       {editing ? (
-        <EntryFrame key={editing} id={editing} onClose={() => setEditing(null)} onChanged={() => setEntriesChanged((n) => n + 1)} />
+        <EntryFrame
+          key={editing.id}
+          id={editing.id}
+          buffers={buffers}
+          resume={editing.resume}
+          keptNote={editing.keptNote}
+          onCancel={() => guard(closeFrame)}
+          onDone={(said) => {
+            unsaved.current = false;
+            setEditing(null);
+            setReturned({ restored: buffers.read().unsent !== null, said });
+          }}
+          onChanged={() => setEntriesChanged((n) => n + 1)}
+          onSession={onSessionRenewed}
+          onDirty={(dirty) => {
+            unsaved.current = dirty;
+          }}
+        />
       ) : (
-        <NewEntry onChanged={() => setEntriesChanged((n) => n + 1)} />
+        <NewEntry buffers={buffers} returned={returned} onChanged={() => setEntriesChanged((n) => n + 1)} onSession={onSessionRenewed} />
       )}
-      <EntriesSection onEdit={setEditing} refreshKey={entriesChanged} />
+      <EntriesSection onEdit={(id) => guard(() => startEdit(id))} refreshKey={entriesChanged} />
       {/* The Podcast section comes here in B7: it draws nothing until it exists. */}
       <PasskeysSection session={session} onRemovedHere={onRemovedHere} onSessionEnded={onSessionEnded} />
+      {leaving ? (
+        <LeaveDialog
+          onStay={() => setLeaving(null)}
+          onLeave={() => {
+            const then = leaving;
+            setLeaving(null);
+            // The changes are dropped by the person's own word, the one way an edit's text is ever let go.
+            if (editOffer) {
+              buffers.apply({ type: 'discarded', which: 'edit' });
+              setEditOffer(null);
+            }
+            if (editing) buffers.apply({ type: 'edit-cancelled' });
+            unsaved.current = false;
+            then();
+          }}
+        />
+      ) : null}
       <div class="section section--last">
         {signOutFailed ? <Notice kind="error">{refusals[signOutFailed]}</Notice> : null}
         <button type="button" class="btn btn--quiet" disabled={signingOut} onClick={() => void signOut()}>

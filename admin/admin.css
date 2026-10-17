@@ -760,3 +760,15 @@ img.ProseMirror-separator {
     padding-block-end: var(--space-8);
   }
 }
+
+/* A notice that carries a choice or a button: the words, then the buttons under them. */
+.offer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-block-start: var(--space-1);
+}
+
+.failure .btn {
+  margin-block-start: var(--space-1);
+}
