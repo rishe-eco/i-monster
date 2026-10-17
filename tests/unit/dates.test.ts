@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { feedDate, formatAdminDate, formatAdminDay, formatEntryDate } from '../../lib/dates.ts';
+import { feedDate, formatAdminDate, formatAdminDay, formatAdminListDate, formatEntryDate } from '../../lib/dates.ts';
 import { NOW } from '../helpers.ts';
 
 const TEHRAN = 'Asia/Tehran'; // UTC+03:30 all year since 2022
@@ -85,6 +85,41 @@ describe('formatAdminDate', () => {
     const now = utc(2026, 12, 31, 12, 0); // still 2026 in both
     expect(formatAdminDate(justIntoNewYear, now, TEHRAN)).toBe('1 Jan 2027, 00:00');
     expect(formatAdminDate(justIntoNewYear, now, 'UTC')).toBe('31 Dec, 20:30');
+  });
+});
+
+describe('formatAdminListDate (the entries list, plate 8, AC-31)', () => {
+  it('leaves out the year in the current year, and writes the day and the month only', () => {
+    expect(formatAdminListDate(utc(2026, 11, 2, 17, 44), NOW, TEHRAN)).toBe('2 Nov');
+    expect(formatAdminListDate(utc(2026, 1, 1, 0, 0), NOW, TEHRAN)).toBe('1 Jan');
+  });
+
+  it('writes the year for any other year', () => {
+    expect(formatAdminListDate(utc(2025, 12, 14, 9, 0), NOW, TEHRAN)).toBe('14 Dec 2025');
+    expect(formatAdminListDate(utc(2027, 3, 1, 9, 0), NOW, TEHRAN)).toBe('1 Mar 2027');
+  });
+
+  describe('around 1 January in Tehran, where the year turns 3.5 hours before UTC does', () => {
+    const lastMinute = utc(2026, 12, 31, 20, 29); // 23:59 on 31 December in Tehran
+    const firstMinute = utc(2026, 12, 31, 20, 30); // 00:00 on 1 January in Tehran
+
+    it("is still this year in the last minute of 2026, and the next minute's row has the year", () => {
+      expect(formatAdminListDate(lastMinute, lastMinute, TEHRAN)).toBe('31 Dec');
+      expect(formatAdminListDate(firstMinute, lastMinute, TEHRAN)).toBe('1 Jan 2027');
+    });
+
+    it('gives every row of 2026 its year the moment the new year starts in Tehran', () => {
+      expect(formatAdminListDate(lastMinute, firstMinute, TEHRAN)).toBe('31 Dec 2026');
+      expect(formatAdminListDate(utc(2026, 3, 1), firstMinute, TEHRAN)).toBe('1 Mar 2026');
+      expect(formatAdminListDate(firstMinute, firstMinute, TEHRAN)).toBe('1 Jan');
+    });
+
+    it('is not decided by UTC: at 21:00 UTC on 31 December it is already 2027 in Tehran and still 2026 in UTC', () => {
+      const instant = utc(2026, 12, 31, 21, 0);
+      expect(formatAdminListDate(instant, instant, TEHRAN)).toBe('1 Jan');
+      expect(formatAdminListDate(utc(2026, 6, 1), instant, TEHRAN)).toBe('1 Jun 2026');
+      expect(formatAdminListDate(utc(2026, 6, 1), instant, 'UTC')).toBe('1 Jun');
+    });
   });
 });
 

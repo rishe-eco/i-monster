@@ -49,6 +49,14 @@ describe('AC-8: every admin API route answers 401 without a session', () => {
         'DELETE /admin/api/passkeys/:id',
         'POST /admin/api/enrolment-codes',
         'POST /admin/api/settings/independence-note/dismiss',
+        // B5: the settings and the entry routes, which the enumeration finds on its own and this list pins by name.
+        'GET /admin/api/settings',
+        'GET /admin/api/entries',
+        'GET /admin/api/entries/:id',
+        'POST /admin/api/entries',
+        'PUT /admin/api/entries/:id',
+        'POST /admin/api/entries/:id/publish',
+        'POST /admin/api/entries/:id/unpublish',
       ]),
     );
   });

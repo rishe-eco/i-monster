@@ -1,12 +1,20 @@
-// Entries: the public read side, and the one insert the seed CLI and the tests
-// share (B3). Writing entries from the admin is B5's; this stage has no other
-// write path.
-import { validateDoc, type Doc } from '../shared/doc.ts';
+// Entries: the public read side and the one insert the seed CLI and the tests
+// share (B3), and the admin's side: save, edit, list and publish (B5).
+import {
+  docHasText,
+  docHasXmlForbidden,
+  docText,
+  isEmptyDoc,
+  normalizeDoc,
+  validateDoc,
+  type Doc,
+} from '../shared/doc.ts';
 import type { Db } from './db.ts';
 import type { Lang } from './i18n.ts';
 import { now } from './clock.ts';
 import { limits } from './limits.ts';
 import { newId } from './ids.ts';
+import { createOrGet, getRow, publish, rememberLanguage, unpublish, type PublishRow } from './publish.ts';
 
 export interface PublicEntry {
   id: string;
@@ -55,7 +63,7 @@ export interface NewPublished {
 
 /**
  * Insert an entry already published. Used by `scripts/seed-entry.ts` and the
- * tests; the admin publishes through B5's idempotent path instead.
+ * tests; the admin publishes through `lib/publish.ts` instead.
  */
 export function insertPublished(db: Db, input: NewPublished): string {
   if (!validateDoc(input.body).ok) throw new Error('DOC_INVALID');
@@ -65,6 +73,30 @@ export function insertPublished(db: Db, input: NewPublished): string {
     `INSERT INTO entry (id, lang, title, body, state, first_published_at, created_at, updated_at)
      VALUES (?, ?, ?, ?, 'published', ?, ?, ?)`,
   ).run(id, input.lang, input.title?.trim() || null, JSON.stringify(input.body), at, at, input.updatedAt ?? at);
+  return id;
+}
+
+export interface NewFixture extends Omit<NewPublished, 'firstPublishedAt'> {
+  state?: 'draft' | 'published';
+  /** Null, or absent on a draft, is a never-published draft; a date on a draft is an entry that was live (AC-14). */
+  firstPublishedAt?: number | null;
+  /** When the row was started: it places a never-published draft in the admin's list. Defaults to the first publish, or now(). */
+  createdAt?: number;
+  publishKey?: string;
+}
+
+/** Insert an entry in any state, for the e2e routes and the tests: a draft, one that was live, or a published one. */
+export function insertFixture(db: Db, input: NewFixture): string {
+  if (!validateDoc(input.body).ok) throw new Error('DOC_INVALID');
+  const state = input.state ?? 'published';
+  const first = input.firstPublishedAt === undefined ? (state === 'published' ? now() : null) : input.firstPublishedAt;
+  if (state === 'published' && first === null) throw new Error('A published entry needs its first-publish date');
+  const created = input.createdAt ?? first ?? now();
+  const id = input.id ?? newId();
+  db.prepare(
+    `INSERT INTO entry (id, lang, title, body, state, first_published_at, publish_key, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(id, input.lang, input.title?.trim() || null, JSON.stringify(input.body), state, first, input.publishKey ?? null, created, input.updatedAt ?? created);
   return id;
 }
 
@@ -114,4 +146,196 @@ export function listPublished(db: Db, lang: Lang, before: PublicEntry | null, li
   const shown = rows.slice(0, limit).map(toEntry);
   const last = shown[shown.length - 1];
   return { entries: shown, olderBefore: rows.length > limit && last ? last.id : null };
+}
+
+// ── The admin's side (B5) ──────────────────────────────────────────────────
+
+/** An entry as the admin sees it, in any state. */
+export interface AdminEntry {
+  id: string;
+  lang: Lang;
+  title: string | null;
+  body: Doc;
+  state: 'draft' | 'published';
+  /** A draft that has been published before: it keeps its first date, and returns to it (AC-14). */
+  wasLive: boolean;
+  firstPublishedAt: number | null;
+}
+
+/** One row of the admin's list. No count and no total travel with a page (house rule 1). */
+export interface AdminRow {
+  id: string;
+  lang: Lang;
+  title: string | null;
+  excerpt: string;
+  state: 'draft' | 'published';
+  wasLive: boolean;
+  firstPublishedAt: number | null;
+}
+
+export interface AdminPage {
+  entries: AdminRow[];
+  olderBefore: string | null;
+}
+
+interface FullRow extends PublishRow {
+  title: string | null;
+  body: string;
+}
+
+function parseBody(row: FullRow): Doc {
+  const parsed = validateDoc(JSON.parse(row.body));
+  // Every writer validates, so this is a corrupt row. Name the id, never the text (house rule 9).
+  if (!parsed.ok) throw new Error(`Entry ${row.id} holds a body that is not a valid document`);
+  return parsed.doc;
+}
+
+const wasLive = (row: FullRow) => row.state === 'draft' && row.first_published_at !== null;
+
+function toAdminEntry(row: FullRow): AdminEntry {
+  return {
+    id: row.id,
+    lang: row.lang,
+    title: row.title,
+    body: parseBody(row),
+    state: row.state,
+    wasLive: wasLive(row),
+    firstPublishedAt: row.first_published_at,
+  };
+}
+
+/** The first `max` characters of the text, cut at a word, with "…" when something was left out. */
+export function excerpt(text: string, max = 120): string {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  // Characters, not UTF-16 units, so an emoji is never cut in half.
+  const chars = Array.from(flat);
+  if (chars.length <= max) return flat;
+  const head = chars.slice(0, max);
+  // A space right after the cut means the head already ends on a word.
+  const at = chars[max] === ' ' ? -1 : head.lastIndexOf(' ');
+  return `${(at > 0 ? head.slice(0, at) : head).join('').trimEnd()}…`;
+}
+
+function toAdminRow(row: FullRow): AdminRow {
+  return {
+    id: row.id,
+    lang: row.lang,
+    title: row.title,
+    excerpt: excerpt(docText(parseBody(row))),
+    state: row.state,
+    wasLive: wasLive(row),
+    firstPublishedAt: row.first_published_at,
+  };
+}
+
+export type BodyRefusal = 'DOC_INVALID' | 'BODY_REQUIRED';
+
+/**
+ * A body from a request, checked in the order the plan fixes: empty paragraphs
+ * are dropped first (S-4); then the schema, the characters XML forbids (S-5)
+ * and the size limit say DOC_INVALID; then a body with no text left says
+ * BODY_REQUIRED (AC-18).
+ */
+export function readBody(raw: unknown): { doc: Doc } | { refusal: BodyRefusal } {
+  const normalized = normalizeDoc(raw);
+  if (isEmptyDoc(normalized)) return { refusal: 'BODY_REQUIRED' };
+  const parsed = validateDoc(normalized);
+  if (!parsed.ok || docHasXmlForbidden(parsed.doc)) return { refusal: 'DOC_INVALID' };
+  if (Buffer.byteLength(JSON.stringify(parsed.doc)) > limits.bodyMaxBytes) return { refusal: 'DOC_INVALID' };
+  if (!docHasText(parsed.doc)) return { refusal: 'BODY_REQUIRED' };
+  return { doc: parsed.doc };
+}
+
+/** A title from a request: absent, null or blank is no title; anything but a one-line string is refused. */
+export function readTitle(value: unknown): { title: string | null } | { refusal: 'REQUEST_INVALID' } {
+  if (value === undefined || value === null) return { title: null };
+  if (typeof value !== 'string' || /\p{Cc}/u.test(value)) return { refusal: 'REQUEST_INVALID' };
+  return { title: value.trim() || null };
+}
+
+export function getEntry(db: Db, id: string): AdminEntry | null {
+  const row = getRow<FullRow>(db, 'entry', id);
+  return row ? toAdminEntry(row) : null;
+}
+
+export interface NewEntry {
+  publishKey: string;
+  lang: Lang;
+  title: string | null;
+  body: Doc;
+  publish: boolean;
+}
+
+/**
+ * Save a new entry, as a draft or published, under its publish key. A key that
+ * already holds a row returns that row untouched (AC-25), and writes nothing,
+ * the last language included. The language is remembered in the same
+ * transaction as the row (PD-10).
+ */
+export function createEntry(db: Db, input: NewEntry): AdminEntry {
+  return db.transaction(() => {
+    const { row, created } = createOrGet<FullRow>(
+      db,
+      'entry',
+      input.publishKey,
+      { lang: input.lang, title: input.title, body: JSON.stringify(input.body) },
+      { publish: input.publish },
+    );
+    if (created) rememberLanguage(db, input.lang);
+    return toAdminEntry(row);
+  })();
+}
+
+/**
+ * Change an entry's title and body, and nothing else: not its state, its
+ * language or any date but `updated_at` (AC-13). Returns null for no such entry.
+ */
+export function updateEntry(db: Db, id: string, input: { title: string | null; body: Doc }): AdminEntry | null {
+  return db.transaction(() => {
+    const result = db.prepare('UPDATE entry SET title = ?, body = ?, updated_at = ? WHERE id = ?').run(input.title, JSON.stringify(input.body), now(), id);
+    if (result.changes === 0) return null;
+    const row = getRow<FullRow>(db, 'entry', id) as FullRow;
+    rememberLanguage(db, row.lang);
+    return toAdminEntry(row);
+  })();
+}
+
+/** Publish by id: first publish, or a return to the original date. Null for no such entry. */
+export function publishEntry(db: Db, id: string): AdminEntry | null {
+  return db.transaction(() => {
+    const result = publish<FullRow>(db, 'entry', id);
+    if (!result) return null;
+    if (result.changed) rememberLanguage(db, result.row.lang);
+    return toAdminEntry(result.row);
+  })();
+}
+
+/** Take an entry off the site. It stays in the admin as a draft with its original date. Null for no such entry. */
+export function unpublishEntry(db: Db, id: string): AdminEntry | null {
+  const result = unpublish<FullRow>(db, 'entry', id);
+  return result ? toAdminEntry(result.row) : null;
+}
+
+/**
+ * The admin's list: every entry, in both languages and every state, ordered by
+ * the date shown on its row (the first publish, or for a never-published draft
+ * the day it was started), then by id so a tie still pages (plan B3). `before`
+ * is the id of the last row of the previous page; an unknown one gives null.
+ */
+export function listForAdmin(db: Db, before: string | null, limit: number = limits.pageSize): AdminPage | null {
+  const sortAt = 'COALESCE(first_published_at, created_at)';
+  let rows: FullRow[];
+  if (before === null) {
+    rows = db.prepare(`SELECT * FROM entry ORDER BY ${sortAt} DESC, id ASC LIMIT ?`).all(limit + 1) as FullRow[];
+  } else {
+    const cursor = getRow<FullRow>(db, 'entry', before);
+    if (!cursor) return null;
+    const at = cursor.first_published_at ?? cursor.created_at;
+    rows = db
+      .prepare(`SELECT * FROM entry WHERE ${sortAt} < ? OR (${sortAt} = ? AND id > ?) ORDER BY ${sortAt} DESC, id ASC LIMIT ?`)
+      .all(at, at, cursor.id, limit + 1) as FullRow[];
+  }
+  const shown = rows.slice(0, limit);
+  const last = shown[shown.length - 1];
+  return { entries: shown.map(toAdminRow), olderBefore: rows.length > limit && last ? last.id : null };
 }

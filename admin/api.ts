@@ -2,6 +2,8 @@
 // result: the data, or the code the server refused with (§6.2). Nothing here
 // stores anything in the browser: the session is an HttpOnly cookie the script
 // can't read, and the CSRF token lives in this module's memory only (AC-10).
+import type { Lang } from '../lib/i18n.ts';
+import type { Doc } from '../shared/doc.ts';
 
 /** The refusals `/admin/api` sends (plan §6.2), each as the code and nothing else. */
 export type RefusalCode =
@@ -15,6 +17,9 @@ export type RefusalCode =
   | 'REQUEST_INVALID'
   | 'NAME_REQUIRED'
   | 'LAST_PASSKEY'
+  | 'BODY_REQUIRED'
+  | 'DOC_INVALID'
+  | 'LANG_INVALID'
   | 'NOT_FOUND';
 
 /** What goes wrong in the browser rather than at the server: the network, the passkey sheet, the browser itself. */
@@ -57,8 +62,44 @@ const REFUSALS: ReadonlySet<string> = new Set<RefusalCode>([
   'REQUEST_INVALID',
   'NAME_REQUIRED',
   'LAST_PASSKEY',
+  'BODY_REQUIRED',
+  'DOC_INVALID',
+  'LANG_INVALID',
   'NOT_FOUND',
 ]);
+
+/** One row of the entries list (plate 8). The server sends no count and no total with it. */
+export interface EntryRow {
+  id: string;
+  lang: Lang;
+  title: string | null;
+  /** The body's opening words, cut at a word: what an untitled entry is called in the list. */
+  excerpt: string;
+  state: 'draft' | 'published';
+  /** A draft that has been published before: it keeps its first date and returns to it (AC-14). */
+  wasLive: boolean;
+  /** UTC milliseconds; null for a draft that was never published. */
+  firstPublishedAt: number | null;
+}
+
+export interface EntriesPage {
+  entries: EntryRow[];
+  /** The cursor for "Older": the last row shown, when more lie behind it. */
+  olderBefore: string | null;
+  /** The server's clock, UTC milliseconds, so the list's year rule never reads the browser's (AC-31). */
+  now: number;
+}
+
+/** One entry, whole: B6's editor reads the same shape. */
+export interface EntryDetail {
+  id: string;
+  lang: Lang;
+  title: string | null;
+  body: Doc;
+  state: 'draft' | 'published';
+  wasLive: boolean;
+  firstPublishedAt: number | null;
+}
 
 let csrf: string | null = null;
 let onSignedOut: (() => void) | null = null;

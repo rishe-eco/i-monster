@@ -260,6 +260,190 @@
   margin-block: var(--space-2);
 }
 
+/* ── Entries (plate 8): the list, its pills, and the edit view's frame ── */
+
+/* Edit and Cancel: a plain text action, 44 px to tap, in the link colour. */
+.text-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--hit);
+  min-inline-size: var(--hit);
+  padding-inline: var(--space-xs);
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  font-family: var(--font-ui);
+  font-size: var(--size-ui);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.entry-list {
+  margin-block-end: var(--space-2);
+  border-block-end: var(--rule-soft-width) solid var(--rule-soft);
+}
+
+/* Date, name, pills, Edit. The name takes what is left and cuts with an ellipsis, so a long title never widens the row. */
+.entry-row {
+  display: grid;
+  grid-template-columns: 5.25rem minmax(0, 1fr) auto auto;
+  gap: var(--space-1);
+  align-items: center;
+  min-block-size: var(--hit-button);
+  padding-block: var(--space-xs);
+  border-block-start: var(--rule-soft-width) solid var(--rule-soft);
+  font-family: var(--font-ui);
+}
+
+.entry-row__date {
+  font-size: var(--size-meta);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.entry-row__name {
+  overflow: hidden;
+  font-weight: 600;
+  font-size: var(--size-row-line);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-row__name:lang(fa) {
+  font-family: var(--font-ui-fa);
+}
+
+/* An untitled entry is its opening words, in the reading face and a softer ink. */
+.entry-row__name--opening {
+  font-family: var(--font-read);
+  font-weight: 400;
+  color: var(--body-2);
+}
+
+.entry-row__name--opening:lang(fa) {
+  font-family: var(--font-read-fa);
+}
+
+.entry-row__pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  /* One pill fits beside the name; two stack, so a long name keeps its room on a phone. */
+  max-inline-size: 5rem;
+}
+
+/* Solid for a fact about the entry (its language); dashed for a state it is in (draft, was live). */
+.pill {
+  padding: var(--space-hair) var(--space-1);
+  border: var(--rule) solid var(--muted);
+  border-radius: var(--radius-pill);
+  font-size: var(--size-meta);
+  color: var(--body-2);
+  white-space: nowrap;
+}
+
+.pill--dashed {
+  border-style: dashed;
+}
+
+.entry-older {
+  display: flex;
+  justify-content: center;
+  margin-block-start: var(--space-lg);
+}
+
+.frame {
+  margin-block-start: var(--space-3);
+}
+
+.frame__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  font-size: var(--size-ui);
+}
+
+.frame__status {
+  margin: 0;
+  color: var(--body-2);
+}
+
+/* The status line takes focus when the frame opens; it needs no ring for that. */
+.frame__status:focus {
+  outline: none;
+}
+
+.frame__title {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--hit-button);
+  margin-block-start: var(--space-xs);
+  padding-inline: var(--space-2);
+  border: var(--rule) solid var(--field-edge);
+  border-radius: var(--radius-field);
+  background: var(--input-fill);
+  font-weight: 700;
+  font-size: var(--size-read);
+  overflow-wrap: anywhere;
+}
+
+.frame__title:lang(fa) {
+  font-family: var(--font-ui-fa);
+}
+
+/* The body, read-only. It reads in the entry's own language and direction, whatever the admin's. */
+.doc {
+  min-block-size: 6.875rem;
+  margin-block-start: var(--space-1);
+  padding: var(--space-2);
+  border: var(--rule) solid var(--field-edge);
+  border-radius: var(--radius-button);
+  background: var(--input-fill);
+  font-family: var(--font-read);
+  font-size: var(--size-read);
+  line-height: var(--leading-read);
+  overflow-wrap: anywhere;
+}
+
+.doc:lang(fa) {
+  font-family: var(--font-read-fa);
+  line-height: var(--leading-read-fa);
+}
+
+.doc p + p {
+  margin-block-start: var(--space-1);
+}
+
+.doc a {
+  color: var(--link);
+  text-decoration: underline;
+}
+
+.frame__notice {
+  margin-block-start: var(--space-lg);
+  padding: var(--space-lg) var(--space-2);
+  border: var(--rule) solid var(--field-edge);
+  border-radius: var(--radius-button);
+  font-size: var(--size-row-line);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.frame__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  margin-block-start: var(--space-lg);
+}
+
+.frame__actions:empty {
+  display: none;
+}
+
 /* ── Panels in place: add a passkey, enrol a device ── */
 
 .panel {

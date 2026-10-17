@@ -202,6 +202,8 @@ describe('deploy/checks.sh (CI-8)', () => {
       'check_www_redirects_to_apex',
       'check_http_redirects_to_https',
       'check_admin_session_unauthenticated',
+      'check_admin_entries_unauthenticated /admin/api/entries',
+      'check_admin_entries_unauthenticated /admin/api/no-such-route',
       'check_admin_origin_refused',
       'check_admin_signin_options',
       'check_test_routes_absent',

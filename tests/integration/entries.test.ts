@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedEntry } from '../../scripts/seed-entry.ts';
 import { resetClock, setNow } from '../../lib/clock.ts';
-import { clearEntries, getPublished, insertPublished } from '../../lib/entries.ts';
+import { clearEntries, getPublished, insertFixture, insertPublished } from '../../lib/entries.ts';
 import { isId } from '../../lib/ids.ts';
 import { docFromText } from '../../shared/doc.ts';
 import { NOW, tempDb, testApp } from '../helpers.ts';
@@ -73,6 +73,32 @@ describe('insertPublished', () => {
   });
 });
 
+describe('insertFixture: an entry in any state, for the tests and the e2e routes (B5)', () => {
+  const rowOf = (id: string) => t.db.prepare('SELECT * FROM entry WHERE id = ?').get(id) as Record<string, unknown>;
+
+  it('inserts a never-published draft with no date, placed by the day it was started', () => {
+    const id = insertFixture(t.db, { lang: 'en', body, state: 'draft', createdAt: NOW - 1000 });
+    expect(rowOf(id)).toMatchObject({ state: 'draft', first_published_at: null, created_at: NOW - 1000, updated_at: NOW - 1000 });
+    expect(getPublished(t.db, 'en', id)).toBeNull();
+  });
+
+  it('inserts a draft that was live: a first-publish date and no public page', () => {
+    const id = insertFixture(t.db, { lang: 'en', body, state: 'draft', firstPublishedAt: NOW - 5000 });
+    expect(rowOf(id)).toMatchObject({ state: 'draft', first_published_at: NOW - 5000, created_at: NOW - 5000 });
+    expect(getPublished(t.db, 'en', id)).toBeNull();
+  });
+
+  it('inserts a published entry at the clock by default, and keeps a publish key', () => {
+    const id = insertFixture(t.db, { lang: 'fa', body, publishKey: 'k-1' });
+    expect(rowOf(id)).toMatchObject({ state: 'published', first_published_at: NOW, publish_key: 'k-1' });
+  });
+
+  it('refuses a published entry with no date, and a body that is not a document', () => {
+    expect(() => insertFixture(t.db, { lang: 'en', body, state: 'published', firstPublishedAt: null })).toThrow(/first-publish date/);
+    expect(() => insertFixture(t.db, { lang: 'en', body: { type: 'doc', content: [] } })).toThrow('DOC_INVALID');
+  });
+});
+
 describe('seed-entry', () => {
   const dir = mkdtempSync(join(tmpdir(), 'imnstr-seed-'));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -128,7 +154,25 @@ describe('the e2e entry routes', () => {
     expect(t.db.prepare('SELECT COUNT(*) AS n FROM entry').get()).toEqual({ n: 0 });
   });
 
-  it.each([null, {}, { entries: 'x' }, { entries: [{ lang: 'de', text: 'x' }] }, { entries: [{ lang: 'en' }] }, { entries: [{ lang: 'en', text: 'x', firstPublishedAt: 1.5 }] }])(
+  it('seed drafts and entries that were live, through state and the dates', async () => {
+    const app = testApp(t.db, { E2E_CLOCK: '1' });
+    const res = await post(app, {
+      entries: [
+        { lang: 'en', text: 'A draft.', state: 'draft', createdAt: NOW - 10, id: 'a000000021' },
+        { lang: 'en', text: 'Was live.', state: 'draft', firstPublishedAt: NOW - 20, id: 'a000000022' },
+        { lang: 'en', text: 'Live.', id: 'a000000023', publishKey: 'k-2' },
+      ],
+    });
+    expect(res.status).toBe(200);
+    const rows = t.db.prepare('SELECT id, state, first_published_at AS f, created_at AS c, publish_key AS k FROM entry ORDER BY id').all();
+    expect(rows).toEqual([
+      { id: 'a000000021', state: 'draft', f: null, c: NOW - 10, k: null },
+      { id: 'a000000022', state: 'draft', f: NOW - 20, c: NOW - 20, k: null },
+      { id: 'a000000023', state: 'published', f: NOW, c: NOW, k: 'k-2' },
+    ]);
+  });
+
+  it.each([null, {}, { entries: 'x' }, { entries: [{ lang: 'en', text: 'x', state: 'live' }] }, { entries: [{ lang: 'en', text: 'x', createdAt: 'now' }] }, { entries: [{ lang: 'de', text: 'x' }] }, { entries: [{ lang: 'en' }] }, { entries: [{ lang: 'en', text: 'x', firstPublishedAt: 1.5 }] }])(
     'refuse %j with a code and insert nothing',
     async (payload) => {
       const app = testApp(t.db, { E2E_CLOCK: '1' });

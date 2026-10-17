@@ -72,6 +72,17 @@ export function formatAdminDate(instant: number, now: number, timeZone: string =
 }
 
 /**
+ * The date on an entries-list row (plate 8, AC-31): "2 Nov" in the current
+ * year of the site's timezone and "14 Dec 2025" in any other. The list has no
+ * room for the time, and the year rule is the one `formatAdminDate` applies.
+ */
+export function formatAdminListDate(instant: number, now: number, timeZone: string = env.siteTz): string {
+  const p = partsOf(instant, 'en-US', { timeZone, day: 'numeric', month: 'short', year: 'numeric' });
+  const currentYear = partsOf(now, 'en-US', { timeZone, year: 'numeric' }).year;
+  return p.year === currentYear ? `${p.day} ${p.month}` : `${p.day} ${p.month} ${p.year}`;
+}
+
+/**
  * A day as the admin names it where the time of day adds nothing, with the
  * year always: "10 Oct 2026". The passkey list uses it for "added" (AC-22).
  */

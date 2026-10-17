@@ -134,6 +134,17 @@ check_admin_session_unauthenticated() {
   echo "ok   $CHECK"
 }
 
+# The entry routes (B5) are behind the guard: signed out, the list and an unknown path under /admin/api
+# are both the one 401 body, and neither sets a cookie.
+check_admin_entries_unauthenticated() {
+  CHECK="check_admin_entries_unauthenticated $1"
+  fetch "$ORIGIN$1"
+  expect_status 401
+  expect_body_has '"code":"UNAUTHENTICATED"'
+  expect_no_cookie
+  echo "ok   $CHECK"
+}
+
 check_admin_origin_refused() {
   CHECK="check_admin_origin_refused"
   fetch -X POST -H 'Origin: https://evil.example' "$ORIGIN/admin/api/auth/signin/options"
@@ -202,6 +213,8 @@ check_public /no-such-page 404
 check_www_redirects_to_apex
 check_http_redirects_to_https
 check_admin_session_unauthenticated
+check_admin_entries_unauthenticated /admin/api/entries
+check_admin_entries_unauthenticated /admin/api/no-such-route
 check_admin_origin_refused
 check_admin_signin_options
 check_test_routes_absent

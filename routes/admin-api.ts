@@ -16,6 +16,7 @@ import type { Db } from '../lib/db.ts';
 import type { Env } from '../lib/env.ts';
 import { originGuard } from '../lib/origin.ts';
 import { cleanPasskeyName } from '../lib/passkey-name.ts';
+import { lastLanguage } from '../lib/publish.ts';
 import {
   SESSION_COOKIE,
   createSession,
@@ -36,6 +37,7 @@ import {
   verifyAssertion,
   verifyRegistration,
 } from '../lib/webauthn.ts';
+import { entryRoutes } from './admin-entries.ts';
 
 const STATUS = {
   UNAUTHENTICATED: 401,
@@ -48,10 +50,13 @@ const STATUS = {
   REQUEST_INVALID: 400,
   NAME_REQUIRED: 400,
   LAST_PASSKEY: 409,
+  BODY_REQUIRED: 400,
+  DOC_INVALID: 400,
+  LANG_INVALID: 400,
   NOT_FOUND: 404,
 } as const satisfies Record<string, ContentfulStatusCode>;
 
-type Refusal = keyof typeof STATUS;
+export type Refusal = keyof typeof STATUS;
 
 /** The one way a refusal leaves the server: its code, with the status it always has. */
 const refuse = (c: Context<AppEnv>, code: Refusal) => c.json({ code }, STATUS[code]);
@@ -282,10 +287,26 @@ export function adminApiRoutes(db: Db, env: Env): Hono<AppEnv> {
     return c.json({ ...issued, qr: `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}` });
   });
 
+  // The two settings the editor starts from: the language of the last save or publish (PD-10, AC-42), and the note's state.
+  api.get('/settings', (c) =>
+    c.json({ lastLanguage: lastLanguage(db), independenceNoteDismissed: sessionBody(c.get('session')).independenceNoteDismissed }),
+  );
+
   api.post('/settings/independence-note/dismiss', (c) => {
     db.prepare('INSERT INTO setting (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value').run(INDEPENDENCE_KEY, '1');
     return c.json({ independenceNoteDismissed: true });
   });
+
+  // ── Entries (B5); episodes follow in B7. After the guard, so each route is behind a session (S-12) ──
+
+  api.route('/', entryRoutes(db, { refuse, readJson }));
+
+  // ── Anything else under /admin/api ──
+
+  // Signed out, the guard has already answered 401 and never gets here. Signed in, an unknown path is a
+  // JSON NOT_FOUND, not the public site's HTML 404 (S-11). The ceremonies' prefix is outside the guard
+  // and stays as it was, the public 404, for a path that is no ceremony: the 401 test lists that prefix.
+  api.all('*', (c) => (c.req.path.startsWith('/admin/api/auth/') ? c.notFound() : refuse(c, 'NOT_FOUND')));
 
   return api;
 }

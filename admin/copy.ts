@@ -1,7 +1,7 @@
 // Every word the admin shows, in English, in one file (house rule 3; spec §4.5:
 // the admin is English only). The server sends codes, never prose, so the
 // refusals are keyed by those codes; a code with no message here fails to compile.
-// The words come from the 4b design's plates 5, 6, 10, 12 and 15.
+// The words come from the 4b design's plates 5, 6, 8, 10, 12 and 15.
 import { limits } from '../lib/limits.ts';
 import type { Code } from './api.ts';
 
@@ -22,7 +22,11 @@ export const refusals: Record<Code, string> = {
   NAME_REQUIRED: 'Give this passkey a name, so you can tell it apart later.',
   REQUEST_INVALID: `That name can't be used. Use up to ${limits.passkeyNameMax} characters, on one line.`,
   LAST_PASSKEY: 'This is the only passkey. Removing it would lock you out.',
-  NOT_FOUND: 'That passkey is already gone.',
+  BODY_REQUIRED: "There's nothing to save yet. Write something first.",
+  DOC_INVALID: "That text can't be saved. Check it for odd characters or a link that isn't a web or email address, then try again.",
+  LANG_INVALID: 'Choose a language, English or Persian.',
+  // One message for a passkey and an entry alike: the code is the same, and so is what happened.
+  NOT_FOUND: "That isn't there any more.",
   NETWORK: "Couldn't reach the server. Check the connection and try again.",
   UNEXPECTED: 'Something went wrong. Try again.',
   // The passkey sheet closing is neutral, not an error; each ceremony says what didn't happen.
@@ -119,6 +123,55 @@ export const copy = {
         'If adding a passkey on a second device is refused with "This device already has a passkey for this site", the two devices share one synced passkey. That is the same signal, so use a device or a provider that keeps its own.',
       dismiss: 'Dismiss this note',
     },
+  },
+
+  // Plate 8. Nothing here counts: no total, no "n of m", no time since.
+  entries: {
+    title: 'Entries',
+    empty: 'Entries you write will be listed here.',
+    loadFailed: "Couldn't load the entries.",
+    retry: 'Try again',
+    older: 'Older',
+    // A never-published draft has no date (AC-14).
+    noDate: '—',
+    draft: 'draft',
+    wasLive: 'was live',
+    persian: 'Persian',
+    edit: 'Edit',
+    editing: (name: string) => `Edit ${name}`,
+    // An untitled entry is called by its opening words, in quotes (J2.6).
+    opening: (words: string) => `“${words}”`,
+  },
+
+  // The edit view's frame (plate 8): B6 puts the editor in it.
+  entry: {
+    editingPublished: (date: string) => `Editing · published ${date}`,
+    draftWasLive: (date: string) => `Draft · first published ${date}`,
+    draft: 'Draft',
+    cancel: 'Cancel',
+    loading: 'Opening…',
+    loadFailed: "Couldn't open that entry.",
+    retry: 'Try again',
+    titleLabel: 'Title',
+    bodyLabel: 'Entry',
+    unpublish: 'Unpublish',
+    unpublishing: 'Unpublishing…',
+    confirm: {
+      title: 'Take this entry off the site?',
+      body: 'It leaves the log and the feed, and its link stops working. It stays here as a draft.',
+      keep: 'Keep it live',
+      unpublish: 'Unpublish',
+    },
+    unpublished: "Unpublished. It's in your entries as a draft.",
+    // The date is drawn on the highlighter between the two halves (AC-34, G9).
+    republish: {
+      before: 'Publishing puts it back at ',
+      after: ", its original date. It won't be at the top of the log.",
+    },
+    publish: 'Publish',
+    publishing: 'Publishing…',
+    published: (date: string) => `Published, at ${date}.`,
+    open: 'Open',
   },
 
   reauth: {

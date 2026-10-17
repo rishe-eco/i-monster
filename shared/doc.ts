@@ -93,6 +93,50 @@ export function validateDoc(json: unknown): DocResult {
   return { ok: true, doc: { type: 'doc', content } };
 }
 
+// Control characters XML 1.0 forbids (all of C0 but tab, LF and CR), and the two
+// noncharacters. Pasted text can carry them (Word's line break is U+000B); one in
+// the feed would make the whole document unreadable to every feed reader. The
+// pages and the feed drop them (lib/escape.ts); the API refuses them (S-5).
+const XML_FORBIDDEN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/;
+const XML_FORBIDDEN_ALL = new RegExp(XML_FORBIDDEN.source, 'g');
+
+/** Whether the text holds a character no XML document may carry. */
+export const hasXmlForbidden = (text: string): boolean => XML_FORBIDDEN.test(text);
+
+/** The text without those characters. */
+export const stripXmlForbidden = (text: string): string => text.replace(XML_FORBIDDEN_ALL, '');
+
+/** Whether any text or link address of a valid document holds a character XML forbids (S-5). */
+export function docHasXmlForbidden(doc: Doc): boolean {
+  return doc.content.some((p) =>
+    p.content.some((t) => hasXmlForbidden(t.text) || (t.marks ?? []).some((m) => m.type === 'link' && hasXmlForbidden(m.attrs.href))),
+  );
+}
+
+/**
+ * Drop the paragraphs that hold nothing (S-4). ProseMirror stores an empty
+ * paragraph as `{type: 'paragraph'}` with no content, which the schema's `text+`
+ * refuses; pressing Enter twice must not cost the person their entry. Takes and
+ * returns unvalidated JSON: anything that isn't a document with a content array
+ * comes back as it was, for `validateDoc` to refuse. The browser runs the same
+ * function before it sends (B6).
+ */
+export function normalizeDoc(json: unknown): unknown {
+  if (!isObject(json) || json.type !== 'doc' || !Array.isArray(json.content)) return json;
+  const empty = (p: unknown) => isObject(p) && p.type === 'paragraph' && (p.content === undefined || (Array.isArray(p.content) && p.content.length === 0));
+  return { ...json, content: json.content.filter((p: unknown) => !empty(p)) };
+}
+
+/** A document with no paragraphs, which is what `normalizeDoc` leaves of a body with nothing in it. */
+export function isEmptyDoc(json: unknown): boolean {
+  return isObject(json) && json.type === 'doc' && hasOnlyKeys(json, ['type', 'content']) && Array.isArray(json.content) && json.content.length === 0;
+}
+
+/** The document's text, paragraphs joined by a space: a list's opening words are cut from it. */
+export function docText(doc: Doc): string {
+  return doc.content.map((p) => p.content.map((t) => t.text).join('')).join(' ');
+}
+
 /** Whether the document holds any text that is not whitespace (B5's BODY_REQUIRED). */
 export function docHasText(doc: Doc): boolean {
   return doc.content.some((p) => p.content.some((t) => t.text.trim() !== ''));

@@ -1,11 +1,12 @@
 // The admin's screens and how they follow one another (plan B4b, PD-21):
 //   /admin/setup/<code>  → Setup, then the shell, signed in
 //   /admin               → the session decides: sign-in, or the shell
-//   the shell            → [editor, Entries, Podcast: B5–B7], Passkeys, Sign out
+//   the shell            → the editor's slot, Entries, Podcast (B7), Passkeys, Sign out
 // There is no router: two paths, and the rest is state.
 import { useEffect, useState } from 'preact/hooks';
 import { api, forgetSession, whenSignedOut, type Code, type SessionInfo } from './api.ts';
 import { copy, refusals } from './copy.ts';
+import { EntriesSection, EntryFrame } from './entries.tsx';
 import { PasskeysSection } from './passkeys.tsx';
 import { ReauthHost } from './reauth.tsx';
 import { SignIn } from './signin.tsx';
@@ -126,6 +127,9 @@ function Home({
 }) {
   const [signingOut, setSigningOut] = useState(false);
   const [signOutFailed, setSignOutFailed] = useState<Code | null>(null);
+  // The entry open in the editor's slot, if any; and a counter the list watches, so it reads again after the frame changed an entry.
+  const [editing, setEditing] = useState<string | null>(null);
+  const [entriesChanged, setEntriesChanged] = useState(0);
 
   const signOut = async () => {
     setSigningOut(true);
@@ -145,7 +149,10 @@ function Home({
     <main class="screen screen--wide">
       <Header signedIn />
       {welcome ? <Notice kind="success">{welcome}</Notice> : null}
-      {/* W1 order: the editor, Entries and Podcast come here, above Passkeys, in B5 to B7. They are not drawn until they exist. */}
+      {/* W1 order. The editor's slot: B5 puts the edit view's frame here, B6 the editor itself, new entries included. */}
+      {editing ? <EntryFrame key={editing} id={editing} onClose={() => setEditing(null)} onChanged={() => setEntriesChanged((n) => n + 1)} /> : null}
+      <EntriesSection onEdit={setEditing} refreshKey={entriesChanged} />
+      {/* The Podcast section comes here in B7: it draws nothing until it exists. */}
       <PasskeysSection session={session} onRemovedHere={onRemovedHere} onSessionEnded={onSessionEnded} />
       <div class="section section--last">
         {signOutFailed ? <Notice kind="error">{refusals[signOutFailed]}</Notice> : null}

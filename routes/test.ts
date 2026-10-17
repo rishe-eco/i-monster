@@ -5,7 +5,7 @@ import { now, setNow } from '../lib/clock.ts';
 import { issueSetupToken } from '../lib/codes.ts';
 import type { AppEnv } from '../lib/context.ts';
 import type { Db } from '../lib/db.ts';
-import { clearEntries, insertPublished, type NewPublished } from '../lib/entries.ts';
+import { clearEntries, insertFixture, type NewFixture } from '../lib/entries.ts';
 import type { Env } from '../lib/env.ts';
 import { clearChallenges } from '../lib/webauthn.ts';
 import { validateDoc, docFromText } from '../shared/doc.ts';
@@ -28,32 +28,38 @@ export function testRoutes(db: Db, env: Env): Hono<AppEnv> {
     return c.json({ now: now() });
   });
 
-  // POST /__test/entries {"entries": [{lang, title?, text | body, firstPublishedAt?, updatedAt?, id?}]}
-  // inserts published entries through the same function the seed CLI uses, and
-  // answers their ids. `text` is docFromText's markup; `body` is a document.
+  // POST /__test/entries {"entries": [{lang, title?, text | body, state?, firstPublishedAt?, createdAt?, updatedAt?, id?, publishKey?}]}
+  // inserts entries and answers their ids. `text` is docFromText's markup; `body` is a document.
+  // `state` is "published" unless it says "draft"; a draft with a `firstPublishedAt` is one that was live (AC-14),
+  // and a draft without one is a never-published draft, placed in the admin's list by `createdAt`.
   routes.post('/__test/entries', async (c) => {
     const json: unknown = await c.req.json().catch(() => null);
     const list = isRecord(json) && Array.isArray(json.entries) ? json.entries : null;
     if (!list) return c.json({ code: 'ENTRY_INVALID' }, 400);
-    const inputs: NewPublished[] = [];
+    const inputs: NewFixture[] = [];
     for (const item of list) {
       if (!isRecord(item) || (item.lang !== 'en' && item.lang !== 'fa')) return c.json({ code: 'ENTRY_INVALID' }, 400);
       const body = typeof item.text === 'string' ? docFromText(item.text) : validateDoc(item.body);
       const doc = 'ok' in body ? (body.ok ? body.doc : null) : body;
       if (!doc) return c.json({ code: 'ENTRY_INVALID' }, 400);
-      for (const key of ['firstPublishedAt', 'updatedAt'] as const) {
+      for (const key of ['firstPublishedAt', 'createdAt', 'updatedAt'] as const) {
         if (item[key] !== undefined && !isWhole(item[key])) return c.json({ code: 'ENTRY_INVALID' }, 400);
       }
+      if (item.state !== undefined && item.state !== 'draft' && item.state !== 'published') return c.json({ code: 'ENTRY_INVALID' }, 400);
+      // A published entry needs its date, which a fixture that names none gets from the clock.
       inputs.push({
         lang: item.lang,
         title: typeof item.title === 'string' ? item.title : null,
         body: doc,
+        state: item.state,
         firstPublishedAt: item.firstPublishedAt as number | undefined,
+        createdAt: item.createdAt as number | undefined,
         updatedAt: item.updatedAt as number | undefined,
         id: typeof item.id === 'string' ? item.id : undefined,
+        publishKey: typeof item.publishKey === 'string' ? item.publishKey : undefined,
       });
     }
-    const ids = db.transaction(() => inputs.map((input) => insertPublished(db, input)))();
+    const ids = db.transaction(() => inputs.map((input) => insertFixture(db, input)))();
     return c.json({ ids });
   });
 

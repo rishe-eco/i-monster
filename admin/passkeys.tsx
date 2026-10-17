@@ -9,10 +9,7 @@ import { api, type Code, type EnrolmentCode, type Passkey, type SessionInfo } fr
 import { copy, refusals } from './copy.ts';
 import { nameProblem, registerHere } from './passkey.ts';
 import { withReauth } from './reauth.tsx';
-import { Modal, Notice, deviceWord } from './ui.tsx';
-
-/** The site's time zone, put in the shell by the server, since the bundle can't read its environment. */
-const siteTimeZone = () => document.querySelector<HTMLMetaElement>('meta[name="site-timezone"]')?.content || 'Asia/Tehran';
+import { Modal, Notice, deviceWord, siteTimeZone } from './ui.tsx';
 
 type Message = { kind: 'success' | 'error' | 'neutral'; text: string };
 type Panel = 'none' | 'add' | 'enrol';

@@ -59,6 +59,8 @@
   --size-button: 1.0625rem;
 
   --leading-read: 1.6;
+  /* A Persian block inside the English admin (an entry's body in the edit view) takes the Persian reading height. */
+  --leading-read-fa: 1.8;
   --leading-intro: 1.42;
   --leading-display: 1;
   --tracking-display: -0.03em;

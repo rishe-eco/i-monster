@@ -5,6 +5,9 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import { copy } from './copy.ts';
 
+/** The site's time zone, put in the shell by the server, since the bundle can't read its environment. */
+export const siteTimeZone = () => document.querySelector<HTMLMetaElement>('meta[name="site-timezone"]')?.content || 'Asia/Tehran';
+
 /**
  * What to call this device by default (F3), from what the browser says it is.
  * It is only a suggested name for a field the person can change, so a wrong
