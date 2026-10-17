@@ -6,6 +6,7 @@ import { issueSetupToken } from '../lib/codes.ts';
 import type { AppEnv } from '../lib/context.ts';
 import type { Db } from '../lib/db.ts';
 import { clearEntries, insertFixture, type NewFixture } from '../lib/entries.ts';
+import { clearEpisodes, insertEpisodeFixture, type NewFixture as NewEpisodeFixture } from '../lib/episodes.ts';
 import type { Env } from '../lib/env.ts';
 import { clearChallenges } from '../lib/webauthn.ts';
 import { validateDoc, docFromText } from '../shared/doc.ts';
@@ -66,6 +67,55 @@ export function testRoutes(db: Db, env: Env): Hono<AppEnv> {
   // DELETE /__test/entries empties the table between tests.
   routes.delete('/__test/entries', (c) => {
     clearEntries(db);
+    return c.json({ ok: true });
+  });
+
+  // POST /__test/episodes {"episodes": [{lang, name?, description?, tags?, date?, links?, state?, firstPublishedAt?, createdAt?, id?, publishKey?}]}
+  // inserts episodes and answers their ids. `date` is YYYY-MM-DD and defaults to today in SITE_TZ. `state` is "published"
+  // unless it says "draft"; a published episode needs a link, and a draft with a `firstPublishedAt` is one that was live (AC-14).
+  routes.post('/__test/episodes', async (c) => {
+    const json: unknown = await c.req.json().catch(() => null);
+    const list = isRecord(json) && Array.isArray(json.episodes) ? json.episodes : null;
+    if (!list) return c.json({ code: 'EPISODE_INVALID' }, 400);
+    const inputs: NewEpisodeFixture[] = [];
+    for (const item of list) {
+      if (!isRecord(item) || (item.lang !== 'en' && item.lang !== 'fa')) return c.json({ code: 'EPISODE_INVALID' }, 400);
+      for (const key of ['firstPublishedAt', 'createdAt'] as const) {
+        if (item[key] !== undefined && item[key] !== null && !isWhole(item[key])) return c.json({ code: 'EPISODE_INVALID' }, 400);
+      }
+      if (item.state !== undefined && item.state !== 'draft' && item.state !== 'published') return c.json({ code: 'EPISODE_INVALID' }, 400);
+      const tags = item.tags === undefined ? [] : item.tags;
+      if (!Array.isArray(tags) || !tags.every((tag) => typeof tag === 'string')) return c.json({ code: 'EPISODE_INVALID' }, 400);
+      const links = item.links === undefined ? [] : item.links;
+      if (!Array.isArray(links) || !links.every((link) => isRecord(link) && typeof link.label === 'string' && typeof link.url === 'string')) {
+        return c.json({ code: 'EPISODE_INVALID' }, 400);
+      }
+      inputs.push({
+        lang: item.lang,
+        name: typeof item.name === 'string' ? item.name : null,
+        description: typeof item.description === 'string' ? item.description : null,
+        tags: tags as string[],
+        date: typeof item.date === 'string' ? item.date : undefined,
+        links: links.map((link) => ({ label: (link as Record<string, string>).label, url: (link as Record<string, string>).url })),
+        state: item.state,
+        firstPublishedAt: item.firstPublishedAt === undefined ? undefined : (item.firstPublishedAt as number | null),
+        createdAt: item.createdAt as number | undefined,
+        id: typeof item.id === 'string' ? item.id : undefined,
+        publishKey: typeof item.publishKey === 'string' ? item.publishKey : undefined,
+      });
+    }
+    try {
+      const ids = db.transaction(() => inputs.map((input) => insertEpisodeFixture(db, input, env.siteTz)))();
+      return c.json({ ids });
+    } catch {
+      // A fixture the table refuses (a published episode with no link, a date that isn't a day).
+      return c.json({ code: 'EPISODE_INVALID' }, 400);
+    }
+  });
+
+  // DELETE /__test/episodes empties the table between tests.
+  routes.delete('/__test/episodes', (c) => {
+    clearEpisodes(db);
     return c.json({ ok: true });
   });
 

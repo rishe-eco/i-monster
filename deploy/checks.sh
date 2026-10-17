@@ -134,8 +134,8 @@ check_admin_session_unauthenticated() {
   echo "ok   $CHECK"
 }
 
-# The entry routes (B5) are behind the guard: signed out, the list and an unknown path under /admin/api
-# are both the one 401 body, and neither sets a cookie.
+# The entry routes (B5) and the episode routes (B7) are behind the guard: signed out, each list and an
+# unknown path under /admin/api are all the one 401 body, and none sets a cookie.
 check_admin_entries_unauthenticated() {
   CHECK="check_admin_entries_unauthenticated $1"
   fetch "$ORIGIN$1"
@@ -209,11 +209,14 @@ check_root_app_answers() {
 CHECK="start"
 check_public / 200
 check_public /fa/ 200
+check_public /podcast 200
+check_public /fa/podcast 200
 check_public /no-such-page 404
 check_www_redirects_to_apex
 check_http_redirects_to_https
 check_admin_session_unauthenticated
 check_admin_entries_unauthenticated /admin/api/entries
+check_admin_entries_unauthenticated /admin/api/episodes
 check_admin_entries_unauthenticated /admin/api/no-such-route
 check_admin_origin_refused
 check_admin_signin_options

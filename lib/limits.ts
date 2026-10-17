@@ -39,6 +39,18 @@ export const limits = {
    */
   titleMaxChars: 1000,
   /**
+   * The longest episode name, description, tag, link label and link address, in UTF-16 code units after
+   * trimming (the unit a field's `maxlength` counts), and the most links one episode holds. Large on purpose,
+   * like the title's: guards against a pasted page, not rules about episodes (B7). A name is a title, so it
+   * takes the title's number.
+   */
+  episodeNameMaxChars: 1000,
+  episodeDescriptionMaxChars: 10_000,
+  episodeTagMaxChars: 100,
+  episodeLinkLabelMaxChars: 100,
+  episodeLinkUrlMaxChars: 2000,
+  episodeLinksMax: 20,
+  /**
    * Rows one record table may hold for one month and language (PD-20). A
    * client chooses its own Referer and user agent, so without a cap it could
    * grow the table without end; past it a new key is dropped, old ones count on.

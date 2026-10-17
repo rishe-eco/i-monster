@@ -546,3 +546,91 @@
   line-height: 1.5;
   color: var(--body-2);
 }
+
+/* ── The podcast ── */
+
+/* The show's links sit in the reading column with the episodes under them, not across the whole page. */
+.rows--show {
+  max-inline-size: var(--measure-read);
+  margin-block-start: var(--space-4);
+}
+
+.episodes {
+  margin-block-start: var(--space-5);
+  max-inline-size: var(--measure-read);
+  border-block-start: var(--rule) solid var(--rule-strong);
+}
+
+/* The same space around every episode, whatever the days between them (AC-5). */
+.episode {
+  padding-block: var(--space-3);
+  border-block-end: var(--rule-soft-width) solid var(--rule-soft);
+  /* A long name or address with no space in it wraps instead of widening the page (HIG #8). */
+  overflow-wrap: anywhere;
+}
+
+.episode:last-child {
+  border-block-end: 0;
+}
+
+.episode__meta {
+  font-family: var(--font-ui);
+  font-size: var(--size-meta);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.episode__name {
+  margin-block: var(--space-xs) var(--space-1);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--size-title);
+  line-height: 1.15;
+  letter-spacing: var(--tracking-title);
+  text-wrap: balance;
+}
+
+.episode__description p {
+  line-height: var(--leading-read);
+  color: var(--body-2);
+  text-wrap: pretty;
+}
+
+.episode__description p + p {
+  margin-block-start: var(--space-1);
+}
+
+/* One pill per link, all alike. The arrow says it opens elsewhere; no platform has a mark of its own yet. */
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-block-start: var(--space-2);
+}
+
+.pill-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-block-size: var(--hit);
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  padding-inline: var(--space-3);
+  border: var(--rule) solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: var(--size-ui);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.pill-link:hover,
+.pill-link:focus-visible {
+  background: var(--highlight);
+  color: var(--highlight-ink);
+}
+
+.pill-link .icon {
+  flex: none;
+}

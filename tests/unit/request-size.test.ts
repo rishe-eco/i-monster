@@ -5,6 +5,7 @@
 // the proxy's limit, no request the API would accept is ever refused by Nginx first.
 import { describe, expect, it } from 'vitest';
 import { readBody } from '../../lib/entries.ts';
+import { readEpisodeInput } from '../../lib/episodes.ts';
 import { limits } from '../../lib/limits.ts';
 import type { Doc, Paragraph, TextNode } from '../../shared/doc.ts';
 
@@ -48,5 +49,49 @@ describe('the largest request the editor can send (S-9)', () => {
     const over: Doc = { type: 'doc', content: [...body.content, { type: 'paragraph', content: [{ type: 'text', text: 'x'.repeat(200) }] }] };
     expect(readBody(over)).toEqual({ refusal: 'DOC_INVALID' });
     expect(bytes(over)).toBeLessThan(NGINX_LIMIT);
+  });
+});
+
+// S-9 for B7: an episode's request, every field at its guard (limits.ts). Each text field is filled with
+// a character that takes three bytes in UTF-8, the most a UTF-16 unit costs (an astral character costs
+// two units for four bytes, and a quote or a line break costs two bytes for one unit), so this is the
+// largest request the editor can send. The editor drops control characters as they arrive, so none
+// is counted here: the API strips them, and a body full of them is only ever Nginx's to refuse.
+describe('the largest episode request the form can send (S-9)', () => {
+  const wide = (n: number) => '€'.repeat(n);
+  const lead = 'https://example.com/';
+  const largest = () => ({
+    publishKey: '3f2504e0-4f89-41d3-9a0c-0305e82c3301',
+    lang: 'fa',
+    name: wide(limits.episodeNameMaxChars),
+    description: wide(limits.episodeDescriptionMaxChars),
+    tags: [wide(limits.episodeTagMaxChars), wide(limits.episodeTagMaxChars)],
+    date: '2026-10-10',
+    links: Array.from({ length: limits.episodeLinksMax }, () => ({
+      label: wide(limits.episodeLinkLabelMaxChars),
+      url: lead + wide(limits.episodeLinkUrlMaxChars - lead.length),
+    })),
+    publish: true,
+  });
+
+  it('is accepted by the API reader, and stays far under the 1 MiB Nginx allows', () => {
+    const request = largest();
+    const read = readEpisodeInput(request);
+    expect('input' in read, JSON.stringify('refusal' in read ? read.refusal : '')).toBe(true);
+    if ('input' in read) {
+      expect(read.input.links).toHaveLength(limits.episodeLinksMax);
+      expect(read.input.name).toHaveLength(limits.episodeNameMaxChars);
+      expect(read.input.description).toHaveLength(limits.episodeDescriptionMaxChars);
+    }
+    expect(bytes(request)).toBeLessThan(NGINX_LIMIT / 5);
+    // The size, pinned, so a guard raised later fails here and the number gets read again: 53,200 units at three bytes, the 20 ASCII address prefixes, and the keys.
+    expect(bytes(request)).toBe(159_392);
+  });
+
+  it('is refused by the API, not by Nginx, a link over the count', () => {
+    const request = largest();
+    request.links.push({ label: 'one more', url: 'https://example.com/x' });
+    expect(readEpisodeInput(request)).toEqual({ refusal: 'REQUEST_INVALID' });
+    expect(bytes(request)).toBeLessThan(NGINX_LIMIT);
   });
 });

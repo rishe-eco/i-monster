@@ -138,3 +138,58 @@ export function recordMonth(instant: number, timeZone: string = env.siteTz): str
   const p = partsOf(instant, 'en-US', { timeZone, year: 'numeric', month: '2-digit' });
   return `${p.year}-${p.month}`;
 }
+
+// ── Calendar dates (B7) ────────────────────────────────────────────────────
+// An episode's date is a day, `YYYY-MM-DD`, never an instant (plan B7, traps). Nothing below converts a
+// zone: the day is read as the digits it is, so it can't slip across midnight in any timezone.
+
+const DAY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Whether the text is a real calendar day written `YYYY-MM-DD` (not "2026-02-30"). */
+export function isCalendarDay(text: string): boolean {
+  const match = DAY_PATTERN.exec(text);
+  if (!match) return false;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const check = new Date(Date.UTC(year, month - 1, day));
+  return check.getUTCFullYear() === year && check.getUTCMonth() === month - 1 && check.getUTCDate() === day;
+}
+
+/** The calendar day it is in `timeZone` at an instant: `YYYY-MM-DD`. The default date of a new episode. */
+export function todayIn(instant: number, timeZone: string = env.siteTz): string {
+  const p = partsOf(instant, 'en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' });
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+/**
+ * A calendar day as an instant in UTC at noon, formatted in UTC: the same day whatever the zone of the
+ * machine or of the site, since no offset can move noon to another date.
+ */
+function dayInstant(day: string): number {
+  const match = DAY_PATTERN.exec(day);
+  if (!match) throw new RangeError(`Not a YYYY-MM-DD day: "${day}"`);
+  return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12);
+}
+
+/**
+ * An episode's date as a public page shows it, with the year (AC-31). English: "10 Oct 2026". Persian:
+ * Solar Hijri with Persian digits, "۱۸ مهر ۱۴۰۵".
+ */
+export function formatDay(day: string, lang: Lang): string {
+  const instant = dayInstant(day);
+  if (lang === 'fa') {
+    const p = partsOf(instant, 'fa-IR-u-ca-persian-nu-arabext', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' });
+    return `${p.day} ${p.month} ${p.year}`;
+  }
+  const p = partsOf(instant, 'en-US', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
+  return `${p.day} ${p.month} ${p.year}`;
+}
+
+/**
+ * An episode's date on an admin list row (AC-31): "10 Oct" in the current year and "10 Oct 2025" in any
+ * other. The admin is English and Gregorian whatever the episode's language (PD-9). `today` is the server's
+ * day, so the bundle never reads the browser's clock.
+ */
+export function formatAdminListDay(day: string, today: string): string {
+  const p = partsOf(dayInstant(day), 'en-US', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
+  return p.year === today.slice(0, 4) ? `${p.day} ${p.month}` : `${p.day} ${p.month} ${p.year}`;
+}

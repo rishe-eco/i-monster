@@ -10,8 +10,8 @@ export const ArrowIcon: FC<{ class?: string }> = ({ class: extra }) => (
   </svg>
 );
 
-export const ExternalIcon: FC = () => (
-  <svg class="icon icon--flip icon--small" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+export const ExternalIcon: FC<{ class?: string }> = ({ class: extra }) => (
+  <svg class={`icon icon--flip icon--small ${extra ?? ''}`.trim()} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
     <path d="M7 7h10v10" />
     <path d="M7 17 17 7" />
   </svg>

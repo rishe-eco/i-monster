@@ -16,6 +16,12 @@ describe('limits', () => {
     expect(limits.passkeyNameMax).toBe(60);
     expect(limits.bodyMaxBytes).toBe(64 * 1024);
     expect(limits.titleMaxChars).toBe(1000);
+    expect(limits.episodeNameMaxChars).toBe(1000);
+    expect(limits.episodeDescriptionMaxChars).toBe(10_000);
+    expect(limits.episodeTagMaxChars).toBe(100);
+    expect(limits.episodeLinkLabelMaxChars).toBe(100);
+    expect(limits.episodeLinkUrlMaxChars).toBe(2000);
+    expect(limits.episodeLinksMax).toBe(20);
     expect(limits.recordKeysPerMonth).toBe(500);
   });
 });

@@ -37,6 +37,14 @@ export const en: Strings = {
     whoLink: 'who I am',
     podcastLink: 'Monster Podcast',
   },
+  podcast: {
+    lede: 'I talk with people about making things and learning out loud.',
+    description: 'Monster Podcast: iMNSTR talks with people about making things and learning out loud.',
+    showOn: 'The show on {platform}',
+    older: 'Older episodes',
+    empty: 'Episodes will be listed here, with links to listen.',
+    tagSeparator: ', ',
+  },
   entry: {
     more: 'More learnings',
     writtenBy: 'Written by {owner}, who also makes the {podcast}.',

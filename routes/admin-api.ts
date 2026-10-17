@@ -38,6 +38,7 @@ import {
   verifyRegistration,
 } from '../lib/webauthn.ts';
 import { entryRoutes } from './admin-entries.ts';
+import { episodeRoutes } from './admin-episodes.ts';
 
 const STATUS = {
   UNAUTHENTICATED: 401,
@@ -53,6 +54,11 @@ const STATUS = {
   BODY_REQUIRED: 400,
   DOC_INVALID: 400,
   LANG_INVALID: 400,
+  DESCRIPTION_REQUIRED: 400,
+  TAGS_ONE_OR_TWO: 400,
+  LINK_REQUIRED: 400,
+  LINK_NOT_HTTPS: 400,
+  LAST_LINK: 409,
   NOT_FOUND: 404,
 } as const satisfies Record<string, ContentfulStatusCode>;
 
@@ -297,9 +303,10 @@ export function adminApiRoutes(db: Db, env: Env): Hono<AppEnv> {
     return c.json({ independenceNoteDismissed: true });
   });
 
-  // ── Entries (B5); episodes follow in B7. After the guard, so each route is behind a session (S-12) ──
+  // ── Entries (B5) and episodes (B7). After the guard, so each route is behind a session (S-12) ──
 
   api.route('/', entryRoutes(db, { refuse, readJson }));
+  api.route('/', episodeRoutes(db, { refuse, readJson }, { siteTz: env.siteTz }));
 
   // ── Anything else under /admin/api ──
 

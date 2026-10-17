@@ -42,6 +42,17 @@ export interface Strings {
     whoLink: string;
     podcastLink: string;
   };
+  podcast: {
+    /** Under the show's name, on every page of it. */
+    lede: string;
+    description: string;
+    /** A show-level link's text; holds {platform}, the platform's name as the content file gives it. */
+    showOn: string;
+    older: string;
+    empty: string;
+    /** What stands between an episode's tags. */
+    tagSeparator: string;
+  };
   entry: {
     more: string;
     /** Holds {owner} and {podcast}, each a link. */

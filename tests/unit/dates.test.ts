@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { feedDate, formatAdminDate, formatAdminDay, formatAdminListDate, formatEntryDate, recordMonth } from '../../lib/dates.ts';
+import {
+  feedDate,
+  formatAdminDate,
+  formatAdminDay,
+  formatAdminListDate,
+  formatAdminListDay,
+  formatDay,
+  formatEntryDate,
+  isCalendarDay,
+  recordMonth,
+  todayIn,
+} from '../../lib/dates.ts';
 import { NOW } from '../helpers.ts';
 
 const TEHRAN = 'Asia/Tehran'; // UTC+03:30 all year since 2022
@@ -164,5 +175,83 @@ describe('recordMonth (PD-20)', () => {
     expect(recordMonth(Date.UTC(2026, 11, 31, 20, 31, 0), TEHRAN)).toBe('2027-01');
     expect(recordMonth(Date.UTC(2026, 11, 31, 20, 31, 0), 'UTC')).toBe('2026-12');
     expect(recordMonth(NOW, TEHRAN)).toBe('2026-10');
+  });
+});
+
+// An episode's date is a day, never an instant (plan B7, traps): none of these may depend on a zone.
+describe('isCalendarDay', () => {
+  it('accepts a real day written YYYY-MM-DD, leap days included', () => {
+    for (const day of ['2026-10-10', '2026-01-01', '2026-12-31', '2028-02-29', '2000-02-29']) expect(isCalendarDay(day), day).toBe(true);
+  });
+
+  it('refuses anything else: a day that does not exist, another shape, a time, a space', () => {
+    for (const day of ['2026-02-29', '2026-02-30', '2026-04-31', '2026-13-01', '2026-00-10', '2026-10-00', '1900-02-29', '2026-1-1', '10/10/2026', '2026-10-10T00:00:00Z', ' 2026-10-10', '2026-10-10\n', '']) {
+      expect(isCalendarDay(day), JSON.stringify(day)).toBe(false);
+    }
+  });
+});
+
+describe('todayIn', () => {
+  it('is the day in the zone, which is not always the day in UTC', () => {
+    // 23:30 UTC on the 10th: the 11th has begun in Tehran (UTC+03:30), not yet in Los Angeles or UTC.
+    const late = utc(2026, 10, 10, 23, 30);
+    expect(todayIn(late, TEHRAN)).toBe('2026-10-11');
+    expect(todayIn(late, 'UTC')).toBe('2026-10-10');
+    expect(todayIn(late, 'America/Los_Angeles')).toBe('2026-10-10');
+    // 20:29 UTC is 23:59 in Tehran; one minute later it is the next day there.
+    expect(todayIn(utc(2026, 10, 10, 20, 29), TEHRAN)).toBe('2026-10-10');
+    expect(todayIn(utc(2026, 10, 10, 20, 30), TEHRAN)).toBe('2026-10-11');
+  });
+
+  it('turns the year with the zone, and writes Latin digits and two-digit months', () => {
+    expect(todayIn(utc(2026, 12, 31, 20, 30), TEHRAN)).toBe('2027-01-01');
+    expect(todayIn(utc(2026, 12, 31, 20, 30), 'UTC')).toBe('2026-12-31');
+    expect(todayIn(NOW, TEHRAN)).toBe('2026-10-10');
+    expect(todayIn(utc(2026, 3, 5, 12), 'UTC')).toBe('2026-03-05');
+  });
+});
+
+describe('formatDay', () => {
+  it('writes English as "10 Oct 2026"', () => {
+    expect(formatDay('2026-10-10', 'en')).toBe('10 Oct 2026');
+    expect(formatDay('2026-01-05', 'en')).toBe('5 Jan 2026');
+    expect(formatDay('2028-02-29', 'en')).toBe('29 Feb 2028');
+  });
+
+  it('writes Persian in Solar Hijri with Persian digits', () => {
+    expect(formatDay('2026-10-10', 'fa')).toBe('۱۸ مهر ۱۴۰۵');
+    expect(formatDay('2026-10-24', 'fa')).toBe('۲ آبان ۱۴۰۵');
+  });
+
+  it('is the Nowruz day on both sides of the new year, whatever zone the machine is in', () => {
+    // 1 Farvardin 1405 is 21 March 2026.
+    expect(formatDay('2026-03-20', 'fa')).toBe('۲۹ اسفند ۱۴۰۴');
+    expect(formatDay('2026-03-21', 'fa')).toBe('۱ فروردین ۱۴۰۵');
+  });
+
+  it('never slips a day: the same text for every day of a year, read as the digits it is', () => {
+    for (let n = 0; n < 366; n++) {
+      const instant = Date.UTC(2028, 0, 1 + n);
+      const day = `${new Date(instant).getUTCFullYear()}-${String(new Date(instant).getUTCMonth() + 1).padStart(2, '0')}-${String(new Date(instant).getUTCDate()).padStart(2, '0')}`;
+      // The English day number is the date's own, for any zone the process might run in.
+      expect(formatDay(day, 'en').split(' ')[0]).toBe(String(new Date(instant).getUTCDate()));
+    }
+  });
+
+  it('refuses text that is not a day', () => {
+    expect(() => formatDay('10 Oct 2026', 'en')).toThrow(RangeError);
+  });
+});
+
+describe('formatAdminListDay (AC-31)', () => {
+  it('leaves the year out in the current year and puts it in any other', () => {
+    expect(formatAdminListDay('2026-10-03', '2026-10-10')).toBe('3 Oct');
+    expect(formatAdminListDay('2026-01-01', '2026-12-31')).toBe('1 Jan');
+    expect(formatAdminListDay('2025-12-31', '2026-01-01')).toBe('31 Dec 2025');
+    expect(formatAdminListDay('2027-01-01', '2026-12-31')).toBe('1 Jan 2027');
+  });
+
+  it('is English and Gregorian whatever the episode\'s language', () => {
+    expect(formatAdminListDay('2026-10-10', '2026-10-10')).toBe('10 Oct');
   });
 });

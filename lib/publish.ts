@@ -48,13 +48,18 @@ export function getRow<R extends PublishRow>(db: Db, kind: Kind, id: string): R 
  * With `publish`, the insert and the first publish are one transaction. The row
  * is inserted as a draft and then published, because an episode can't be born
  * published (its trigger needs a link first) and one path serves both.
+ *
+ * `afterInsert` is for what a row needs before it can be published: it runs
+ * inside the same transaction, after the insert and before the publish, and
+ * only when this call made the row. An episode inserts its links there, so new
+ * text publishes in one request (S-3). Entries pass nothing.
  */
 export function createOrGet<R extends PublishRow>(
   db: Db,
   kind: Kind,
   publishKey: string,
   fields: Fields,
-  options: { publish: boolean },
+  options: { publish: boolean; afterInsert?: (id: string) => void },
 ): { row: R; created: boolean } {
   const names = Object.keys(fields);
   for (const name of names) {
@@ -72,6 +77,7 @@ export function createOrGet<R extends PublishRow>(
       )
       .run(id, ...names.map((name) => fields[name] as string | number | null), publishKey, at, at);
     const created = result.changes === 1;
+    if (created) options.afterInsert?.(id);
     if (created && options.publish) publishAt(db, kind, id, at);
     const row = db.prepare(`${select(kind)} WHERE publish_key = ?`).get(publishKey) as R;
     return { row, created };

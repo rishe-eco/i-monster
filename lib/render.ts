@@ -29,3 +29,14 @@ export function renderDoc(doc: Doc, lang: Lang): string {
     .map((inner) => `<p>${inner}</p>`)
     .join('');
 }
+
+/**
+ * Plain text with line breaks as HTML: a blank line starts a paragraph, a single line break is a `<br>`,
+ * and every text run is isolated for its language (PD-8). An episode's description is this.
+ */
+export function renderLines(text: string, lang: Lang): string {
+  return text
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p>${paragraph.split('\n').map((line) => isolate(line, lang)).join('<br>')}</p>`)
+    .join('');
+}
