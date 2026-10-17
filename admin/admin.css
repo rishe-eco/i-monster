@@ -563,8 +563,11 @@
   gap: var(--space-1);
 }
 
+/* At 200% zoom the two tools don't fit side by side: they wrap, rather than run into the gutter. */
 .toolbar__tools {
   display: flex;
+  flex-wrap: wrap;
+  min-inline-size: 0;
   gap: var(--space-1);
 }
 

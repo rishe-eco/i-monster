@@ -240,7 +240,9 @@ function Home({
               buffers.apply({ type: 'discarded', which: 'edit' });
               setEditOffer(null);
             }
-            if (editing) buffers.apply({ type: 'edit-cancelled' });
+            // Only the changes go here. What happens to set-aside text is `then`'s: closing the frame brings it back
+            // and says so, and opening another entry keeps it set aside.
+            if (editing) buffers.apply({ type: 'discarded', which: 'edit' });
             unsaved.current = false;
             then();
           }}

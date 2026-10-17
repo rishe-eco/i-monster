@@ -562,13 +562,37 @@ test('at 200% zoom (180 px) nothing scrolls sideways and the toolbar, the action
   await page.getByRole('button', { name: 'Link', exact: true }).click();
   await page.getByLabel('Link address').fill('https://example.org/a-rather-long-address-to-test-wrapping');
   await expectNoSidewaysScroll(page, 180);
-  for (const control of await page.locator('.composer button, .composer input:not([type=radio]), .segmented__options').all()) {
-    const box = await control.boundingBox();
-    expect((box?.x ?? -1) >= 0 && (box?.x ?? 0) + (box?.width ?? 0) <= 180, `${await control.innerText().catch(() => '')} fits 180 px`).toBe(true);
-  }
+  await expectWithinColumn(page, '.composer');
   await expectColourScheme(page, info);
+
+  // The frame too, with a Persian entry in it: the same editor, other actions (the B5 lesson: every view at 180 px).
+  expect((await request.post('/__test/entries', { data: { entries: [{ id: 'a000000020', lang: 'fa', title: MIXED.fa.title, text: MIXED.fa.text, firstPublishedAt: NOW - 2 * DAY }] } })).ok()).toBe(true);
+  await page.reload();
+  await page.getByRole('button', { name: 'Entries', exact: true }).click();
+  await page.getByRole('button', { name: /^Edit/ }).first().click();
+  await expect(page.locator('.frame .frame__status')).toContainText('Editing');
+  await expectNoSidewaysScroll(page, 180);
+  await expectWithinColumn(page, '.frame');
   expect(admin.problems).toEqual([]);
 });
+
+/**
+ * Every control inside the column, not only inside the screen: a button that runs into the gutter
+ * still leaves no sideways scroll, and still looks broken (found at B6's review: Highlight at 180 px).
+ */
+async function expectWithinColumn(page: Page, where: string): Promise<void> {
+  await page.evaluate(() => document.fonts.ready);
+  const column = await page.locator('main').evaluate((main) => {
+    const style = getComputedStyle(main);
+    const rect = main.getBoundingClientRect();
+    return { left: rect.left + parseFloat(style.paddingInlineStart), right: rect.right - parseFloat(style.paddingInlineEnd) };
+  });
+  for (const control of await page.locator(`${where} button, ${where} input:not([type=radio]), ${where} .segmented__options`).all()) {
+    const box = await control.boundingBox();
+    const name = (await control.innerText().catch(() => '')) || ((await control.getAttribute('id')) ?? '');
+    expect((box?.x ?? -1) >= column.left - 0.5 && (box?.x ?? 0) + (box?.width ?? 0) <= column.right + 0.5, `${name} stays in the column at 180 px`).toBe(true);
+  }
+}
 
 // ── Nothing is lost (plan B6, PD-12, AC-16, AC-43): buffers, failures, and signing in over the text ──
 
@@ -656,6 +680,41 @@ test('J3.1, J3.2: the network drops during a publish. It says so, keeps the text
   await expect(body(page)).toHaveText('');
   await expect(page.getByText('Kept on this phone', { exact: true })).toHaveCount(0);
   await expectFits(admin, info);
+});
+
+test('a lost answer, then another language before the retry: the language is fixed until an answer comes, so nothing is published twice (AC-25, AC-42)', async ({ browser, baseURL, request }) => {
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  const keys = watchKeys(page);
+  let lost = true;
+  await page.route('**/admin/api/entries', async (route) => {
+    if (route.request().method() === 'POST' && lost) {
+      lost = false;
+      await route.fetch();
+      await route.abort('connectionreset');
+      return;
+    }
+    await route.continue();
+  });
+  await write(page, 'Published in English, though the answer never came.');
+  await publishButton(page).click();
+  const failure = alertWith(page, 'Not published yet.');
+  await expect(failure).toBeVisible();
+  // The row may exist in English: the control is fixed, and Persian can't be chosen.
+  await expect(language(page, 'fa')).toBeDisabled();
+  // Emptying the text doesn't free the key either: typing again is the same composition.
+  await body(page).click();
+  await page.keyboard.press('Control+A');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type('Published in English, then retried.');
+  await failure.getByRole('button', { name: 'Try again' }).click();
+  await expect(publishedNotice(page)).toBeVisible();
+  expect(new Set(keys).size).toBe(1);
+  const entries = await listed(admin);
+  expect(entries.map((entry) => [entry.lang, entry.state])).toEqual([['en', 'published']]);
+  expect(await (await request.get(`/log/${entries[0]?.id}`)).text()).toContain('then retried.');
+  // Answered, the next entry is new text again, and its language can be chosen.
+  await expect(language(page, 'fa')).toBeEnabled();
 });
 
 test('G4, AC-25: the server got the publish and the answer was lost. The retry finds the same entry: one entry, however many taps', async ({ browser, baseURL, request }) => {
@@ -1019,6 +1078,27 @@ test('leaving an edit that holds unsaved changes asks first; Keep editing leaves
   await expect(page.locator('.frame')).toHaveCount(0);
   expect(await buffer(page, 'edit')).toBeNull();
   expect(await (await request.get(`/log/${id}`)).text()).not.toContain('Unsaved.');
+});
+
+test('AC-43: Leave over unsaved changes drops only the changes; the unsent text comes back and says so, with Discard', async ({ browser, baseURL, request }) => {
+  await seedPublished(request);
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await write(page, 'Unsent while I fix an old one.');
+  await openEdit(page);
+  const frame = page.locator('.frame');
+  await frame.getByRole('textbox', { name: 'Entry text' }).click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Not kept.');
+  await frame.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Leave' }).click();
+  await expect(page.locator('.frame')).toHaveCount(0);
+  const back = page.getByRole('status').filter({ hasText: 'Back to your unsent entry.' });
+  await expect(back).toContainText("It isn't published.");
+  await expect(back.getByRole('button', { name: 'Discard' })).toBeVisible();
+  await expect(body(page)).toHaveText('Unsent while I fix an old one.');
+  expect(await buffer(page, 'edit')).toBeNull();
+  expect(await buffer(page, 'unsent')).toMatchObject({ doc: { type: 'doc' } });
 });
 
 test('changes left in an edit when the page was closed are offered back, and Put them back opens the entry with them (AC-16)', async ({ browser, baseURL, request }) => {

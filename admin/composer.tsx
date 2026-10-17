@@ -113,6 +113,9 @@ type Writer = ReturnType<typeof useWriter>;
 
 const NEEDS_TAP = new Set<Code>(['NETWORK', 'UNEXPECTED', 'CSRF_INVALID', 'ORIGIN_REFUSED']);
 
+/** Failures that leave it unknown whether the server made the row: the request may have landed and only the answer been lost. */
+const UNANSWERED = new Set<Code>(['NETWORK', 'UNEXPECTED']);
+
 /**
  * A failure, in the one place the eye already is: just above the actions (W5). It says first that the
  * thing did not happen, then what is true of the text, then the one button that carries on. The editor
@@ -376,8 +379,10 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
   // The key is made at the first keystroke and kept until the server confirms a publish; the id is the row once there is one (PD-11).
   const key = useRef<string | null>(initial?.key ?? null);
   const rowId = useRef<string | null>(initial?.id ?? null);
-  // Whether a request with this key has been sent: the key then belongs to that language (see `onLang`).
-  const attempted = useRef(false);
+  // Whether a request with this key went out and no answer came back (a dropped connection, a server error). The server
+  // may have made the row, in the language it was sent in, and a retry with the key would find it: so the language is
+  // fixed until an answer comes. A new key for a new language would publish the same text twice if the first one landed.
+  const unanswered = useRef(false);
   const live = useRef({ lang, title, doc });
   live.current = { lang, title, doc };
 
@@ -394,7 +399,7 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
     live.current = merged;
     // A composition with nothing in it, and no row, is no composition: it has no key. The first keystroke makes one.
     const empty = merged.title.trim() === '' && merged.doc.content.length === 0;
-    if (empty && rowId.current === null) key.current = null;
+    if (empty && rowId.current === null && !unanswered.current) key.current = null;
     else key.current ??= newKey();
     store({ type: 'typed', unsent: key.current === null ? null : { key: key.current, id: rowId.current, ...merged } });
     setPublished(null);
@@ -407,29 +412,24 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
     if (next.doc !== undefined) setDoc(next.doc);
   };
 
-  const onLang = (next: Lang) => {
-    // A request with this key may have reached the server, which would hold the language it was sent in
-    // and answer a retry with that row. Another language is another composition.
-    if (attempted.current && rowId.current === null) {
-      key.current = newKey();
-      attempted.current = false;
-    }
-    change({ lang: next });
-  };
+  const onLang = (next: Lang) => change({ lang: next });
 
   const write = async (action: 'publish' | 'saveDraft') => {
     key.current ??= newKey();
     const current = live.current;
     const sent = key.current;
-    attempted.current = true;
-    const result = await writer.attempt(action, () =>
-      writeNew({ ...current, key: sent, id: rowId.current }, action === 'publish', (id) => {
+    const result = await writer.attempt(action, async () => {
+      const answer = await writeNew({ ...current, key: sent, id: rowId.current }, action === 'publish', (id) => {
         // The server made a row: from here the text is worked on by its id, and the buffer says so,
         // so a closed tab and a reopened page carry on with the same row.
         rowId.current = id;
+        unanswered.current = false;
         store({ type: 'typed', unsent: { key: sent, id, ...current } });
-      }),
-    );
+      });
+      // Set before the failure is drawn, so the language control is fixed in the same render.
+      if (!answer.ok && UNANSWERED.has(answer.code) && rowId.current === null) unanswered.current = true;
+      return answer;
+    });
     if (!result?.ok) return;
     const entry = result.data.entry;
     onChanged();
@@ -438,7 +438,7 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
       store({ type: 'confirmed' });
       key.current = null;
       rowId.current = null;
-      attempted.current = false;
+      unanswered.current = false;
       live.current = { lang: live.current.lang, title: '', doc: EMPTY_DOC };
       setTitle('');
       setDoc(EMPTY_DOC);
@@ -463,7 +463,7 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
     if (!next) return;
     key.current = next.key;
     rowId.current = next.id;
-    attempted.current = false;
+    unanswered.current = false;
     live.current = { lang: next.lang, title: next.title, doc: next.doc };
     setLang(next.lang);
     setTitle(next.title);
@@ -482,7 +482,7 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
     if (which === 'unsent') {
       key.current = null;
       rowId.current = null;
-      attempted.current = false;
+      unanswered.current = false;
       live.current = { lang: live.current.lang, title: '', doc: EMPTY_DOC };
       setTitle('');
       setDoc(EMPTY_DOC);
@@ -533,8 +533,9 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
           </button>
         </Offer>
       ) : null}
-      {/* Once a draft is saved the row has a language, and a PUT never changes it: the control is fixed from then on. */}
-      <LanguageControl lang={lang} locked={busy !== null || rowId.current !== null} onChange={onLang} />
+      {/* Once a draft is saved the row has a language, and a PUT never changes it: the control is fixed from then on.
+          It is fixed too while a send went unanswered, since the row may exist in the language it was sent in. */}
+      <LanguageControl lang={lang} locked={busy !== null || rowId.current !== null || unanswered.current} onChange={onLang} />
       <Fields
         idBase="new"
         lang={lang}
