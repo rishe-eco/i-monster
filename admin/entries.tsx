@@ -18,7 +18,7 @@ interface Page {
 }
 
 /** What a row is called: its title, or its opening words in quotes. */
-const nameOf = (row: EntryRow) => row.title ?? copy.entries.opening(row.excerpt);
+const nameOf = (row: EntryRow) => row.title ?? copy.entries.opening(row.excerpt, row.lang);
 
 function Row({ row, now, zone, onEdit }: { row: EntryRow; now: number; zone: string; onEdit: (id: string) => void }) {
   // A draft that was never published has no date; one that was live keeps the date it will return to (AC-14).
@@ -28,7 +28,7 @@ function Row({ row, now, zone, onEdit }: { row: EntryRow; now: number; zone: str
       <span class="entry-row__date">{date}</span>
       {/* The name is in the entry's own language and direction, whatever the admin's (AC-42). */}
       <span class={row.title === null ? 'entry-row__name entry-row__name--opening' : 'entry-row__name'} lang={row.lang} dir={row.lang === 'fa' ? 'rtl' : 'ltr'}>
-        {row.title === null ? <Runs text={copy.entries.opening(row.excerpt)} lang={row.lang} /> : <Runs text={row.title} lang={row.lang} />}
+        {row.title === null ? <Runs text={copy.entries.opening(row.excerpt, row.lang)} lang={row.lang} /> : <Runs text={row.title} lang={row.lang} />}
       </span>
       <span class="entry-row__pills">
         {row.state === 'draft' && !row.wasLive ? <span class="pill pill--dashed">{copy.entries.draft}</span> : null}

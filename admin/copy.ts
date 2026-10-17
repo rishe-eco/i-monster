@@ -2,6 +2,7 @@
 // the admin is English only). The server sends codes, never prose, so the
 // refusals are keyed by those codes; a code with no message here fails to compile.
 // The words come from the 4b design's plates 5, 6, 8, 10, 12 and 15.
+import type { Lang } from '../lib/i18n.ts';
 import { limits } from '../lib/limits.ts';
 import type { Code } from './api.ts';
 
@@ -139,8 +140,9 @@ export const copy = {
     persian: 'Persian',
     edit: 'Edit',
     editing: (name: string) => `Edit ${name}`,
-    // An untitled entry is called by its opening words, in quotes (J2.6).
-    opening: (words: string) => `“${words}”`,
+    // An untitled entry is called by its opening words, in quotes (J2.6): the entry's own language's quotes,
+    // since English quotes around a right-to-left run read as closing the text before it opens.
+    opening: (words: string, lang: Lang) => (lang === 'fa' ? `«${words}»` : `“${words}”`),
   },
 
   // The edit view's frame (plate 8): B6 puts the editor in it.

@@ -284,11 +284,18 @@
   border-block-end: var(--rule-soft-width) solid var(--rule-soft);
 }
 
-/* Date, name, pills, Edit. The name takes what is left and cuts with an ellipsis, so a long title never widens the row. */
+/* Date, name, pills, Edit. The name takes what is left and cuts with an ellipsis, so a long title never widens the row.
+   Narrower than 20em (a phone at 200% zoom) the four don't fit on one line, so the date and Edit share the first
+   line and the name and pills take the full width below (HIG #8). From 20em, the plate's one line. */
 .entry-row {
   display: grid;
-  grid-template-columns: 5.25rem minmax(0, 1fr) auto auto;
-  gap: var(--space-1);
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'date edit'
+    'name name'
+    'pills pills';
+  column-gap: var(--space-1);
+  row-gap: var(--space-xs);
   align-items: center;
   min-block-size: var(--hit-button);
   padding-block: var(--space-xs);
@@ -297,12 +304,14 @@
 }
 
 .entry-row__date {
+  grid-area: date;
   font-size: var(--size-meta);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
 .entry-row__name {
+  grid-area: name;
   overflow: hidden;
   font-weight: 600;
   font-size: var(--size-row-line);
@@ -326,12 +335,32 @@
 }
 
 .entry-row__pills {
+  grid-area: pills;
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: var(--space-xs);
+}
+
+.entry-row__pills:empty {
+  display: none;
+}
+
+.entry-row > .text-btn {
+  grid-area: edit;
+}
+
+@media (min-width: 20em) {
+  .entry-row {
+    grid-template-columns: 5.25rem minmax(0, 1fr) auto auto;
+    grid-template-areas: 'date name pills edit';
+    row-gap: 0;
+  }
+
   /* One pill fits beside the name; two stack, so a long name keeps its room on a phone. */
-  max-inline-size: 5rem;
+  .entry-row__pills {
+    justify-content: flex-end;
+    max-inline-size: 5rem;
+  }
 }
 
 /* Solid for a fact about the entry (its language); dashed for a state it is in (draft, was live). */

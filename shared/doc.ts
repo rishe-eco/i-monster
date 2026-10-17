@@ -97,7 +97,7 @@ export function validateDoc(json: unknown): DocResult {
 // noncharacters. Pasted text can carry them (Word's line break is U+000B); one in
 // the feed would make the whole document unreadable to every feed reader. The
 // pages and the feed drop them (lib/escape.ts); the API refuses them (S-5).
-const XML_FORBIDDEN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/;
+const XML_FORBIDDEN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/;
 const XML_FORBIDDEN_ALL = new RegExp(XML_FORBIDDEN.source, 'g');
 
 /** Whether the text holds a character no XML document may carry. */

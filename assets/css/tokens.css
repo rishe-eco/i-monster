@@ -135,7 +135,7 @@
 :root:lang(fa) {
   --font-ui: var(--font-ui-fa);
   --font-read: 'Vazirmatn', 'Estedad', system-ui, sans-serif;
-  --leading-read: 1.8;
+  --leading-read: var(--leading-read-fa);
   --leading-intro: 1.8;
   --tracking-display: 0;
   --tracking-title: 0;

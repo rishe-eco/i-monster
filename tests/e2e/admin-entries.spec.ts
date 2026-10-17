@@ -310,3 +310,25 @@ for (const lang of ['en', 'fa'] as const) {
     await expect(page.locator('.frame')).toHaveCount(0);
   });
 }
+
+// Found at B5's verify: at 200% zoom (180 px) the one-line row was wider than the screen and its name
+// had no room at all; and English quotes around a Persian opening read as closing it before it opens.
+test('at 200% zoom the rows stack and fit, the name still shows, and an untitled Persian row is in «» (HIG #8)', async ({ browser, baseURL, request }, info) => {
+  await seed(request, [
+    { id: 'a000000001', lang: 'fa', text: 'امروز یاد گرفتم که کوچک شروع کنم.', state: 'draft', firstPublishedAt: NOW - DAY },
+    { id: 'a000000002', lang: 'en', title: 'Two passkeys can be one key', text: 'Body.', firstPublishedAt: NOW - 2 * DAY },
+  ]);
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await openEntries(page);
+  await expect(rows(page)).toHaveCount(2);
+  expect(await rowAt(page, 0)).toEqual({ date: '9 Oct', name: '«امروز یاد گرفتم که کوچک شروع کنم.»', pills: ['was live', 'Persian'] });
+
+  await expectNoSidewaysScroll(page, 180);
+  for (const row of await rows(page).all()) {
+    expect((await row.locator('.entry-row__name').boundingBox())?.width ?? 0).toBeGreaterThan(100);
+    expect((await row.boundingBox())?.width ?? 0).toBeLessThanOrEqual(180);
+  }
+  await expectColourScheme(page, info);
+  expect(admin.problems).toEqual([]);
+});
