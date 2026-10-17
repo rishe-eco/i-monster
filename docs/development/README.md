@@ -41,6 +41,24 @@ Run in the main checkout on the milestone script (`root-sot/lifecycle/projects/i
 - **`excludeCredentials` on Chrome with Google Password Manager,** Windows and Linux alike: "Add a passkey on this device" asks for the manager's PIN, then the page shows "This device already has a passkey for this site." Chrome shows no wording of its own.
 - **Owed, with the phone (V-7):** a phone passkey; the hybrid (QR) sign-in, and "this device" after it (S-15); the QR scanned by a camera; the phone keyboard at 360 px; and **AC-24**, deferred by the founder (it runs again before launch anyway).
 
+### MS3 · 2026-10-18
+
+Run in the main checkout on the milestone script, one heavy runner at a time, all on `main @ ca1b2aa` (B7's deploy record, the last of B5–B8).
+
+| Suite | Result | On |
+|---|---|---|
+| `npm ci --ignore-scripts` | 205 packages, 0 vulnerabilities | `ca1b2aa` |
+| `npm run check` | clean | `ca1b2aa` |
+| `npm test` | **45 files, 948 tests passed** (MS2: 32 files, 599), 62 s | `ca1b2aa` |
+| `npm run e2e` | **445 passed, 9 skipped**, one worker, 12.4 min (MS2: 213 and 9). The skips are still `auth.spec.ts`'s dark runs, by design | `ca1b2aa` |
+
+**Fixed at the milestone:** nothing. Every suite was green on the first run.
+
+**By hand:**
+- **Every feature is live,** checked by `curl` on 2026-10-18 (feeds by `HEAD`, so the reader record counts nothing): `/`, `/fa/`, `/log`, `/fa/log`, `/podcast`, `/fa/podcast` and `/admin` answer `200`; both feeds answer `200` as `application/atom+xml`; an unknown path answers each language's `404`; every response carries `X-Robots-Tag: noindex`, and `robots.txt` disallows all. Signed out, `/admin/api/session`, `…/entries` and `…/episodes` answer `401`; `/__test/clock` answers `404`. The admin bundle is served (`admin.8356b93061.js`, 310,540 B, uncompressed until F-17).
+- **Content on production:** the founder published one episode from the admin on 2026-10-18 (B7's write path, live), and `/podcast` shows it. `/log` shows two English test entries dated 18 Oct (after the 10-17 `reset-content`); how they were made isn't recorded. `reset-content` clears all of it after E1, as plan §8 says.
+- **Owed: E1 / M3 (AC-15), so MS3 is not closed.** The founder had no phone this session. E1, the phone keyboards and the episode form on a phone wait for the phone check (V-9, with V-7). MS3 closes when E1's warm median passes (eval plan §4.1).
+
 Parallel lanes: never more than two at once. B2 and B3 can run together; B3 and B4a can run together; B5 and B8 can run together. The only shared file at risk is `app.ts`, which gains one line per stage.
 
 ## Owed
