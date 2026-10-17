@@ -5,6 +5,7 @@ import { join, relative, sep } from 'node:path';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetClock, setNow } from '../../lib/clock.ts';
 import { clearEntries, insertPublished } from '../../lib/entries.ts';
+import { clearEpisodes, insertEpisodeFixture } from '../../lib/episodes.ts';
 import { limits } from '../../lib/limits.ts';
 import { docFromText } from '../../shared/doc.ts';
 import { COOKIE_NAME, resetAuth, signedIn } from '../authHelpers.ts';
@@ -55,6 +56,7 @@ beforeEach(() => {
   setNow(NOW);
   clearEntries(t.db);
   resetAuth(t.db);
+  clearEpisodes(t.db);
   t.db.exec('DELETE FROM record_view; DELETE FROM record_feed; DELETE FROM record_referrer;');
   insertPublished(t.db, { lang: 'en', id: ENTRY, body: docFromText('Hello.') });
   insertPublished(t.db, { lang: 'fa', id: ENTRY.replace('a', 'b'), body: docFromText('سلام.') });
@@ -77,6 +79,15 @@ describe('R1: page views, in both languages', () => {
     await get('/log');
     await get(`/log?before=${ENTRY}`);
     expect(record().views).toEqual({ 'en:log': 3 });
+  });
+
+  it('counts the podcast page in both languages, and a page behind ?before= as the podcast (S-18)', async () => {
+    const english = insertEpisodeFixture(t.db, { lang: 'en', name: 'One', description: 'x', tags: ['t'], links: [{ label: 'YouTube', url: 'https://youtu.be/a' }] });
+    const persian = insertEpisodeFixture(t.db, { lang: 'fa', name: 'یک', description: 'x', tags: ['t'], links: [{ label: 'YouTube', url: 'https://youtu.be/a' }] });
+    for (const path of ['/podcast', '/fa/podcast', `/podcast?before=${english}`, `/fa/podcast?before=${persian}`, '/podcast']) {
+      expect((await get(path)).status, path).toBe(200);
+    }
+    expect(record()).toEqual({ views: { 'en:podcast': 3, 'fa:podcast': 2 }, feed: {}, referrers: {} });
   });
 
   it('files the count under the Tehran month', async () => {
@@ -157,7 +168,7 @@ describe('what is not counted', () => {
   });
 
   it('skips a 404, an unknown entry and a draft', async () => {
-    for (const path of ['/nope', '/log/zzzzzzzzzz', `/fa/log/${ENTRY}`, '/podcast', '/fa/podcast', '/log?before=zzzzzzzzzz']) {
+    for (const path of ['/nope', '/log/zzzzzzzzzz', `/fa/log/${ENTRY}`, '/podcast?before=zzzzzzzzzz', '/fa/podcast?before=zzzzzzzzzz', '/log?before=zzzzzzzzzz']) {
       expect((await get(path)).status, path).toBe(404);
     }
     expect(record()).toEqual(empty);
@@ -357,13 +368,16 @@ describe('AC-47: the record is shown by the CLI and nowhere else', () => {
       for (const lang of ['en', 'fa']) {
         t.db.prepare('INSERT INTO record_view VALUES (?, ?, ?, ?)').run(MONTH, lang, 'landing', MARK);
         t.db.prepare('INSERT INTO record_view VALUES (?, ?, ?, ?)').run(MONTH, lang, 'log', MARK + 1);
+        t.db.prepare('INSERT INTO record_view VALUES (?, ?, ?, ?)').run(MONTH, lang, 'podcast', MARK + 3);
         t.db.prepare('INSERT INTO record_view VALUES (?, ?, ?, ?)').run(MONTH, lang, lang === 'en' ? ENTRY : 'b000000001', MARK + 2);
         t.db.prepare('INSERT INTO record_feed VALUES (?, ?, ?, ?)').run(MONTH, lang, 'Feedly', MARK + 3);
         t.db.prepare('INSERT INTO record_referrer VALUES (?, ?, ?, ?)').run(MONTH, lang, 'example.org', MARK + 4);
       }
     };
     seed();
-    const paths = ['/', '/fa/', '/log', '/fa/log', `/log/${ENTRY}`, '/fa/log/b000000001', '/log/feed.xml', '/fa/log/feed.xml', '/nope', '/fa/nope', '/admin', '/healthz', '/robots.txt'];
+    // An episode under the entry's id, so the admin's read by id (`:id` below) finds one.
+    insertEpisodeFixture(t.db, { lang: 'en', id: ENTRY, name: 'An episode', description: 'x', tags: ['t'], links: [{ label: 'YouTube', url: 'https://youtu.be/a' }] });
+    const paths = ['/', '/fa/', '/log', '/fa/log', '/podcast', '/fa/podcast', `/log/${ENTRY}`, '/fa/log/b000000001', '/log/feed.xml', '/fa/log/feed.xml', '/nope', '/fa/nope', '/admin', '/healthz', '/robots.txt'];
     for (const path of paths) {
       const body = await (await get(path)).text();
       for (let n = MARK; n <= MARK + 4; n += 1) expect(body, `${path} shows ${n}`).not.toContain(String(n));
@@ -371,7 +385,7 @@ describe('AC-47: the record is shown by the CLI and nowhere else', () => {
     const { client } = await signedIn(app, t.db, env);
     // Every admin API read the router has, found by enumerating it as the 401 test does, so a later stage's GET is checked too.
     const apiReads = [...new Set(app.routes.filter((r) => r.method === 'GET' && r.path.startsWith('/admin/api/')).map((r) => r.path.replace(/:[A-Za-z]+/g, ENTRY)))];
-    expect(apiReads).toEqual(expect.arrayContaining(['/admin/api/session', '/admin/api/passkeys', '/admin/api/settings', '/admin/api/entries', `/admin/api/entries/${ENTRY}`]));
+    expect(apiReads).toEqual(expect.arrayContaining(['/admin/api/session', '/admin/api/passkeys', '/admin/api/settings', '/admin/api/entries', `/admin/api/entries/${ENTRY}`, '/admin/api/episodes', `/admin/api/episodes/${ENTRY}`]));
     for (const path of [...apiReads, '/admin', '/admin/']) {
       const reply = await client.get(path);
       // A refusal would pass the check below without reading anything.

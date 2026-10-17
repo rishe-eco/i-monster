@@ -543,7 +543,7 @@ describe('GET entries/<id>', () => {
 });
 
 describe('S-11 and S-12: what is under /admin/api and nothing is a route', () => {
-  const unknown = ['/admin/api/zzz', '/admin/api/entries/x/y/z', '/admin/api/episodes', '/admin/api/entries/extra/publish/more', '/admin/api'];
+  const unknown = ['/admin/api/zzz', '/admin/api/entries/x/y/z', '/admin/api/episodes/x/y/z', '/admin/api/entries/extra/publish/more', '/admin/api'];
 
   it('answers an unknown path with the JSON NOT_FOUND when signed in', async () => {
     for (const path of unknown) {

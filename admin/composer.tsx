@@ -7,9 +7,8 @@
 //
 // Nothing is lost (AC-16, AC-43, PD-12). Every change is written to a local buffer as it is made
 // (`buffers.ts`), and a buffer is cleared only when the server has confirmed what it was waiting for:
-// the one `await` that sends is followed by the one place that clears. A failed write says plainly that
-// it did not happen, keeps the text where it is, and waits for a tap: nothing is sent again by itself.
-// A session that ended is signed back in over the text, once, and never in a loop (W6, J3.4).
+// the one `await` that sends is followed by the one place that clears. The writer, the failure notice and
+// the notices both this editor and the episode form use are in `writer.tsx`.
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { formatAdminDay } from '../lib/dates.ts';
@@ -21,22 +20,9 @@ import type { Buffers, EditBuffer, Snapshot, Unsent } from './buffers.ts';
 import { copy, refusals } from './copy.ts';
 import { Editor } from './editor.tsx';
 import { EMPTY_DOC } from './editor-model.ts';
-import { signIn } from './passkey.ts';
 import { Modal, Notice, siteTimeZone } from './ui.tsx';
-import { unpublishEntry, writeEdit, writeNew, type Write } from './writes.ts';
-
-/** What a person can ask the editor to do. It decides the label, the copy of a failure, and what is sent. */
-type Action = 'publish' | 'save' | 'saveDraft' | 'unpublish';
-
-/** A UUID for a new composition's publish key (PD-11). `randomUUID` needs a secure context; the fallback builds the same thing from random bytes. */
-function newKey(): string {
-  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
-  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
-  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
+import { DiscardDialog, FailureNotice, LanguageControl, Offer, PublishedNotice, Said, UNANSWERED, newKey, useWriter, type Action } from './writer.tsx';
+import { unpublishEntry, writeEdit, writeNew } from './writes.ts';
 
 /** The title is one line: the characters the server refuses in one (control characters) and the ones XML forbids are dropped as they arrive, say from a paste. */
 const cleanTitle = (title: string): string => stripXmlForbidden(title).replace(/\p{Cc}/gu, ' ');
@@ -44,144 +30,7 @@ const cleanTitle = (title: string): string => stripXmlForbidden(title).replace(/
 /** What the editor holds, as one comparable string: an edit is unsaved while this differs from the entry as the server has it. */
 const signature = (title: string, doc: Doc): string => JSON.stringify([title.trim(), doc]);
 
-// ── Writing: one write at a time, its failures, and signing in over the text ──
-
-interface Failure {
-  action: Action;
-  code: Code;
-}
-
-/**
- * The state every write shares. `attempt` runs one write, once: a second call while one is in flight
- * does nothing (a double tap is one write). `signInHere` is the passkey sign-in, run over the editor:
- * not re-authentication, which needs a live session and answers 401 when there is none.
- */
-function useWriter(onSession: (session: SessionInfo) => void) {
-  const [busy, setBusy] = useState<Action | 'signin' | null>(null);
-  const [failure, setFailure] = useState<Failure | null>(null);
-  const [signInProblem, setSignInProblem] = useState<Code | null>(null);
-  const running = useRef(false);
-
-  const clear = () => {
-    setFailure(null);
-    setSignInProblem(null);
-  };
-
-  /**
-   * The person changed the text. A refusal about the text is stale now and goes. But "not published" and "not saved" stay:
-   * they are still true until a write succeeds, and the button that carries on is still right there.
-   */
-  const edited = () => {
-    setFailure((current) => (current && (current.code === 'UNAUTHENTICATED' || NEEDS_TAP.has(current.code)) ? current : null));
-    setSignInProblem(null);
-  };
-
-  const attempt = async (action: Action, send: () => Promise<Write>): Promise<Write | null> => {
-    // Synchronous, so a second tap in the same frame finds this one still running: one tap, one write.
-    if (running.current) return null;
-    running.current = true;
-    setBusy(action);
-    clear();
-    const result = await send();
-    running.current = false;
-    setBusy(null);
-    if (!result.ok) setFailure({ action, code: result.code });
-    return result;
-  };
-
-  const signInHere = async (): Promise<boolean> => {
-    if (running.current) return false;
-    running.current = true;
-    setBusy('signin');
-    setSignInProblem(null);
-    const result = await signIn();
-    running.current = false;
-    setBusy(null);
-    if (result.ok) {
-      // The new session and its CSRF token are in place; the caller learns of them so "this device" stays right.
-      onSession(result.data);
-      return true;
-    }
-    setSignInProblem(result.code);
-    return false;
-  };
-
-  return { busy, failure, signInProblem, clear, edited, attempt, signInHere };
-}
-
-type Writer = ReturnType<typeof useWriter>;
-
-const NEEDS_TAP = new Set<Code>(['NETWORK', 'UNEXPECTED', 'CSRF_INVALID', 'ORIGIN_REFUSED']);
-
-/** Failures that leave it unknown whether the server made the row: the request may have landed and only the answer been lost. */
-const UNANSWERED = new Set<Code>(['NETWORK', 'UNEXPECTED']);
-
-/**
- * A failure, in the one place the eye already is: just above the actions (W5). It says first that the
- * thing did not happen, then what is true of the text, then the one button that carries on. The editor
- * is still editable; nothing here sends again by itself.
- */
-function FailureNotice({ writer, kept, onRetry, onSignIn }: { writer: Writer; kept: boolean; onRetry: () => void; onSignIn: () => void }) {
-  const { failure, signInProblem, busy } = writer;
-  const t = copy.editor.failure;
-  if (!failure && !signInProblem) return null;
-  const action = failure?.action;
-  const head = action === 'publish' ? t.heads.publish : action === 'unpublish' ? t.heads.unpublish : t.heads.save;
-  let body = '';
-  if (failure?.code === 'NETWORK') {
-    if (action === 'unpublish') body = t.network.stillLive;
-    else if (!kept) body = t.network.notKept;
-    else body = action === 'save' ? t.network.edit : t.network.text;
-  } else if (failure?.code === 'UNAUTHENTICATED') {
-    body = t.signedOut;
-  } else if (failure) {
-    body = refusals[failure.code];
-  }
-  const signInLabel = action === 'publish' ? t.signInAnd.publish : action === 'unpublish' ? t.signInAnd.unpublish : t.signInAnd.save;
-  return (
-    <>
-      {failure ? (
-        <div class="notice notice--error failure" role="alert">
-          <p>
-            {failure.code === 'BODY_REQUIRED' ? null : <strong>{head} </strong>}
-            {body}
-          </p>
-          {failure.code === 'UNAUTHENTICATED' ? (
-            <button type="button" class="btn btn--primary" disabled={busy !== null} onClick={onSignIn}>
-              {signInLabel}
-            </button>
-          ) : NEEDS_TAP.has(failure.code) ? (
-            <button type="button" class="btn" disabled={busy !== null} onClick={onRetry}>
-              {t.retry}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      {busy === 'signin' ? <Notice kind="neutral">{copy.signIn.waiting}</Notice> : null}
-      {signInProblem === 'CANCELLED' ? <Notice kind="neutral">{copy.signIn.cancelled}</Notice> : null}
-      {signInProblem && signInProblem !== 'CANCELLED' ? <Notice kind="error">{refusals[signInProblem]}</Notice> : null}
-    </>
-  );
-}
-
-// ── Pieces both forms share ──
-
-function LanguageControl({ lang, onChange, locked }: { lang: Lang; onChange: (lang: Lang) => void; locked: boolean }) {
-  const t = copy.editor;
-  return (
-    <fieldset class="segmented" disabled={locked}>
-      <legend class="field__label">{t.language}</legend>
-      <div class="segmented__options">
-        {(['en', 'fa'] as const).map((option) => (
-          <label class="segmented__option" key={option}>
-            <input type="radio" name="entry-language" value={option} checked={lang === option} onChange={() => onChange(option)} />
-            <span lang={option}>{option === 'en' ? t.english : t.persian}</span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
-  );
-}
+// ── The editor's fields ──
 
 interface FieldsProps {
   /** Ids in the page are built from this, so the new entry's fields and the frame's never clash. */
@@ -233,92 +82,9 @@ function Fields({ idBase, lang, title, onTitle, doc, onDoc, readOnly, kept, dock
   );
 }
 
-/** "Published. It's out there.", with where it is, and Open and Copy link (J1.9; F16: Copy link says "Copied" for a moment, then goes back). */
-function PublishedNotice({ id, lang, head }: { id: string; lang: Lang; head: string }) {
-  const [copied, setCopied] = useState(false);
-  const timer = useRef<number | undefined>(undefined);
-  const where = useRef<HTMLSpanElement>(null);
-  useEffect(() => () => clearTimeout(timer.current), []);
-
-  const path = localePath(lang, `/log/${id}`);
-  const t = copy.editor.published;
-
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(`${location.origin}${path}`);
-    } catch {
-      // No clipboard here, or it was refused: select the address so the person can copy it by hand.
-      if (where.current) window.getSelection()?.selectAllChildren(where.current);
-      return;
-    }
-    setCopied(true);
-    clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setCopied(false), limits.copiedMs);
-  };
-
-  return (
-    <div class="notice notice--success published" role="status">
-      <strong>{head}</strong>
-      <span class="published__where" dir="ltr" ref={where}>
-        {location.host}
-        {path}
-      </span>
-      <span class="published__actions">
-        <a class="btn" href={path}>
-          {t.open}
-        </a>
-        <button type="button" class="btn" onClick={() => void copyLink()}>
-          {copied ? t.copied : t.copy}
-        </button>
-      </span>
-      {/* Said politely, so a screen reader hears "Copied" without it taking focus. */}
-      <span class="visually-hidden" aria-live="polite">
-        {copied ? t.copied : ''}
-      </span>
-    </div>
-  );
-}
-
-/** A confirmation with its first words in bold: "Saved." and what it means. */
-function Said({ head, body }: { head: string; body: string }) {
-  return (
-    <Notice kind="success">
-      <strong>{head}</strong> {body}
-    </Notice>
-  );
-}
-
-/** A notice about text that is set aside or found again, with the choices it offers. */
-function Offer({ head, body, children }: { head: string; body: string; children?: ComponentChildren }) {
-  return (
-    <div class="notice notice--neutral offer" role="status">
-      <p>
-        <strong>{head}</strong> {body}
-      </p>
-      {children ? <div class="offer__actions">{children}</div> : null}
-    </div>
-  );
-}
-
-/** Discard asks once more: the text is only on this phone, and it can't come back. */
-function DiscardDialog({ onKeep, onDiscard }: { onKeep: () => void; onDiscard: () => void }) {
-  const t = copy.editor.discardDialog;
-  return (
-    <Modal titleId="discard-title" onCancel={onKeep}>
-      <h2 class="modal__title" id="discard-title">
-        {t.title}
-      </h2>
-      <p class="modal__body">{t.body}</p>
-      <div class="modal__actions">
-        <button type="button" class="btn" onClick={onKeep}>
-          {t.keep}
-        </button>
-        <button type="button" class="btn" onClick={onDiscard}>
-          {t.discard}
-        </button>
-      </div>
-    </Modal>
-  );
+/** "Published. It's out there.", with where the entry is: its own address in the log. */
+function EntryPublished({ id, lang, head }: { id: string; lang: Lang; head: string }) {
+  return <PublishedNotice path={localePath(lang, `/log/${id}`)} head={head} />;
 }
 
 // ── A new entry ──
@@ -496,7 +262,7 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
   const busy = writer.busy;
   const dock = (
     <>
-      <FailureNotice writer={writer} kept={stored} onRetry={() => void write(writer.failure?.action === 'saveDraft' ? 'saveDraft' : 'publish')} onSignIn={() => void signInAndRetry()} />
+      <FailureNotice writer={writer} words={copy.editor.failure} kept={stored} onRetry={() => void write(writer.failure?.action === 'saveDraft' ? 'saveDraft' : 'publish')} onSignIn={() => void signInAndRetry()} />
       <div class="composer__actions">
         <button type="button" class="btn" disabled={busy !== null || draftSaved} onClick={() => void write('saveDraft')}>
           {draftSaved ? copy.editor.saved : copy.editor.saveDraft}
@@ -514,8 +280,8 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
     <div class="composer">
       {said?.kind === 'saved' ? <Said head={t.savedLive.head} body={t.savedLive.body} /> : null}
       {said?.kind === 'draftSaved' ? <Said head={t.savedDraft.head} body={t.savedDraft.body} /> : null}
-      {said?.kind === 'published' ? <PublishedNotice id={said.id} lang={said.lang} head={said.head} /> : null}
-      {published ? <PublishedNotice id={published.id} lang={published.lang} head={t.published.head} /> : null}
+      {said?.kind === 'published' ? <EntryPublished id={said.id} lang={said.lang} head={said.head} /> : null}
+      {published ? <EntryPublished id={published.id} lang={published.lang} head={t.published.head} /> : null}
       {/* Text found again when the page opened, or set aside while another entry was edited and not yet put back. */}
       {snap.kept.length > 0 ? (
         <Offer head={t.left.head} body={t.left.body}>
@@ -536,7 +302,7 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
       ) : null}
       {/* Once a draft is saved the row has a language, and a PUT never changes it: the control is fixed from then on.
           It is fixed too while a send went unanswered, since the row may exist in the language it was sent in. */}
-      <LanguageControl lang={lang} locked={busy !== null || rowId.current !== null || unanswered.current} onChange={onLang} />
+      <LanguageControl name="entry-language" lang={lang} locked={busy !== null || rowId.current !== null || unanswered.current} onChange={onLang} />
       <Fields
         idBase="new"
         lang={lang}
@@ -727,7 +493,7 @@ function EditForm({
           {copy.entry.republish.after}
         </p>
       ) : null}
-      <FailureNotice writer={writer} kept={stored} onRetry={() => void (writer.failure && run(writer.failure.action))} onSignIn={() => void signInAndRetry()} />
+      <FailureNotice writer={writer} words={copy.editor.failure} kept={stored} onRetry={() => void (writer.failure && run(writer.failure.action))} onSignIn={() => void signInAndRetry()} />
       <div class="composer__actions">
         {entry.state === 'published' ? (
           <>
@@ -754,7 +520,7 @@ function EditForm({
       {note === 'unpublished' ? <Notice kind="success">{copy.entry.unpublished}</Notice> : null}
       {/* A draft that was live returns at its original date, which it names (AC-34); a first publish says where it is. */}
       {note === 'published' || note === 'republished' ? (
-        <PublishedNotice id={entry.id} lang={entry.lang} head={note === 'republished' && first !== null ? copy.entry.published(day(first)) : t.published.head} />
+        <EntryPublished id={entry.id} lang={entry.lang} head={note === 'republished' && first !== null ? copy.entry.published(day(first)) : t.published.head} />
       ) : null}
     </>
   );

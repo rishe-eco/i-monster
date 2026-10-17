@@ -1,7 +1,7 @@
 // The admin's screens and how they follow one another (plan B4b, PD-21):
 //   /admin/setup/<code>  → Setup, then the shell, signed in
 //   /admin               → the session decides: sign-in, or the shell
-//   the shell            → the editor's slot, Entries, Podcast (B7), Passkeys, Sign out
+//   the shell            → the editor's slot, Entries, Podcast, Passkeys, Sign out
 // There is no router: two paths, and the rest is state.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { api, forgetSession, whenSignedOut, type Code, type SessionInfo } from './api.ts';
@@ -10,6 +10,7 @@ import { browserStorage } from './browser-storage.ts';
 import { createBuffers, type EditBuffer } from './buffers.ts';
 import { EditOffer, EntryFrame, LeaveDialog, NewEntry, type Returned } from './composer.tsx';
 import { EntriesSection } from './entries.tsx';
+import { PodcastSection } from './episodes.tsx';
 import { PasskeysSection } from './passkeys.tsx';
 import { ReauthHost } from './reauth.tsx';
 import { SignIn } from './signin.tsx';
@@ -227,7 +228,7 @@ function Home({
         <NewEntry buffers={buffers} returned={returned} onChanged={() => setEntriesChanged((n) => n + 1)} onSession={onSessionRenewed} />
       )}
       <EntriesSection onEdit={(id) => guard(() => startEdit(id))} refreshKey={entriesChanged} />
-      {/* The Podcast section comes here in B7: it draws nothing until it exists. */}
+      <PodcastSection onSession={onSessionRenewed} />
       <PasskeysSection session={session} onRemovedHere={onRemovedHere} onSessionEnded={onSessionEnded} />
       {leaving ? (
         <LeaveDialog

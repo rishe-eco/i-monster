@@ -8,6 +8,7 @@
 // none (the `episode_last_link` trigger would refuse it). The triggers stay as the backstop, and their
 // messages are mapped to the same codes the checks here give (house rule 6).
 import { stripXmlForbidden } from '../shared/doc.ts';
+import { isHttpsLink } from '../shared/link.ts';
 import { now } from './clock.ts';
 import { isCalendarDay, todayIn } from './dates.ts';
 import type { Db } from './db.ts';
@@ -146,20 +147,6 @@ function readText(value: unknown, max: number): { text: string | null } | { refu
   const trimmed = stripXmlForbidden(value).replace(/\r\n?/g, '\n').trim();
   if (trimmed.length > max) return { refusal: 'REQUEST_INVALID' };
   return { text: trimmed === '' ? null : trimmed };
-}
-
-/**
- * Whether the text is a link the site will print: it starts `https://`, parses as a URL and holds no
- * space or control character. The database checks the prefix too; `new URL` alone is too kind
- * ("https:example.com" parses), and the prefix alone is too little ("https://").
- */
-export function isHttpsLink(text: string): boolean {
-  if (!/^https:\/\//i.test(text) || /[\s\p{Cc}]/u.test(text)) return false;
-  try {
-    return new URL(text).protocol === 'https:';
-  } catch {
-    return false;
-  }
 }
 
 /**

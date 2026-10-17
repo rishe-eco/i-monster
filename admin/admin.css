@@ -775,3 +775,90 @@ img.ProseMirror-separator {
 .failure .btn {
   margin-block-start: var(--space-1);
 }
+
+/* ── The episode form (plan B7, plates 11 and 12) ── */
+
+/* The description: a few lines, in the episode's own language and direction, and it grows with the text. */
+.field__textarea {
+  min-block-size: 7.5rem;
+  padding-block: var(--space-md);
+  font-family: var(--font-read);
+  font-size: var(--size-read);
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.field__textarea:lang(fa) {
+  font-family: var(--font-read-fa);
+  line-height: var(--leading-read-fa);
+}
+
+/* A name or a tag in Persian takes the Persian interface face, like the title does. */
+.field__input:lang(fa) {
+  font-family: var(--font-ui-fa);
+}
+
+.field__input--code:lang(fa),
+.field__input[dir='ltr'] {
+  font-family: var(--font-ui-latin);
+}
+
+/* A fieldset's default minimum width is its content's: at 200% zoom that would push the page sideways (HIG #8). */
+.links {
+  min-inline-size: 0;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  border: 0;
+}
+
+/* A link: its label over its address, because side by side doesn't fit at 360 px (plate 11). */
+.linkrow {
+  margin-block-end: var(--space-2);
+  padding-block-start: var(--space-1);
+  border-block-start: var(--rule-soft-width) solid var(--rule-soft);
+}
+
+.linkrow__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.linkrow__head .field__label {
+  margin-block-end: 0;
+}
+
+/* YouTube and Castbox fill the label with one tap; any other name is typed. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-block-start: var(--space-xs);
+}
+
+.chip {
+  font-weight: 600;
+}
+
+/* The refusal for one link, at its field, with the fix written out. */
+.field__error {
+  margin-block: calc(-1 * var(--space-xs)) var(--space-2);
+  padding: var(--space-lg) var(--space-2);
+  border: var(--rule) solid var(--error-edge);
+  border-radius: var(--radius-button);
+  background: var(--error-fill);
+  color: var(--error-ink);
+  font-size: var(--size-ui);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.field__input[aria-invalid='true'] {
+  border-color: var(--error-edge);
+}
+
+.episode-new {
+  margin-block: var(--space-1) var(--space-2);
+}

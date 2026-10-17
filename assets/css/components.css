@@ -555,10 +555,15 @@
   margin-block-start: var(--space-4);
 }
 
+/* The show's links are a quiet pair of rows, not call-to-action size: the episodes are what the page is for. */
+.rows--show .big-row__title {
+  font-size: var(--size-title);
+}
+
+/* The last show link closes its own rule, so the episodes need none above them. */
 .episodes {
-  margin-block-start: var(--space-5);
+  margin-block-start: var(--space-3);
   max-inline-size: var(--measure-read);
-  border-block-start: var(--rule) solid var(--rule-strong);
 }
 
 /* The same space around every episode, whatever the days between them (AC-5). */

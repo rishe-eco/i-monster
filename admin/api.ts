@@ -20,6 +20,11 @@ export type RefusalCode =
   | 'BODY_REQUIRED'
   | 'DOC_INVALID'
   | 'LANG_INVALID'
+  | 'DESCRIPTION_REQUIRED'
+  | 'TAGS_ONE_OR_TWO'
+  | 'LINK_REQUIRED'
+  | 'LINK_NOT_HTTPS'
+  | 'LAST_LINK'
   | 'NOT_FOUND';
 
 /** What goes wrong in the browser rather than at the server: the network, the passkey sheet, the browser itself. */
@@ -65,6 +70,11 @@ const REFUSALS: ReadonlySet<string> = new Set<RefusalCode>([
   'BODY_REQUIRED',
   'DOC_INVALID',
   'LANG_INVALID',
+  'DESCRIPTION_REQUIRED',
+  'TAGS_ONE_OR_TWO',
+  'LINK_REQUIRED',
+  'LINK_NOT_HTTPS',
+  'LAST_LINK',
   'NOT_FOUND',
 ]);
 
@@ -96,6 +106,43 @@ export interface EntryDetail {
   lang: Lang;
   title: string | null;
   body: Doc;
+  state: 'draft' | 'published';
+  wasLive: boolean;
+  firstPublishedAt: number | null;
+}
+
+/** One row of the podcast list (plate 12). The server sends no count and no total with it. */
+export interface EpisodeRow {
+  id: string;
+  lang: Lang;
+  name: string | null;
+  /** A calendar day, `YYYY-MM-DD`: never an instant. A never-published draft still has one, and the list shows "—" for it. */
+  date: string;
+  state: 'draft' | 'published';
+  /** A draft that has been published before: it keeps its first date and returns to it (AC-14). */
+  wasLive: boolean;
+  /** UTC milliseconds; null for a draft that was never published. */
+  firstPublishedAt: number | null;
+}
+
+export interface EpisodesPage {
+  episodes: EpisodeRow[];
+  /** The cursor for "Older": the last row shown, when more lie behind it. */
+  olderBefore: string | null;
+  /** The server's day in the site's zone, `YYYY-MM-DD`: the form's date starts here, and the list's year rule reads its year (AC-31). */
+  today: string;
+  now: number;
+}
+
+/** One episode, whole. */
+export interface EpisodeDetail {
+  id: string;
+  lang: Lang;
+  name: string | null;
+  description: string | null;
+  tags: string[];
+  date: string;
+  links: { label: string; url: string }[];
   state: 'draft' | 'published';
   wasLive: boolean;
   firstPublishedAt: number | null;

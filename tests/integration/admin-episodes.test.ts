@@ -323,6 +323,16 @@ describe('PD-23, the date: a calendar day, filled in with today in SITE_TZ', () 
     expect((await save({}, nz)).date).toBe('2026-10-11');
   });
 
+  it('turns the list\'s year with the site\'s zone, not UTC\'s: `today` is what the admin\'s year rule reads (AC-31)', async () => {
+    // 20:45 UTC on 31 December: New Year has begun in Tehran, and not in Los Angeles.
+    const newYear = Date.UTC(2026, 11, 31, 20, 45);
+    await clockTo(newYear);
+    expect((await client.get('/admin/api/episodes')).json.today).toBe('2027-01-01');
+    setNow(newYear);
+    const la = (await signedIn(testApp(t.db, { SITE_TZ: 'America/Los_Angeles' }), t.db, testEnv({ SITE_TZ: 'America/Los_Angeles' }))).client;
+    expect((await la.get('/admin/api/episodes')).json.today).toBe('2026-12-31');
+  });
+
   it('keeps a date that was sent, and an edit without one keeps the episode\'s own', async () => {
     const episode = await save({ date: '2026-09-30' });
     expect(episode.date).toBe('2026-09-30');

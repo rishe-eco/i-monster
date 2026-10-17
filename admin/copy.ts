@@ -26,6 +26,12 @@ export const refusals: Record<Code, string> = {
   BODY_REQUIRED: "There's nothing to save yet. Write something first.",
   DOC_INVALID: "That text can't be saved. Check it for odd characters or a link that isn't a web or email address, then try again.",
   LANG_INVALID: 'Choose a language, English or Persian.',
+  // What publishing an episode asks for (PD-23), and the one thing a link may not be (AC-17).
+  DESCRIPTION_REQUIRED: 'Add a description before publishing.',
+  TAGS_ONE_OR_TWO: 'Give the episode one or two tags before publishing.',
+  LINK_REQUIRED: 'Add a link to listen before publishing.',
+  LINK_NOT_HTTPS: 'A link needs to start with https://. Everything else you typed is still here.',
+  LAST_LINK: 'A published episode keeps at least one link. Add the right one, then remove this.',
   // One message for a passkey and an entry alike: the code is the same, and so is what happened.
   NOT_FOUND: "That isn't there any more.",
   NETWORK: "Couldn't reach the server. Check the connection and try again.",
@@ -242,6 +248,116 @@ export const copy = {
       after: ", its original date. It won't be at the top of the log.",
     },
     published: (date: string) => `Published, at ${date}.`,
+  },
+
+  // Plate 11's list and plate 12's populated list. Nothing here counts: "No … yet" is a fact, not a number.
+  podcast: {
+    title: 'Podcast',
+    newEpisode: 'New episode',
+    empty: 'No episodes yet.',
+    loadFailed: "Couldn't load the episodes.",
+    retry: 'Try again',
+    older: 'Older',
+    // A draft that was never published has no date in the list (AC-14).
+    noDate: '—',
+    // A draft saved before it was named: the list says so rather than showing a blank.
+    noName: 'No name yet',
+    draft: 'draft',
+    wasLive: 'was live',
+    persian: 'Persian',
+    edit: 'Edit',
+    editing: (name: string) => `Edit ${name}`,
+  },
+
+  // The episode form (plates 11 and 12): the same one adds an episode and edits one.
+  episode: {
+    nameLabel: 'Name',
+    descriptionLabel: 'Description',
+    tagLabel: 'Tag',
+    secondTagLabel: 'Second tag (optional)',
+    dateLabel: 'Date',
+    links: 'Links',
+    link: 'Link',
+    labelLabel: 'Label',
+    addressLabel: 'Address',
+    addressPlaceholder: 'https://youtu.be/…',
+    // The two platforms the plate offers as one-tap labels; any other label is typed.
+    chips: ['YouTube', 'Castbox'],
+    addLink: '+ Another link',
+    remove: 'Remove',
+    removeNamed: (label: string) => `Remove ${label}`,
+    thisLink: 'this link',
+    // A published episode's only link has no Remove, and says why (AC-17).
+    lastLink: 'A published episode keeps at least one link. Add the right one, then remove this.',
+    // Refused at the field, with the fix built from the person's own text (AC-17). Never added to the field itself.
+    notHttps: (suggestion: string | null) =>
+      `This link needs to start with https://, like ${suggestion ?? 'https://youtu.be/abc123'}. Everything else you typed is still here.`,
+    needsLabel: 'Name this link, like YouTube, so people know where it goes.',
+    saveDraft: 'Save draft',
+    saved: 'Saved',
+    save: 'Save',
+    publish: 'Publish',
+    publishing: 'Publishing…',
+    unpublish: 'Unpublish',
+    unpublishing: 'Unpublishing…',
+    cancel: 'Cancel',
+    loading: 'Opening…',
+    loadFailed: "Couldn't open that episode.",
+    retry: 'Try again',
+    // The frame's status line (plate 11, 12).
+    editingPublished: (date: string) => `Editing · published ${date}`,
+    draftWasLive: (date: string) => `Draft · first published ${date}`,
+    draft: 'Draft',
+    published: { head: "Published. It's on the podcast page." },
+    // Republishing names the date it returns to, and says its place is kept (plate 12, F13).
+    republished: (date: string) => ({ head: `Published, at ${date}.`, body: "It's back in its place on the podcast page." }),
+    savedLive: { head: 'Saved.', body: 'The episode keeps its date and its place.' },
+    savedDraft: { head: 'Draft saved.', body: "It's in Podcast, not on the site. Open it from any signed-in device." },
+    unpublished: "Unpublished. It's in your podcast list as a draft.",
+    republish: {
+      before: 'Publishing puts it back at ',
+      after: ', its date. It keeps its place on the podcast page.',
+    },
+    confirm: {
+      title: 'Take this episode off the site?',
+      body: 'It leaves the podcast page. It stays here as a draft.',
+      keep: 'Keep it live',
+      unpublish: 'Unpublish',
+    },
+    // The failure's words for an episode: "everything you typed", not "your text" (plate 12, F-16).
+    failure: {
+      heads: { publish: 'Not published yet.', save: 'Not saved.', unpublish: 'Not unpublished.' },
+      network: {
+        text: 'The connection dropped. Everything you typed is kept on this phone.',
+        edit: "The connection dropped. Your changes are kept here, and the live episode hasn't changed.",
+        stillLive: "It's still live.",
+        notKept: "The connection dropped. Everything you typed is still here, but this browser isn't keeping a copy, so leave this page open.",
+      },
+      signedOut: 'You were signed out. Sign in to finish. Your episode stays right here.',
+      retry: 'Try again',
+      signInAnd: { publish: 'Sign in and publish', save: 'Sign in and save', unpublish: 'Sign in and unpublish' },
+      // Two codes whose shared message is about a passkey: said here in the episode's terms.
+      refusals: {
+        NAME_REQUIRED: 'Give the episode a name before publishing.',
+        REQUEST_INVALID: "That couldn't be saved. Check the fields for text that is too long or a line break in a one-line field, then try again.",
+      },
+    },
+    // Nothing unsent is ever dropped (AC-43, J3.3), in episode words.
+    left: { head: 'You left something here.', body: "An unsent episode from earlier on this phone. It isn't published.", put: 'Put it back', discard: 'Discard' },
+    leftEdit: {
+      head: 'You left changes here.',
+      body: "Edits to an episode, from earlier on this phone. They aren't saved, and the episode hasn't changed.",
+      put: 'Put them back',
+      discard: 'Discard',
+    },
+    keptNote: { head: 'Your unsent episode is kept.', body: 'It comes back when you save or cancel here.' },
+    back: { head: 'Back to your unsent episode.', body: "It isn't published.", discard: 'Discard' },
+    leaveDialog: {
+      title: 'Leave without saving?',
+      body: "The changes to this episode aren't saved yet. If you leave, they're dropped, and the episode stays as it is.",
+      stay: 'Keep editing',
+      leave: 'Leave',
+    },
   },
 
   reauth: {

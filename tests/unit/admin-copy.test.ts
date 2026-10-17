@@ -74,3 +74,37 @@ describe('nameProblem: the name rule asked before a passkey exists', () => {
     for (const name of ['phone', 'new phone', 'old laptop', 'گوشی من', "Foad's key"]) expect(nameProblem(name)).toBeNull();
   });
 });
+
+describe('the episode copy (plan B7)', () => {
+  it('words the https refusal as the plate does, with the fix from the person\'s own text', () => {
+    expect(copy.episode.notHttps('https://youtu.be/abc123')).toBe('This link needs to start with https://, like https://youtu.be/abc123. Everything else you typed is still here.');
+    // With nothing to build a fix from, the plate's own example stands in.
+    expect(copy.episode.notHttps(null)).toBe('This link needs to start with https://, like https://youtu.be/abc123. Everything else you typed is still here.');
+  });
+
+  it('names the date it returns to, and says the episode keeps its place (plate 12)', () => {
+    expect(copy.episode.republished('3 Oct 2026')).toEqual({ head: 'Published, at 3 Oct 2026.', body: "It's back in its place on the podcast page." });
+    expect(copy.episode.savedLive).toEqual({ head: 'Saved.', body: 'The episode keeps its date and its place.' });
+    expect(copy.episode.lastLink).toBe('A published episode keeps at least one link. Add the right one, then remove this.');
+  });
+
+  it('gives the signed-out and offline failures in episode words (plate 12, F-16)', () => {
+    expect(copy.episode.failure.signedOut).toBe('You were signed out. Sign in to finish. Your episode stays right here.');
+    expect(copy.episode.failure.network.text).toBe('The connection dropped. Everything you typed is kept on this phone.');
+  });
+
+  it('says the two refusals whose shared message is about a passkey in the episode\'s terms, and has a message for each new code', () => {
+    expect(refusals.NAME_REQUIRED).toContain('passkey');
+    expect(copy.episode.failure.refusals.NAME_REQUIRED).toBe('Give the episode a name before publishing.');
+    expect(copy.episode.failure.refusals.REQUEST_INVALID).not.toContain(String(limits.passkeyNameMax));
+    for (const code of ['DESCRIPTION_REQUIRED', 'TAGS_ONE_OR_TWO', 'LINK_REQUIRED', 'LINK_NOT_HTTPS', 'LAST_LINK'] as const) {
+      expect(refusals[code].length, code).toBeGreaterThan(10);
+    }
+  });
+
+  it('shows no count anywhere in the section or the form (house rule 1)', () => {
+    const everything = JSON.stringify([copy.podcast, copy.episode, copy.episode.removeNamed('YouTube'), copy.podcast.editing('Why a monster?')]);
+    expect(everything).not.toMatch(/\b\d+\s+(episodes?|links?|tags?|drafts?)\b|saving…|\bsaved \d+/i);
+    expect(copy.episode.failure.network.notKept).not.toMatch(/\d/);
+  });
+});
