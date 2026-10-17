@@ -243,6 +243,15 @@ describe('the admin shell (PD-21)', () => {
     expect((await app.request(js as string)).headers.get('Content-Type')).toBe('text/javascript; charset=utf-8');
   });
 
+  it('loads the same wordmark.js as the public pages, deferred and external, for the sign-in view\'s eyes (B9)', async () => {
+    const shell = await html('/admin');
+    const wordmark = /<script defer="" src="(\/assets\/wordmark\.[0-9a-f]{10}\.js)"/.exec(shell)?.[1] as string;
+    expect(wordmark).toBeTruthy();
+    expect(await html('/')).toContain('src="' + wordmark + '"');
+    expect(shell).not.toMatch(/<script(?![^>]*\ssrc=)/);
+    expect((await app.request(wordmark)).status).toBe(200);
+  });
+
   it('holds the shell\'s timezone for the bundle, and no other path under /admin is a page', async () => {
     expect(await html('/admin')).toContain('<meta name="site-timezone" content="Asia/Tehran"/>');
     // /admin/api is the API; anything else under /admin is the designed 404, as everywhere.
@@ -255,5 +264,55 @@ describe('the admin shell (PD-21)', () => {
     const res = await app.request('/admin', { method: 'HEAD' });
     expect(res.status).toBe(200);
     expect(await res.text()).toBe('');
+  });
+});
+
+describe('the wordmark and the eyes in the markup (B9)', () => {
+  const PAGES: [string, string][] = [
+    ['/', 'hero'],
+    ['/fa/', 'hero'],
+    ['/log', 'header'],
+    ['/fa/log', 'header'],
+    ['/podcast', 'header'],
+    ['/fa/podcast', 'header'],
+    ['/nope', 'header'],
+    ['/fa/nope', 'header'],
+  ];
+
+  it.each(PAGES)('%s: the revealed letters are hidden from assistive technology, so the link is still named iMNSTR', async (path) => {
+    const body = await html(path);
+    const link = /<a class="wordmark[^"]*"[^>]*>([\s\S]*?)<\/a>/.exec(body)?.[1] as string;
+    expect(link).toBeTruthy();
+    const hidden = [...link.matchAll(/<span class="wordmark__hid" aria-hidden="true">([^<]*)<\/span>/g)].map((m) => m[1]);
+    expect(hidden).toEqual(['-', 'o', 'e']);
+    // What is left once the hidden letters are taken out is the name.
+    expect(link.replace(/<span class="wordmark__hid"[^>]*>[^<]*<\/span>/g, '').replace(/<[^>]+>/g, '')).toBe('iMNSTR');
+  });
+
+  it.each(PAGES)('%s: every eye sits in a group that assistive technology skips, and the page carries no inline style', async (path) => {
+    const body = await html(path);
+    const groups = [...body.matchAll(/<span class="eyes eyes--(\w+)" aria-hidden="true">/g)].map((m) => m[1]);
+    expect(groups.length).toBeGreaterThan(0);
+    expect(body.match(/data-eye=/g)?.length).toBe(groups.length * 2);
+    expect(body).not.toMatch(/\sstyle=/);
+  });
+
+  it('puts the eyes where the design does: beside the wordmark in every header, the hero, above the empty states, big on the 404 (plates 1 to 4, 13)', async () => {
+    const size = async (path: string) => [...(await html(path)).matchAll(/class="eyes eyes--(\w+)"/g)].map((m) => m[1]);
+    expect(await size('/')).toEqual(['hero']);
+    expect(await size('/fa/')).toEqual(['hero']);
+    // The landing header holds only the nav: the hero is the wordmark.
+    expect(await size('/nope')).toEqual(['header', 'big']);
+    expect(await size('/fa/nope')).toEqual(['header', 'big']);
+    // An empty log and an empty podcast (no entries are seeded in this file) show the small eyes above their line.
+    expect(await size('/log')).toEqual(['header', 'empty']);
+    expect(await size('/fa/log')).toEqual(['header', 'empty']);
+    expect(await size('/podcast')).toEqual(['header', 'empty']);
+    expect(await size('/fa/podcast')).toEqual(['header', 'empty']);
+  });
+
+  it('plays the intro only where the hero says so: / and /fa/', async () => {
+    for (const path of ['/', '/fa/']) expect(await html(path)).toContain('class="hero" data-intro');
+    for (const path of ['/log', '/podcast', '/nope', '/fa/log']) expect(await html(path)).not.toContain('data-intro');
   });
 });

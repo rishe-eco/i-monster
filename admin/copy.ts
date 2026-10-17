@@ -55,7 +55,6 @@ export const copy = {
     pause: 'Try again in a moment',
     pauseNote: 'After repeated failures the button waits, then comes back.',
     cancelled: "Not signed in. Try again when you're ready.",
-    eyes: 'The eyes',
   },
 
   setup: {

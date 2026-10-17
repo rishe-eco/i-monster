@@ -70,7 +70,8 @@ for (const lang of LANGS) {
       await expect(page.locator('main a.big-row')).toHaveAttribute('href', logPath(lang));
       await expect(page.locator('.entry-page__owner a').first()).toHaveAttribute('href', lang === 'fa' ? '/fa/' : '/');
       await expect(page.locator('.entry-page__owner a').nth(1)).toHaveAttribute('href', `${prefix(lang)}/podcast`);
-      await expect(page.locator('header a.wordmark')).toHaveText('iMNSTR');
+      // The hidden letters of i-MoNSTeR are in the markup, so the link's name is what is checked, not its text (B9).
+      await expect(page.locator('header a.wordmark')).toHaveAccessibleName('iMNSTR');
     });
 
     test('has the switch to the other language\'s log, not to a counterpart (AC-41)', async ({ page, request }) => {

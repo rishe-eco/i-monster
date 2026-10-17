@@ -12,6 +12,7 @@ import { renderParagraphs } from '../lib/render.ts';
 import { ArrowIcon, FeedIcon } from './icons.tsx';
 import { Layout } from './layout.tsx';
 import { fill } from './fill.tsx';
+import { Eyes } from './wordmark.tsx';
 
 export interface LogProps {
   lang: Lang;
@@ -58,6 +59,7 @@ export const Log: FC<LogProps> = ({ lang, assets, entries, olderBefore }) => {
       </a>
       {entries.length === 0 ? (
         <div class="empty">
+          <Eyes size="empty" />
           <p class="empty__line">{t.log.empty}</p>
           <p class="empty__more">
             {fill(t.log.emptyMeanwhile, {

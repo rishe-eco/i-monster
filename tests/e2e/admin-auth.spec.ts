@@ -378,7 +378,9 @@ test('sign-in and sign-out: the eyes\' slot is on the sign-in view only, and sig
   await phone.page.getByRole('button', { name: 'Sign out' }).click();
   await expect(phone.page.getByRole('heading', { name: "It's you, right?" })).toBeVisible();
   expect(await cookie(phone)).toBeUndefined();
-  await expect(phone.page.getByRole('img', { name: 'The eyes' })).toBeVisible();
+  // The eyes are decoration (B9): drawn, and hidden from assistive technology rather than labelled.
+  await expect(phone.page.locator('#eyes .eyes[aria-hidden="true"] [data-eye]')).toHaveCount(2);
+  await expect(phone.page.getByRole('img')).toHaveCount(0);
   await expect(phone.page.getByText("This admin has one user. There's nothing to sign up for.")).toBeVisible();
   // No password field anywhere, and no username.
   await expect(phone.page.locator('input')).toHaveCount(0);

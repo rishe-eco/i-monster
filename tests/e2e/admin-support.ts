@@ -2,6 +2,7 @@
 // about signing in (plan B5 on). Edge's virtual authenticator answers the passkey sheet; the setup
 // token comes from the e2e-only route, as a terminal would print it.
 import { expect, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { watchCsp } from './support.ts';
 
 export interface Admin {
   context: BrowserContext;
@@ -15,6 +16,8 @@ export interface Admin {
 /** Sign in on a fresh device: register a passkey with a setup token and land on the shell. */
 export async function signedInAdmin(browser: Browser, baseURL: string, request: APIRequestContext): Promise<Admin> {
   const context = await browser.newContext({ baseURL });
+  // Every document of this context reports a CSP violation to `window.__csp`, which the access sweep reads.
+  await watchCsp(context);
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   await cdp.send('WebAuthn.enable');

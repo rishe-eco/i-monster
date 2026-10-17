@@ -21,12 +21,16 @@
   --error-edge: #b0492f;
   --error-ink: #5e2414;
   --input-fill: #f7f8f3;
-  --field-edge: #7d837f;      /* 3.6:1 against the ground (HIG #3) */
+  --field-edge: #7d837f;      /* 3.4:1 on the ground, 3.6:1 on the field fill (HIG #3; tests/unit/contrast.test.ts) */
   --placeholder: #5c6660;
   --button-fill: #1b211d;     /* primary button */
   --button-ink: #eff0ea;
   --rule-strong: #1b211d;     /* structural rules */
   --rule-soft: rgb(27 33 29 / 0.18);  /* between rows */
+  /* The eyes (design: Components, Wordmark and eyes). The white and the pupil stay the same in dark: the
+     design draws them so, and only the edge, which is the ink, changes. */
+  --eye-white: #fbfcf8;
+  --eye-pupil: #1b211d;
 
   /* The highlighter: lower part of the line in light, a full fill in dark. */
   --highlight-size-y: 52%;
@@ -43,10 +47,15 @@
   --font-read-fa: 'Vazirmatn', 'Estedad', system-ui, sans-serif;
 
   /* Type scale. Phone first; the wider scale is set under the media query below. */
+  /* The hero wordmark is capped so it fits with its eyes when its hidden letters are revealed (i-MoNSTeR is
+     5.5 em wide in the widest case, Persian, which has no letter-spacing) and the eyes' two circles and gap are
+     taken off the width of .wrap, the container (cqi). It bites only when zoomed (HIG #8, AC-36). */
+  --fit-wordmark: calc((100cqi - var(--eye-hero) * 2.12 - var(--eye-hero-gap)) / 5.5);
+
   /* The three display sizes are capped by the viewport, so a 360px phone zoomed
      to 200% (180 CSS px; HIG #8) still fits them. The caps only bite when zoomed. */
-  --size-wordmark-hero: min(3.125rem, 19vw);
-  --size-wordmark-header: 1.5rem;
+  --size-wordmark-hero: min(3.125rem, var(--fit-wordmark));
+  --size-wordmark-header: 1.375rem;   /* 22px: the design's 22 to 26, so the header's wordmark, eyes and nav share one line at 360px */
   --size-page-title: min(2.875rem, 14vw);
   --size-cta: min(2.125rem, 11vw);
   --size-title: 1.4375rem;
@@ -87,6 +96,18 @@
   --measure-page: 75rem;
   --measure-intro: 47.5rem;
   --hero-min: 8rem;           /* room for the wordmark and its eyes */
+
+  /* The eyes' sizes are the design's pair() and Eyes calls: 16 with the phone hero, 38 with the desktop hero,
+     17 with the header's wordmark (22) and 20 with its desktop 26, 30 above an empty state and 64 on a
+     404 and the sign-in. The gap between the wordmark and its eyes is 0.45 of an eye, and the eyes sit
+     on the hero's baseline, lifted by the amount below. */
+  --eye-hero: 1rem;
+  --eye-hero-gap: 0.4375rem;
+  --eye-hero-lift: 0.375rem;
+  --eye-header: 1.0625rem;
+  --eye-header-gap: 0.5rem;
+  --eye-empty: 1.875rem;
+  --eye-big: 4rem;
   --icon: 1.375rem;
   --icon-small: 0.9375rem;
 
@@ -107,7 +128,7 @@
     --ground: #112019;        /* greener than the first draft (HIG #11) */
     --ink: #e4e8e3;
     --body-2: #c9d0cb;
-    --muted: #aab4ad;         /* 8.3:1 */
+    --muted: #aab4ad;         /* 7.9:1 (the design said 8.3) */
     --link: #7fd36b;
     --monster: #7fd36b;
     --highlight: #7fd36b;
@@ -145,7 +166,7 @@
    and em keeps the breakpoint honest when someone sets a larger text size. */
 @media (min-width: 48em) {
   :root {
-    --size-wordmark-hero: min(9.75rem, 19vw);
+    --size-wordmark-hero: min(9.75rem, var(--fit-wordmark));
     --size-page-title: min(5rem, 14vw);
     --size-cta: min(3.5rem, 11vw);
     --size-title: 1.875rem;
@@ -158,6 +179,11 @@
     --pad-page: 4rem;         /* 64px */
     --space-hero: 2.75rem;
     --hero-min: 12.5rem;
+    --size-wordmark-header: 1.625rem;
+    --eye-header: 1.25rem;
+    --eye-hero: 2.375rem;
+    --eye-hero-gap: 1.0625rem;
+    --eye-hero-lift: 1.375rem;
     --icon: 1.5rem;
   }
 }

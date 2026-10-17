@@ -6,6 +6,7 @@ import { isolate } from '../lib/bidi.ts';
 import { localePath, strings, type Lang } from '../lib/i18n.ts';
 import { ArrowIcon, ExternalIcon } from './icons.tsx';
 import { Layout } from './layout.tsx';
+import { Eyes, Wordmark } from './wordmark.tsx';
 
 // There is no "latest entry" and no date on this page (W4, AC-5): only who this
 // is, the way into the log and the podcast, and what is being built.
@@ -17,12 +18,14 @@ export const Landing: FC<{ lang: Lang; assets: AssetManifest; content: SiteConte
   const t = strings(lang);
   return (
     <Layout lang={lang} kind="landing" assets={assets} description={t.landing.description}>
-      <div class="hero">
-        <h1>
-          <a href={localePath(lang, '/')} aria-current="page">
-            {t.owner}
-          </a>
-        </h1>
+      {/* data-intro: the wordmark plays its reveal once, a moment after load (wordmark.js). */}
+      <div class="hero" data-intro>
+        <div class="brand brand--hero" dir="ltr">
+          <h1>
+            <Wordmark class="wordmark--hero" href={localePath(lang, '/')} name={t.owner} current />
+          </h1>
+          <Eyes size="hero" />
+        </div>
       </div>
       <p class="intro">
         {content.who.map((segment) =>

@@ -36,6 +36,25 @@ export function Header({ signedIn }: { signedIn?: boolean }) {
   );
 }
 
+/**
+ * The eyes, drawn by the same CSS as the public pages' (the shell loads the site's stylesheet). The shell's
+ * `wordmark.js` finds `[data-eye]` at each pointer move, so eyes the bundle draws later follow it too.
+ * They carry no meaning, so assistive technology skips them.
+ */
+export function Eyes({ size }: { size: 'big' | 'empty' | 'header' | 'hero' }) {
+  const eye = (
+    <span class="eye" data-eye="">
+      <span class="eye__pupil" />
+    </span>
+  );
+  return (
+    <span class={`eyes eyes--${size}`} aria-hidden="true">
+      {eye}
+      {eye}
+    </span>
+  );
+}
+
 /** A screen's heading takes focus when the screen appears, so a keyboard or screen-reader user starts at its top. */
 export function Heading({ id, children }: { id?: string; children: ComponentChildren }) {
   const ref = useRef<HTMLHeadingElement>(null);

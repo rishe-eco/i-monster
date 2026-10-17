@@ -5,7 +5,7 @@ import { limits } from '../lib/limits.ts';
 import type { SessionInfo } from './api.ts';
 import { copy, refusals } from './copy.ts';
 import { signIn } from './passkey.ts';
-import { Header, Heading, Notice } from './ui.tsx';
+import { Eyes, Header, Heading, Notice } from './ui.tsx';
 
 /** Failures in a row, here in this view, after which the button waits. Never shown. */
 const PAUSE_AFTER = 3;
@@ -40,8 +40,10 @@ export function SignIn({ ended, onSignedIn }: { ended: boolean; onSignedIn: (ses
   return (
     <main class="screen">
       <Header />
-      {/* B9 brings the eyes' script and motion; until then this is an empty, labelled place for them. */}
-      <div class="eyes-slot" id="eyes" role="img" aria-label={copy.signIn.eyes} />
+      {/* The eyes keep their room whether or not the script runs; they are decoration, so no label. */}
+      <div class="eyes-slot" id="eyes">
+        <Eyes size="big" />
+      </div>
       <Heading>{copy.signIn.title}</Heading>
       <p class="lede">{copy.signIn.lede}</p>
       <form onSubmit={submit}>

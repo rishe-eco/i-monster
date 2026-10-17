@@ -1,5 +1,5 @@
 // Checks every public page's e2e spec shares: the same promises, asked of each page kind.
-import { expect, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
+import { expect, type APIRequestContext, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 
 export type Lang = 'en' | 'fa';
 
@@ -54,6 +54,28 @@ export async function expectColourScheme(page: Page, info: TestInfo): Promise<vo
 export async function expectLangAndDir(page: Page, lang: Lang): Promise<void> {
   await expect(page.locator('html')).toHaveAttribute('lang', lang);
   await expect(page.locator('html')).toHaveAttribute('dir', lang === 'fa' ? 'rtl' : 'ltr');
+}
+
+/**
+ * Every control inside the column, not only inside the screen: a button that runs into the gutter
+ * still leaves no sideways scroll, and still looks broken (found at B6's review: Highlight at 180 px).
+ * Shared by the editor, the episode form and the access sweep.
+ */
+export async function expectWithinColumn(page: Page, where: string): Promise<void> {
+  await page.evaluate(() => document.fonts.ready);
+  const column = await page.locator('main').evaluate((main) => {
+    const style = getComputedStyle(main);
+    const rect = main.getBoundingClientRect();
+    return { left: rect.left + parseFloat(style.paddingInlineStart), right: rect.right - parseFloat(style.paddingInlineEnd) };
+  });
+  const controls = page.locator(`${where} button, ${where} input:not([type=radio]), ${where} textarea, ${where} .segmented__options, ${where} .field__error`);
+  expect(await controls.count()).toBeGreaterThan(0);
+  for (const control of await controls.all()) {
+    if (!(await control.isVisible())) continue;
+    const box = await control.boundingBox();
+    const name = (await control.innerText().catch(() => '')) || ((await control.getAttribute('id')) ?? '');
+    expect((box?.x ?? -1) >= column.left - 0.5 && (box?.x ?? 0) + (box?.width ?? 0) <= column.right + 0.5, `${name} stays in the column`).toBe(true);
+  }
 }
 
 /** Header and footer links meet the 44px tap target (spec §4.6, HIG #1). */
@@ -175,3 +197,22 @@ export const MIXED = {
 
 /** A paragraph of ordinary text and one 90-character word, which must wrap rather than scroll. */
 export const LONG_TEXT = `${'Long words and long lines must wrap at every width. '.repeat(8)}${'Supercalifragilistic'.repeat(5)}`;
+
+// ── The CSP: no violation event, ever ──
+
+/**
+ * Collects `securitypolicyviolation` events from the first byte of every document. It is added to a page
+ * (or a whole context) before the first navigation, because an init script only runs in documents that
+ * start after it.
+ */
+const CSP_WATCH = () => {
+  const seen: string[] = [];
+  (window as unknown as { __csp: string[] }).__csp = seen;
+  document.addEventListener('securitypolicyviolation', (event) => seen.push(`${event.violatedDirective} ${event.blockedURI}`), true);
+};
+
+export async function watchCsp(target: Page | BrowserContext): Promise<void> {
+  await target.addInitScript(CSP_WATCH);
+}
+
+export const cspViolations = (page: Page): Promise<string[]> => page.evaluate(() => (window as unknown as { __csp?: string[] }).__csp ?? ['(the CSP watch was never installed)']);

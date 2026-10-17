@@ -33,7 +33,8 @@ for (const [lang, path, title] of PAGES) {
     test('names the owner and links to the landing page, log and podcast of its language (AC-26)', async ({ page }) => {
       await page.goto(path);
       const prefix = lang === 'fa' ? '/fa' : '';
-      await expect(page.locator('.wordmark')).toHaveText('iMNSTR');
+      // The hidden letters of i-MoNSTeR are in the markup, so the link's name is what is checked, not its text (B9).
+      await expect(page.locator('.wordmark')).toHaveAccessibleName('iMNSTR');
       await expect(page.locator('.wordmark')).toHaveAttribute('href', lang === 'fa' ? '/fa/' : '/');
       await expect(page.locator(`main a[href="${prefix}/log"]`)).toBeVisible();
       await expect(page.locator(`main a[href="${prefix}/podcast"]`)).toBeVisible();

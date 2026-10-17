@@ -1,6 +1,8 @@
 /* The shell and the landing and 404 pages. Logical properties and tokens only. */
 
 .wrap {
+  /* The container the hero wordmark's size is measured against (--fit-wordmark in tokens.css). */
+  container-type: inline-size;
   max-inline-size: var(--measure-page);
   margin-inline: auto;
   padding-inline: var(--pad-page);
@@ -33,6 +35,116 @@
   display: inline-flex;
   align-items: center;
   min-block-size: var(--hit);
+  white-space: nowrap;
+  /* Latin letters in their own direction, whatever page they sit on. */
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* ── The wordmark's reveal and the eyes (B9) ── */
+
+/* i-MoNSTeR: the hyphen, the o and the e wait at no width and grow in. They show on hover (where there is
+   one), on keyboard focus, and under .is-revealed, which wordmark.js sets for the intro and for a tap on
+   the landing hero. The reveal is the one place a tap area grows, so it must still fit 360px (AC-36). */
+.wordmark__hid {
+  display: inline-block;
+  max-inline-size: 0;
+  overflow: hidden;
+  vertical-align: bottom;
+  opacity: 0;
+  font-weight: 500;
+  transition:
+    max-inline-size 0.35s cubic-bezier(0.3, 1.4, 0.5, 1),
+    opacity 0.25s;
+}
+
+.wordmark:focus-visible .wordmark__hid,
+.wordmark.is-revealed .wordmark__hid {
+  max-inline-size: 0.7em;
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .wordmark:hover .wordmark__hid {
+    max-inline-size: 0.7em;
+    opacity: 1;
+  }
+}
+
+/* The wordmark and its eyes, together, in their own direction at the start of the line. */
+.brand {
+  display: inline-flex;
+  /* At 200% text the revealed wordmark and its eyes are wider than a phone: the eyes go below, not off the edge. */
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--eye-header-gap);
+  min-inline-size: 0;
+}
+
+/* The hero's size is fitted to its eyes (--fit-wordmark), so it never needs to wrap. */
+.brand--hero {
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: var(--eye-hero-gap);
+}
+
+.eyes {
+  --eye: var(--eye-header);
+  display: inline-flex;
+  flex: none;
+  gap: calc(var(--eye) * 0.12);
+}
+
+.eyes--hero {
+  --eye: var(--eye-hero);
+  padding-block-end: var(--eye-hero-lift);
+}
+
+.eyes--empty {
+  --eye: var(--eye-empty);
+}
+
+.eyes--big {
+  --eye: var(--eye-big);
+}
+
+.eye {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: var(--eye);
+  block-size: var(--eye);
+  border: var(--rule) solid var(--ink);
+  border-radius: 50%;
+  background: var(--eye-white);
+  animation: eye-blink 5.5s infinite;
+}
+
+/* The second eye blinks a moment after the first, so it reads as one creature. */
+.eye + .eye {
+  animation-delay: 0.04s;
+}
+
+.eye__pupil {
+  inline-size: calc(var(--eye) * 0.46);
+  block-size: calc(var(--eye) * 0.46);
+  border-radius: 50%;
+  background: var(--eye-pupil);
+  /* wordmark.js sets these, in px, through the CSSOM at each pointer move. */
+  transform: translate(var(--eye-x, 0), var(--eye-y, 0));
+  transition: transform 0.08s linear;
+}
+
+@keyframes eye-blink {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  96% {
+    transform: scaleY(0.08);
+  }
 }
 
 .nav,
@@ -40,7 +152,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  /* Narrow, so the wordmark, its eyes and the three links share one line at 360px (the 44px tap areas stay). */
+  gap: var(--space-1);
   font-family: var(--font-ui);
   font-weight: 500;
   font-size: var(--size-ui);
@@ -104,6 +217,13 @@
   text-decoration: none;
 }
 
+/* The hero's wordmark takes the hero's size, not the header's. */
+.wordmark--hero {
+  font-size: inherit;
+  letter-spacing: inherit;
+  min-block-size: 0;
+}
+
 .intro {
   margin-block-start: var(--space-4);
   max-inline-size: var(--measure-intro);
@@ -134,6 +254,10 @@
   background-image: linear-gradient(var(--highlight), var(--highlight));
   background-repeat: no-repeat;
   background-size: 0% 100%;
+  /* The highlighter sweeps in from the start edge, left to right and right to left in Persian (design: Motion). */
+  transition:
+    background-size 0.35s ease-out,
+    color 0.35s ease-out;
 }
 
 .rows > .big-row:last-child {
@@ -153,6 +277,7 @@
   grid-row: 2;
   font-size: var(--size-row-line);
   color: var(--body-2);
+  transition: color 0.35s ease-out;
 }
 
 .big-row__arrow {
@@ -160,8 +285,7 @@
   grid-row: 1;
 }
 
-/* The highlighter fills the row on hover and keyboard focus. It appears at
-   once for now; the 0.35s sweep is motion, and arrives in B9. */
+/* The highlighter fills the row on hover and keyboard focus, sweeping in over 0.35s. */
 .big-row:hover,
 .big-row:focus-visible {
   background-size: 100% 100%;
@@ -417,6 +541,8 @@
   align-items: center;
   gap: var(--space-sm);
   min-block-size: var(--hit);
+  /* The Persian word for Feed is short: without a floor its link is 41px wide, under the 44px target (AC-35). */
+  min-inline-size: var(--hit);
   font-family: var(--font-ui);
   font-weight: 600;
   font-size: var(--size-ui);
@@ -638,4 +764,65 @@
 
 .pill-link .icon {
   flex: none;
+}
+
+/* ── The highlighter's draw-in (B9) ── */
+
+/* Once, on the landing page's intro and the podcast's, never on an entry's emphasis. The first phrase draws
+   after 1.2s and the second after 1.8s, so the page is read before it is marked. It starts at the text's
+   start edge, which is the right in Persian (base.css). The reduced-motion rule in base.css ends it. */
+@keyframes mark-draw {
+  from {
+    background-size: 0% var(--highlight-size-y);
+  }
+
+  to {
+    background-size: 100% var(--highlight-size-y);
+  }
+}
+
+:is(.intro, .page-lede--intro) mark {
+  animation: mark-draw 0.7s ease-out 1.2s both;
+}
+
+:is(.intro, .page-lede--intro) mark:nth-of-type(2) {
+  animation: mark-draw 0.8s ease-out 1.8s both;
+}
+
+/* ── The eyes above a message ── */
+
+.notfound > .eyes {
+  display: flex;
+  inline-size: max-content;
+  margin-block-end: var(--space-4);
+}
+
+.empty > .eyes {
+  align-self: flex-start;
+}
+
+/* Forced colours drop the fills the eyes are drawn with: edge, white and pupil take system colours. */
+@media (forced-colors: active) {
+  .eye {
+    border-color: CanvasText;
+    background: Canvas;
+  }
+
+  .eye__pupil {
+    background: CanvasText;
+  }
+}
+
+/* ── Links inside running text: a 24px tap area (AC-35) ── */
+
+/* An inline box is only as tall as its font's ascent and descent, 16 to 18px here. Vertical padding on an
+   inline box does not move the lines, but it is part of the box a finger can hit, so each link in a
+   sentence is padded up to 24px. The date links keep their own 24px line box (.entry__date). */
+.entry-page__body a,
+.entry a:not(.entry__date),
+.empty__more a,
+.entry-page__owner a,
+.page-lede a,
+.intro a {
+  padding-block: var(--space-xs);
 }

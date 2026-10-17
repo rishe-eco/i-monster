@@ -66,6 +66,37 @@ describe('the stylesheet', () => {
   });
 });
 
+describe('the wordmark script (B9)', () => {
+  const scriptPath = async () => {
+    const html = await (await app.request('/')).text();
+    return /<script defer="" src="(\/assets\/wordmark\.[0-9a-f]{10}\.js)"/.exec(html)?.[1] as string;
+  };
+
+  it('is served at a hashed name as JavaScript, immutable for a year, with no cookie', async () => {
+    const path = await scriptPath();
+    expect(path).toMatch(/^\/assets\/wordmark\.[0-9a-f]{10}\.js$/);
+    const res = await app.request(path);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('text/javascript; charset=utf-8');
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
+    expect(res.headers.get('Set-Cookie')).toBeNull();
+    const body = Buffer.from(await res.arrayBuffer());
+    expect(path).toContain('.' + createHash('sha256').update(body).digest('hex').slice(0, 10) + '.');
+  });
+
+  it('returns under reduced motion before it binds a listener, and never writes a style attribute (AC-38, PD-18)', async () => {
+    const js = await (await app.request(await scriptPath())).text();
+    const reduced = js.indexOf("matchMedia('(prefers-reduced-motion: reduce)')");
+    expect(reduced).toBeGreaterThan(-1);
+    // Everything that binds comes after that check.
+    for (const binder of ['addEventListener', 'setTimeout', 'requestAnimationFrame']) {
+      expect(js.indexOf(binder), binder).toBeGreaterThan(reduced);
+    }
+    // The CSP allows the CSSOM (el.style.setProperty), not the attribute.
+    expect(js).not.toMatch(/setAttribute\(\s*['"]style|cssText|innerHTML|eval\(|new Function/);
+  });
+});
+
 describe('what is not an asset', () => {
   it('404s an unhashed or wrong name with the designed page, and caches nothing for a year', async () => {
     for (const path of ['/assets/css/site.css', '/assets/css/site.0000000000.css', '/assets/nope.js', '/assets/']) {

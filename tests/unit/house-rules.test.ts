@@ -30,11 +30,22 @@ describe('house rule 5: time comes from clock.now()', () => {
 });
 
 describe('house rule 2: nothing inline in public markup (CSP)', () => {
+  // An external script ("<script src>") is allowed: the CSP's default-src 'self' covers it. An inline one is not.
+  const inline = /\sstyle=|<script(?![^>]*\ssrc=)|\son[a-z]+=/;
+
   it('has no style attribute and no inline script in the views', () => {
     const offenders = files(join(ROOT, 'views'), ['.tsx'])
-      .filter((path) => /\sstyle=|<script[\s>]|\son[a-z]+=/.test(readFileSync(path, 'utf8')))
+      .filter((path) => inline.test(readFileSync(path, 'utf8')))
       .map(rel);
     expect(offenders).toEqual([]);
+  });
+
+  it('names two scripts across the views and the admin shell: assets/wordmark.js and the admin bundle (B9)', () => {
+    const named = [...files(join(ROOT, 'views'), ['.tsx']), join(ROOT, 'routes', 'admin.tsx')].flatMap((path) =>
+      [...readFileSync(path, 'utf8').matchAll(/<script\b[^>]*\ssrc=\{assets\.url\('([^']+)'\)\}/g)].map((m) => m[1]),
+    );
+    // The public pages and the admin's shell both load wordmark.js; the shell alone loads the bundle.
+    expect([...new Set(named)].sort()).toEqual(['admin/admin.js', 'wordmark.js']);
   });
 });
 

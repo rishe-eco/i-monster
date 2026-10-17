@@ -32,6 +32,8 @@ export function adminRoutes(): Hono<AppEnv> {
           ))}
           <link rel="stylesheet" href={assets.url('css/site.css')} />
           <link rel="stylesheet" href={assets.url('admin/admin.css')} />
+          {/* The sign-in view's eyes follow the pointer: the same script the public pages load. */}
+          <script defer src={assets.url('wordmark.js')}></script>
           <script type="module" src={assets.url('admin/admin.js')}></script>
         </head>
         <body>

@@ -4,7 +4,7 @@
 // "Nothing lost" (buffers, failures, signing in over the text) has its own tests below these.
 import { expect, test, type Page } from '@playwright/test';
 import { signedInAdmin, resetAdmin, type Admin } from './admin-support.ts';
-import { DAY, MIXED, NOW, expectColourScheme, expectNoSidewaysScroll, expectNoThirdParty, type Lang } from './support.ts';
+import { DAY, MIXED, NOW, expectColourScheme, expectNoSidewaysScroll, expectNoThirdParty, expectWithinColumn, type Lang } from './support.ts';
 
 test.beforeEach(async ({ request }) => {
   await resetAdmin(request, NOW);
@@ -577,24 +577,6 @@ test('at 200% zoom (180 px) nothing scrolls sideways and the toolbar, the action
   await expectWithinColumn(page, '.frame');
   expect(admin.problems).toEqual([]);
 });
-
-/**
- * Every control inside the column, not only inside the screen: a button that runs into the gutter
- * still leaves no sideways scroll, and still looks broken (found at B6's review: Highlight at 180 px).
- */
-async function expectWithinColumn(page: Page, where: string): Promise<void> {
-  await page.evaluate(() => document.fonts.ready);
-  const column = await page.locator('main').evaluate((main) => {
-    const style = getComputedStyle(main);
-    const rect = main.getBoundingClientRect();
-    return { left: rect.left + parseFloat(style.paddingInlineStart), right: rect.right - parseFloat(style.paddingInlineEnd) };
-  });
-  for (const control of await page.locator(`${where} button, ${where} input:not([type=radio]), ${where} .segmented__options`).all()) {
-    const box = await control.boundingBox();
-    const name = (await control.innerText().catch(() => '')) || ((await control.getAttribute('id')) ?? '');
-    expect((box?.x ?? -1) >= column.left - 0.5 && (box?.x ?? 0) + (box?.width ?? 0) <= column.right + 0.5, `${name} stays in the column at 180 px`).toBe(true);
-  }
-}
 
 // ── Nothing is lost (plan B6, PD-12, AC-16, AC-43): buffers, failures, and signing in over the text ──
 

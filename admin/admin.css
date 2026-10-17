@@ -862,3 +862,12 @@ img.ProseMirror-separator {
 .episode-new {
   margin-block: var(--space-1) var(--space-2);
 }
+
+/* The native date control draws its digits and its picker icon inside the field. At 200% zoom (180 px) the
+   field is 134 px wide, and the usual padding left the year clipped under the icon ("10/10/202"). Narrower
+   than 20em the padding shrinks to what keeps the whole date and the icon in view (B7's record). */
+@media (max-width: 20em) {
+  .field__input--date {
+    padding-inline: var(--space-sm);
+  }
+}

@@ -4,6 +4,7 @@ import type { Child, FC } from 'hono/jsx';
 import type { AssetManifest } from '../lib/assets.ts';
 import { dirOf, localePath, strings, type Lang } from '../lib/i18n.ts';
 import { alternates, switchTarget, type PageKind } from '../lib/switch.ts';
+import { Eyes, Wordmark } from './wordmark.tsx';
 
 export interface LayoutProps {
   lang: Lang;
@@ -53,6 +54,8 @@ export const Layout: FC<LayoutProps> = ({ lang, kind, assets, title, description
           <link rel="preload" as="font" type="font/woff2" href={assets.url(name)} crossorigin="anonymous" />
         ))}
         <link rel="stylesheet" href={assets.url('css/site.css')} />
+        {/* The one script on a public page: the eyes and the wordmark's reveal. It returns at once under reduced motion. */}
+        <script defer src={assets.url('wordmark.js')}></script>
         <link rel="alternate" type="application/atom+xml" title={t.feedTitle} href={feed} />
         {alternates(kind).map((alt) => (
           <link rel="alternate" hreflang={alt.hreflang} href={alt.href} />
@@ -62,9 +65,11 @@ export const Layout: FC<LayoutProps> = ({ lang, kind, assets, title, description
         <div class="wrap">
           <header class={landing ? 'site-header site-header--landing' : 'site-header'}>
             {landing ? null : (
-              <a class="wordmark" href={home}>
-                {t.owner}
-              </a>
+              // The wordmark is Latin and keeps its own direction, at the start (the right, in Persian), with its eyes.
+              <div class="brand" dir="ltr">
+                <Wordmark href={home} name={t.owner} />
+                <Eyes size="header" />
+              </div>
             )}
             <nav class="nav" aria-label={t.nav.label}>
               <a href={log} aria-current={current === 'learnings' ? 'page' : undefined}>

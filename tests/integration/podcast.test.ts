@@ -129,8 +129,11 @@ describe.each<Lang>(['en', 'fa'])('the podcast page, %s', (lang) => {
     expect(body.split(series).length - 1).toBe(2);
     expect(body.split(`<meta itemprop="inLanguage" content="${lang}">`).length - 1).toBe(2);
     expect(body.slice(0, body.indexOf('</head>'))).not.toContain('itemprop');
-    // Microdata, not JSON-LD: no script at all on the page (PD-18, PD-19).
-    expect(body).not.toContain('<script');
+    // Microdata, not JSON-LD: no inline script on the page, only the external wordmark.js (PD-18, PD-19, B9).
+    expect(body).not.toMatch(/<script(?![^>]*\ssrc=)/);
+    expect([...body.matchAll(/<script\b[^>]*\ssrc="([^"]+)"/g)].map((m) => m[1])).toEqual([
+      expect.stringMatching(/^\/assets\/wordmark\.[0-9a-f]{10}\.js$/),
+    ]);
   });
 
   it('keeps an episode\'s line breaks in its description, and escapes markup in every field', async () => {
@@ -245,7 +248,7 @@ describe.each<Lang>(['en', 'fa'])('the podcast page, %s', (lang) => {
     const hosts = [...body.matchAll(/(?:src|href)="(https?:\/\/[^"/]+)/g)].map((m) => m[1]);
     // The only outbound addresses are the show's and the episodes', which are links, not loads; the alternates name this site.
     for (const host of hosts) expect(['https://youtu.be', 'https://imnstr.com', ...show.links.map((l) => new URL(l.url).origin)]).toContain(host);
-    expect(body).not.toMatch(/<(script|img|iframe|link rel="stylesheet" href="https)/);
+    expect(body).not.toMatch(/<(script(?![^>]*\ssrc="\/assets\/)|img|iframe|link rel="stylesheet" href="https)/);
   });
 });
 

@@ -51,7 +51,11 @@ describe('the landing pages carry an ETag, so a feed reader or browser can reval
 describe('the markup under that CSP (house rule 2)', () => {
   it.each(['/', '/fa/', '/nope', '/fa/nope'])('%s has no inline script and no style attribute', async (path) => {
     const html = await (await app.request(path)).text();
-    expect(html).not.toMatch(/<script/i);
+    // No inline script: the one script is the external, hashed wordmark.js (B9), which binds nothing under reduced motion.
+    expect(html).not.toMatch(/<script(?![^>]*\ssrc=)/i);
+    expect([...html.matchAll(/<script\b[^>]*\ssrc="([^"]+)"/gi)].map((m) => m[1])).toEqual([
+      expect.stringMatching(/^\/assets\/wordmark\.[0-9a-f]{10}\.js$/),
+    ]);
     expect(html).not.toMatch(/\sstyle\s*=/i);
     expect(html).not.toMatch(/\son[a-z]+\s*=/i);
     expect(html).not.toMatch(/<style/i);

@@ -16,6 +16,7 @@ import { SITE_ORIGIN } from '../lib/switch.ts';
 import { fill } from './fill.tsx';
 import { ArrowIcon, ExternalIcon } from './icons.tsx';
 import { Layout } from './layout.tsx';
+import { Eyes } from './wordmark.tsx';
 
 export interface PodcastProps {
   lang: Lang;
@@ -78,7 +79,8 @@ export const Podcast: FC<PodcastProps> = ({ lang, assets, show, episodes, olderB
   return (
     <Layout lang={lang} kind="podcast" assets={assets} title={show.name} description={t.podcast.description} current="podcast">
       <h1 class="page-title">{raw(isolate(show.name, lang))}</h1>
-      <p class="page-lede">{t.podcast.lede}</p>
+      {/* page-lede--intro: the highlighter draws in on a phrase of this line, once, when the founder's copy marks one (F-2). */}
+      <p class="page-lede page-lede--intro">{t.podcast.lede}</p>
       {show.links.length > 0 ? (
         <div class="rows rows--show">
           {show.links.map((link) => (
@@ -91,6 +93,7 @@ export const Podcast: FC<PodcastProps> = ({ lang, assets, show, episodes, olderB
       ) : null}
       {episodes.length === 0 ? (
         <div class="empty">
+          <Eyes size="empty" />
           <p class="empty__line">{t.podcast.empty}</p>
         </div>
       ) : (

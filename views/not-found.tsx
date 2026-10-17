@@ -5,6 +5,7 @@ import { isolate } from '../lib/bidi.ts';
 import { localePath, strings, type Lang } from '../lib/i18n.ts';
 import { ArrowIcon } from './icons.tsx';
 import { Layout } from './layout.tsx';
+import { Eyes } from './wordmark.tsx';
 
 // One page per language, whatever was asked for (AC-28): it never mentions the
 // path, and an unpublished entry and a URL that never existed look the same.
@@ -15,6 +16,7 @@ export const NotFound: FC<{ lang: Lang; assets: AssetManifest }> = ({ lang, asse
   return (
     <Layout lang={lang} kind="not-found" assets={assets} title={t.notFound.title}>
       <div class="notfound">
+        <Eyes size="big" />
         <h1>{t.notFound.title}</h1>
         <p class="notfound__body">{t.notFound.body}</p>
         <div class="button-list">

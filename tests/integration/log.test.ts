@@ -298,7 +298,11 @@ describe('public pages (house rule 2, AC-7)', () => {
     const res = await app.request('/log');
     expect(res.headers.get('Content-Security-Policy')).toContain("default-src 'self'");
     const body = await res.text();
-    expect(body).not.toMatch(/<script|\sstyle=|\son[a-z]+=/);
+    // The one script is the external wordmark.js (B9): nothing inline.
+    expect(body).not.toMatch(/<script(?![^>]*\ssrc=)|\sstyle=|\son[a-z]+=/);
+    expect([...body.matchAll(/<script\b[^>]*\ssrc="([^"]+)"/g)].map((m) => m[1])).toEqual([
+      expect.stringMatching(/^\/assets\/wordmark\.[0-9a-f]{10}\.js$/),
+    ]);
   });
 
   it('answer a conditional request with 304', async () => {

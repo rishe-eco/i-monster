@@ -5,7 +5,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { resetAdmin, signedInAdmin, type Admin } from './admin-support.ts';
 import { dayBefore, resetPodcast, type SeedEpisode } from './podcast-support.ts';
-import { DAY, NOW, expectColourScheme, expectNoSidewaysScroll, expectNoThirdParty, type Lang } from './support.ts';
+import { DAY, NOW, expectColourScheme, expectNoSidewaysScroll, expectNoThirdParty, expectWithinColumn, type Lang } from './support.ts';
 
 test.beforeEach(async ({ request }) => {
   await resetAdmin(request, NOW);
@@ -73,27 +73,6 @@ async function expectFits(admin: Admin, info: Parameters<typeof expectColourSche
   await expectColourScheme(admin.page, info);
   await expectNoThirdParty(admin.page, admin.requests);
   expect(admin.problems).toEqual([]);
-}
-
-/**
- * Every control inside the column, not only inside the screen: a button that runs into the gutter
- * still leaves no sideways scroll, and still looks broken (the B6 review's lesson).
- */
-async function expectWithinColumn(page: Page, where: string): Promise<void> {
-  await page.evaluate(() => document.fonts.ready);
-  const column = await page.locator('main').evaluate((main) => {
-    const style = getComputedStyle(main);
-    const rect = main.getBoundingClientRect();
-    return { left: rect.left + parseFloat(style.paddingInlineStart), right: rect.right - parseFloat(style.paddingInlineEnd) };
-  });
-  const controls = page.locator(`${where} button, ${where} input:not([type=radio]), ${where} textarea, ${where} .segmented__options, ${where} .field__error`);
-  expect(await controls.count()).toBeGreaterThan(0);
-  for (const control of await controls.all()) {
-    if (!(await control.isVisible())) continue;
-    const box = await control.boundingBox();
-    const name = (await control.innerText().catch(() => '')) || ((await control.getAttribute('id')) ?? '');
-    expect((box?.x ?? -1) >= column.left - 0.5 && (box?.x ?? 0) + (box?.width ?? 0) <= column.right + 0.5, `${name} stays in the column`).toBe(true);
-  }
 }
 
 const ENGLISH = {
