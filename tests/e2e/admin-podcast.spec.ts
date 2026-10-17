@@ -467,6 +467,23 @@ test('Save on a live episode keeps its date and its place, and an edit needs no 
   expect(await buffer(page, 'edit')).toBeNull();
 });
 
+test('clearing the date in an edit puts the episode\'s own date back, which is the date a save keeps, and is no unsaved change', async ({ browser, baseURL, request }) => {
+  const [id] = await resetPodcast(request, [publishedEpisode({ id: 'e000000012' })]);
+  const admin = await signedInAdmin(browser, baseURL as string, request);
+  const { page } = admin;
+  await openEdit(page, 'The wrong video was live');
+  const date = frame(page).getByLabel('Date', { exact: true });
+  await expect(date).toHaveValue('2026-10-03');
+  // An edit that sends no date keeps the episode's own, so the field must show that, not today (10 Oct).
+  await date.fill('');
+  await expect(date).toHaveValue('2026-10-03');
+  expect(await buffer(page, 'edit')).toBeNull();
+  // Nothing changed, so Cancel leaves without asking.
+  await frame(page).getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(frame(page)).toBeHidden();
+  expect((await episodeOf(admin, id as string)).date).toBe('2026-10-03');
+});
+
 test('a draft that was never published opens as a draft, and Publish makes it live at its date (J5.9)', async ({ browser, baseURL, request }) => {
   const [id] = await resetPodcast(request, [{ lang: 'en', name: 'Episode three', description: 'Maybe.', tags: ['a'], date: '2026-10-12', links: [{ label: 'YouTube', url: 'https://youtu.be/3' }], state: 'draft', firstPublishedAt: null, id: 'e000000012' }]);
   const admin = await signedInAdmin(browser, baseURL as string, request);

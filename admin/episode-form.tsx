@@ -602,7 +602,10 @@ function EditForm({
     episode.state === 'published' ? copy.episode.editingPublished(day(episode.date)) : episode.wasLive ? copy.episode.draftWasLive(day(episode.date)) : copy.episode.draft;
 
   /** Every change is written to the edit buffer as it is made, for as long as it differs from the episode. */
-  const change = (next: EpisodeText) => {
+  const change = (changed: EpisodeText) => {
+    // A cleared date is sent as none, and the server keeps the episode's own (`updateEpisode`). The field shows
+    // that date again, so what is on screen is what a save keeps, rather than falling back to today.
+    const next = changed.date === '' ? { ...changed, date: live.current.episode.date } : changed;
     live.current = { ...live.current, text: next };
     const differs = signature(next) !== live.current.base;
     const result = buffers.apply(differs ? { type: 'edit-typed', edit: { id: loaded.id, ...next } } : { type: 'discarded', which: 'edit' });

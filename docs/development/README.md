@@ -12,7 +12,7 @@ The build is nine stages, in the order of build plan §3 (`root-sot/imnstr/modul
 | CD1 | Deploy on push to `main`: workflow, root deploy script, `deploy/checks.sh` (change note 04, not in the plan's nine) | M | B2, B4b | — | verified 2026-10-15 · [record](CD1.md) |
 | B5 | Entries API, admin shell, entries list | M | B3, B4b | MS3 | verified 2026-10-17 · [record](B5.md) |
 | B6 | The editor: buffers, failures, in-place sign-in | L | B5 | MS3 | verified 2026-10-17 · [record](B6.md); E1 and the phone keyboard owed to V-7 |
-| B7 | Podcast: public pages and the admin form | L | B6 | MS3 | planned |
+| B7 | Podcast: public pages and the admin form | L | B6 | MS3 | verified 2026-10-17 · [record](B7.md); the phone and screen readers owed |
 | B8 | Reader record | M | B3, B4a | MS3 | verified 2026-10-17 · [record](B8.md) |
 | B9 | Motion, wordmark and the access sweep | M | B7 | MS4 | planned |
 
@@ -51,8 +51,8 @@ A stage that leaves something for a later one lists it in its own record, and it
 |---|---|---|
 | ~~The 401 test that enumerates the admin router (house rule 7)~~ done | B4a | B1 |
 | ~~Isolate inline Latin in the Persian copy through `lib/bidi.ts`; recheck the placeholder Persian~~ done | B3 | B1 |
-| Nav and 404 links to `/podcast` answer 404 until the route exists (`/log` and the feed done in B3) | B7 | B1 |
-| Insert an episode as a draft, add a link, then publish (extra trigger); supply `episode.date`, today in `SITE_TZ` | B7 | B1 |
+| ~~Nav and 404 links to `/podcast` answer 404 until the route exists~~ done in B7 | B7 | B1 |
+| ~~Insert an episode as a draft, add a link, then publish (extra trigger); supply `episode.date`, today in `SITE_TZ`~~ done in B7 (`createOrGet`'s `afterInsert`) | B7 | B1 |
 | ~~Headers through Nginx and TLS, by `curl -I`~~ done | B2 | B1 |
 | Contrast of the dark colour pairs, measured | B9 | B1 |
 | ~~Drop empty paragraphs before saving~~ done, on the server and in the client | B6 | B3 |
@@ -61,20 +61,22 @@ A stage that leaves something for a later one lists it in its own record, and it
 | ~~Install with `npm ci --ignore-scripts` in the image~~ done | B2 | B3 |
 | ~~`reset-content`; run it on production~~ done by the founder, 2026-10-17 | the founder | B3, B8 |
 | ~~Tune `imnstr_auth`'s rate and burst against the real sign-in flow~~ kept at 30r/m burst 10, with a floor test | B4a | B2 |
-| Raise `client_max_body_size` (1m) if a request body needs more (S-9): entries measured at B6, 65,550 B at most, no change; B7 measures an episode | B7 | B2 |
+| ~~Raise `client_max_body_size` (1m) if a request body needs more (S-9)~~ no change: entries 65,550 B (B6), episodes 159,392 B (B7) at most | B7 | B2 |
 | Optional: `server_tokens off;` in `imnstr.conf` | any deploy | B2 |
 | `gzip_types` for `text/javascript`, `text/css` and the feeds in `imnstr.conf` (only HTML is compressed; the editor's bundle goes out at 285 KB). A stop file: the founder's step | before E1's cold runs | B6 |
 | Contrast of B3's new dark pairs (dates, lede, empty state, feed link) | B9 | B3 |
 | ~~JSON `NOT_FOUND` for an unknown `/admin/api` path when signed in~~ done | B5 | B4a |
-| Routers go inside `adminApiRoutes` after the guard, never under `auth/` (`auth-guard.test.ts` lists that prefix exactly) | B5, B7 | B4a |
+| ~~Routers go inside `adminApiRoutes` after the guard, never under `auth/`~~ done in B5 and B7 | B5, B7 | B4a |
 | ~~`@simplewebauthn/browser`; the `/admin/setup/<code>` page the CLI's link opens~~ done; each platform's `excludeCredentials` wording: Chrome with Google Password Manager done at MS2, the phone's owed | B4b, phone check (V-7) | B4a |
 | "this device" after a hybrid sign-in names the other device's passkey (`device_credential` defaults to `opened_by`); look at it with a real hybrid sign-in | phone check (V-7) | B4b |
 | Correct the stale "B4a puts routes here" comment in `imnstr.conf` | next conf change | B4a |
 | Prune old `imnstr` images on the box, filtered by label or repository, never a global prune | any deploy | CD1 |
 | ~~Copy link, Save and the editor in the edit-view frame~~ done; a session ends after a test-clock jump over an hour, so tests sign in after each jump | B6, B7 | B5 |
 | Read `record_feed` after real subscriptions in two aggregators; correct `subscribersOf` and `aggregatorOf` (every format is a guess) | after MS3, MS4 at the latest | B8 |
-| `/podcast` and `/fa/podcast` count once they answer 200 (the whitelist names them) | B7 | B8 |
+| ~~`/podcast` and `/fa/podcast` count once they answer 200~~ done in B7, with a test | B7 | B8 |
 | A stage that adds a deploy check adds it to `deploy/checks.sh`; a stop file (`imnstr.conf`, the compose file, `deploy/imnstr-deploy.sh`) or a new `.env` line in a stage's diff is planned before its push | every stage | CD1 |
 | E1 / M3 (AC-15), warm and cold, five each per language; typing on real phone keyboards in both languages; the dock under a real keyboard; PD-7's fallback if typing fails | the phone check (V-7) | B6 |
-| B7's form reuses `buffers.ts` (kind `episode`), the failure notice and signing in over the text; its language stays fixed while a send is unanswered | B7 | B6 |
+| ~~B7's form reuses `buffers.ts` (kind `episode`), the failure notice and signing in over the text; its language stays fixed while a send is unanswered~~ done in B7 | B7 | B6 |
 | Screen readers on the editor; `forced-colors` for its `<mark>` | step 9, B9 | B6 |
+| Real show links; platform marks for known platforms (every pill is the same until supplied); the episode form on a real phone (keyboard, native date picker); screen readers on the form | the founder (F-2), phone check (V-7), step 9 | B7 |
+| A Persian name with `C++` or `.NET` in a plain `<input>` draws `++C` / `NET.` (no `<bdi>` in an input; the entry title too); the date input clips its year at 180 px | V-4, B9 | B7 |
