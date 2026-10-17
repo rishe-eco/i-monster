@@ -28,6 +28,22 @@ describe('isBot', () => {
     }
   });
 
+  it('skips link-preview fetchers that do not say "bot", so a share is not read as views', () => {
+    for (const ua of [
+      'WhatsApp/2.23.20.0 A',
+      'http.rb/5.1.1 (Mastodon/4.2.0; +https://mastodon.social/)',
+      'Pleroma 2.6.0; https://pleroma.example <admin@pleroma.example>',
+      'Akkoma 3.10.0; https://akkoma.example',
+      'Misskey/2023.12.0 (https://misskey.example)',
+      'Mozilla/5.0 (compatible; Bluesky Cardyb/1.1; +mailto:support@bsky.app)',
+      'Iframely/1.3.1 (+https://iframely.com/docs/about)',
+      'Mozilla/5.0 (compatible; Embedly/0.2; +http://support.embed.ly/)',
+      'Mozilla/5.0 (compatible; vkShare; +http://vk.com/dev/Share)',
+    ]) {
+      expect(isBot(ua), ua).toBe(true);
+    }
+  });
+
   it('keeps a browser', () => {
     expect(isBot('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36')).toBe(false);
     expect(isBot('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1')).toBe(false);
@@ -116,6 +132,14 @@ describe('R3: refererDomain', () => {
     for (const r of ['http://192.168.1.10/', 'https://10.0.0.1:8080/x', 'http://[::1]/', 'http://[2001:db8::1]/', 'http://2130706433/', 'http://0x7f.0.0.1/']) {
       expect(refererDomain(r, own), r).toBeNull();
     }
+  });
+
+  it('skips a local name, which only a reader inside that network could send', () => {
+    for (const r of ['http://localhost:3000/', 'http://intranet/wiki', 'http://nas.local/', 'http://router.lan/', 'https://wiki.corp.internal/', 'http://printer.home.arpa/', 'http://app.localhost/']) {
+      expect(refererDomain(r, own), r).toBeNull();
+    }
+    expect(refererDomain('https://local.example.org/', own)).toBe('local.example.org');
+    expect(refererDomain('https://lan.news/', own)).toBe('lan.news');
   });
 
   it('skips a host over 253 characters', () => {

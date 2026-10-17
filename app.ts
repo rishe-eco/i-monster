@@ -28,7 +28,8 @@ export function createApp({ env, db, assets = buildAssets(undefined, { requireAd
   const app = new Hono<AppEnv>();
 
   // Middleware order (D-8): headers, then language. Nothing on a public route
-  // reads a cookie, so a signed-in request can't differ from a signed-out one.
+  // reads a cookie's value (the reader record looks only for the session
+  // cookie's name), so a signed-in request can't differ from a signed-out one.
   app.use('*', securityHeaders({ prelaunch: env.prelaunch }));
   app.use('*', async (c, next) => {
     c.set('lang', langFromPath(c.req.path).lang);

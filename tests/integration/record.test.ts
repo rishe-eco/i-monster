@@ -228,14 +228,14 @@ describe('bounded growth', () => {
   it('drops a new referring domain past the cap, and keeps counting the ones already there', async () => {
     t.db.transaction(() => {
       const insert = t.db.prepare('INSERT INTO record_referrer VALUES (?, ?, ?, 1)');
-      for (let i = 0; i < limits.recordKeysPerMonth; i += 1) insert.run(MONTH, 'en', `site${i}`);
+      for (let i = 0; i < limits.recordKeysPerMonth; i += 1) insert.run(MONTH, 'en', `site${i}.example`);
     })();
     await get('/', { Referer: 'https://brand-new.example/' });
-    await get('/', { Referer: 'https://site7/' });
+    await get('/', { Referer: 'https://site7.example/' });
     const rows = t.db.prepare("SELECT count(*) AS n FROM record_referrer WHERE lang = 'en'").get() as { n: number };
     expect(rows.n).toBe(limits.recordKeysPerMonth);
     expect(record().referrers['en:brand-new.example']).toBeUndefined();
-    expect(record().referrers['en:site7']).toBe(2);
+    expect(record().referrers['en:site7.example']).toBe(2);
     // The cap is per language: Persian still has room.
     await get('/fa/', { Referer: 'https://brand-new.example/' });
     expect(record().referrers['fa:brand-new.example']).toBe(1);
@@ -369,8 +369,13 @@ describe('AC-47: the record is shown by the CLI and nowhere else', () => {
       for (let n = MARK; n <= MARK + 4; n += 1) expect(body, `${path} shows ${n}`).not.toContain(String(n));
     }
     const { client } = await signedIn(app, t.db, env);
-    for (const path of ['/admin/api/session', '/admin/api/passkeys', '/admin', '/admin/']) {
+    // Every admin API read the router has, found by enumerating it as the 401 test does, so a later stage's GET is checked too.
+    const apiReads = [...new Set(app.routes.filter((r) => r.method === 'GET' && r.path.startsWith('/admin/api/')).map((r) => r.path.replace(/:[A-Za-z]+/g, ENTRY)))];
+    expect(apiReads).toEqual(expect.arrayContaining(['/admin/api/session', '/admin/api/passkeys', '/admin/api/settings', '/admin/api/entries', `/admin/api/entries/${ENTRY}`]));
+    for (const path of [...apiReads, '/admin', '/admin/']) {
       const reply = await client.get(path);
+      // A refusal would pass the check below without reading anything.
+      expect(reply.status, path).toBe(200);
       for (let n = MARK; n <= MARK + 4; n += 1) expect(reply.text, `${path} shows ${n}`).not.toContain(String(n));
     }
   });

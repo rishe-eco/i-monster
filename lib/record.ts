@@ -40,6 +40,10 @@ const BOT_PATTERN = new RegExp(
     'bot', 'crawl', 'spider', 'slurp', 'preview', 'monitor', 'uptime', 'headless', 'lighthouse', 'curl', 'wget',
     'python', 'go-http-client', 'java/', 'okhttp', 'node-fetch', 'axios', 'facebookexternalhit', 'feed',
     'scan', 'probe', 'libwww', 'httpclient', 'pingdom',
+    // Link-preview fetchers that name themselves without "bot". A post shared on
+    // Mastodon is fetched once by every server that receives it, so one share
+    // would otherwise read as dozens of views.
+    'whatsapp', 'mastodon', 'http\\.rb', 'pleroma', 'akkoma', 'misskey', 'cardyb', 'iframely', 'embedly', 'vkshare',
   ].join('|'),
   'i',
 );
@@ -103,11 +107,19 @@ function withoutWww(host: string): string {
   return host.startsWith('www.') ? host.slice(4) : host;
 }
 
+// Names that only resolve inside a reader's own network, like an IP literal:
+// a single label (`intranet`) or a suffix no public domain can have.
+const LOCAL_SUFFIXES = ['.localhost', '.local', '.lan', '.internal', '.home.arpa'];
+
+function isLocalName(host: string): boolean {
+  return !host.includes('.') || LOCAL_SUFFIXES.some((suffix) => host.endsWith(suffix));
+}
+
 /**
  * The domain a `Referer` stands for, or null when it must not be counted: no
- * header, a scheme other than http(s), the site's own host, an IP literal (it
- * could be a reader's own network) or an absurd host. `ownHost` is the site's
- * hostname.
+ * header, a scheme other than http(s), the site's own host, an IP literal or a
+ * local name (either could be a reader's own network) or an absurd host.
+ * `ownHost` is the site's hostname.
  */
 export function refererDomain(referer: string | undefined, ownHost: string): string | null {
   if (!referer || referer.length > MAX_REFERER_LENGTH) return null;
@@ -122,7 +134,7 @@ export function refererDomain(referer: string | undefined, ownHost: string): str
   if (url.hostname.startsWith('[') || /^\d+\.\d+\.\d+\.\d+$/.test(url.hostname)) return null;
   let host = withoutWww(url.hostname.toLowerCase());
   if (host.endsWith('.')) host = host.slice(0, -1);
-  if (host === '' || host.length > MAX_HOST_LENGTH) return null;
+  if (host === '' || host.length > MAX_HOST_LENGTH || isLocalName(host)) return null;
   if (host === withoutWww(ownHost.toLowerCase())) return null;
   return host;
 }
