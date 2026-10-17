@@ -26,7 +26,9 @@ for (const [lang, path] of PAGES) {
       await expectColourScheme(page, info);
       await expectNoSidewaysScroll(page);
       await expectTapTargets(page);
-      await expect(page.locator('h1')).toHaveText('iMNSTR');
+      // The hidden letters of i-MoNSTeR are in the markup, so the heading's name is what is checked, not its text (B9).
+      await expect(page.getByRole('heading', { level: 1 })).toHaveAccessibleName('iMNSTR');
+      await expect(page.locator('h1 a')).toHaveAccessibleName('iMNSTR');
       await expect(page.locator('main mark')).toHaveCount(2);
       await expect(page.locator('.big-row')).toHaveCount(2);
       await expect(page.locator('.project')).toHaveCount(3);

@@ -280,6 +280,8 @@
 }
 
 .entry-list {
+  /* The container the rows' layout is chosen against (@container below). */
+  container-type: inline-size;
   margin-block-end: var(--space-2);
   border-block-end: var(--rule-soft-width) solid var(--rule-soft);
 }
@@ -349,7 +351,12 @@
   grid-area: edit;
 }
 
-@media (min-width: 20em) {
+/* The width the row has decides, not the window's: a media query in em reads the browser's own text size,
+   so a page whose text is made 200% larger by its stylesheet kept the four columns in a 360px window and
+   ran 120px off the edge when a Persian pill was there (found by B9's sweep). Inside a container query,
+   rem is the root's own text size, so at 200% the same 17rem needs twice the room. 17rem is 272px at the
+   default size: the list's width in a 320px window, where the four columns have always started. */
+@container (min-width: 17rem) {
   .entry-row {
     grid-template-columns: 5.25rem minmax(0, 1fr) auto auto;
     grid-template-areas: 'date name pills edit';

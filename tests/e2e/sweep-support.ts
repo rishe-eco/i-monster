@@ -11,17 +11,19 @@ const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 // ── What each check measures ──
 
 /** axe's violations at WCAG 2.2 AA, as lines a failing test can show. */
-async function axeViolations(page: Page): Promise<string[]> {
+export async function axeViolations(page: Page): Promise<string[]> {
   const result = await new AxeBuilder({ page }).withTags(WCAG).analyze();
   return result.violations.map((v) => `${v.id} (${v.impact}): ${v.help} → ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`);
 }
 
 /** Text a box cuts off: an element that clips its overflow and has more inside than it shows. A name that ends in an ellipsis on purpose is the one exception. */
-async function clippedText(page: Page): Promise<string[]> {
+export async function clippedText(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const clipped: string[] = [];
     for (const el of document.body.querySelectorAll<HTMLElement>('*')) {
       if (el.closest('[aria-hidden="true"], .visually-hidden')) continue;
+      // A field holds more than it shows by design: it scrolls, and a person can read all of it.
+      if (el.matches('input, textarea, select')) continue;
       const style = getComputedStyle(el);
       if (style.display === 'none') continue;
       const clipsX = style.overflowX === 'hidden' || style.overflowX === 'clip';
@@ -52,7 +54,7 @@ interface TargetFailure {
  * text or a date link, and 52 tall for a primary button. A target may be larger than its box on purpose, by
  * padding or a pseudo-element, and then it is the box that is measured, since that is what a finger hits.
  */
-async function tapTargetFailures(page: Page): Promise<TargetFailure[]> {
+export async function tapTargetFailures(page: Page): Promise<TargetFailure[]> {
   return page.evaluate(() => {
     const failures: { what: string; width: number; height: number; needs: string }[] = [];
     const targets = document.querySelectorAll<HTMLElement>(
@@ -86,7 +88,7 @@ async function tapTargetFailures(page: Page): Promise<TargetFailure[]> {
 }
 
 /** In forced colours the highlighter and the field edges are drawn in system colours: still there, and still apart from the page (AC-37). */
-async function forcedColourProblems(page: Page): Promise<string[]> {
+export async function forcedColourProblems(page: Page): Promise<string[]> {
   await page.emulateMedia({ forcedColors: 'active' });
   try {
     return await page.evaluate(() => {
@@ -119,7 +121,7 @@ async function forcedColourProblems(page: Page): Promise<string[]> {
  * script bound nothing: hover the wordmark and every row, sweep the pointer across the page, and count the
  * animations and transitions that start. The pupils must not have been touched either.
  */
-export async function expectNoMotion(page: Page): Promise<void> {
+export async function expectNoMotion(page: Page, options: { pupils?: boolean } = {}): Promise<void> {
   await page.evaluate(() => {
     const seen: string[] = [];
     (window as unknown as { __motion: string[] }).__motion = seen;
@@ -127,15 +129,22 @@ export async function expectNoMotion(page: Page): Promise<void> {
   });
   // Light the way for the hover rules: the wordmark and the first few rows or buttons.
   for (const selector of ['.wordmark', '.big-row', '.pill-link', '.btn', '.nav a']) {
-    for (const target of (await page.locator(`${selector}:visible`).all()).slice(0, 3)) await target.hover({ trial: false }).catch(() => undefined);
+    // Move the pointer to each one's centre, with no waiting for it to be actionable: a modal dialog makes the page behind it unreachable, and the pointer is still moved over it.
+    for (const target of (await page.locator(`${selector}:visible`).all()).slice(0, 3)) {
+      const box = await target.boundingBox();
+      if (box) await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 3 });
+    }
   }
   const size = page.viewportSize() ?? { width: 360, height: 800 };
   for (const [x, y] of [[4, 4], [size.width / 2, size.height / 3], [size.width - 4, size.height - 4], [size.width / 3, size.height / 2]] as const) await page.mouse.move(x, y, { steps: 4 });
   await page.waitForTimeout(450);
   expect(await page.evaluate(() => (window as unknown as { __motion: string[] }).__motion)).toEqual([]);
-  // A pupil that had moved would carry the script's custom property.
-  const moved = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.eye__pupil')].filter((el) => el.style.getPropertyValue('--eye-x') !== '').length);
-  expect(moved, 'pupils the script moved').toBe(0);
+  // A pupil that had moved would carry the script's custom property. Only a page loaded with the preference
+  // already set can prove the script bound nothing: in place, the script ran before the preference changed.
+  if (options.pupils !== false) {
+    const moved = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.eye__pupil')].filter((el) => el.style.getPropertyValue('--eye-x') !== '').length);
+    expect(moved, 'pupils the script moved').toBe(0);
+  }
   // And the CSS kill-switch: nothing on the page declares a running animation or a transition.
   const live = await page.evaluate(() => [...document.querySelectorAll('*')].filter((el) => getComputedStyle(el).animationName !== 'none' || parseFloat(getComputedStyle(el).transitionDuration) > 0).length);
   expect(live, 'elements with an animation or a transition').toBe(0);
@@ -212,7 +221,7 @@ export async function sweep(page: Page, info: TestInfo, options: SweepOptions = 
   } else {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     try {
-      await expectNoMotion(page);
+      await expectNoMotion(page, { pupils: false });
     } finally {
       await page.emulateMedia({ reducedMotion: 'no-preference' });
     }

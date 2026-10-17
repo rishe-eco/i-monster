@@ -4,8 +4,8 @@
 // projects, both colour schemes.
 import { expect, test, type Page } from '@playwright/test';
 import { resetPodcast, plainEpisodes } from './podcast-support.ts';
-import { DAY, MIXED, NOW, expectNoSidewaysScroll, fontsSettled, plainEntries, resetLog, scheme, watchCsp, type Lang } from './support.ts';
-import { expectNoMotion, sweep } from './sweep-support.ts';
+import { DAY, MIXED, NOW, cspViolations, expectNoSidewaysScroll, fontsSettled, plainEntries, resetLog, scheme, watchCsp, type Lang } from './support.ts';
+import { axeViolations, clippedText, expectNoMotion, forcedColourProblems, sweep, tapTargetFailures } from './sweep-support.ts';
 
 const LANGS: Lang[] = ['en', 'fa'];
 const logPath = (lang: Lang) => (lang === 'fa' ? '/fa/log' : '/log');
@@ -333,6 +333,94 @@ test.describe('the highlighter and the rows', () => {
       // The intro never runs, and the script bound nothing: a pointer far off moves no pupil.
       await page.clock.runFor(10_000);
       await expect(page.locator('.wordmark--hero')).not.toHaveClass(/is-revealed/);
+    } finally {
+      await context.close();
+    }
+  });
+});
+
+// ── The checks themselves: each is shown to fail on a page made wrong on purpose ──
+
+test.describe('the checks catch what they claim to', () => {
+  test('axe, the tap sizes, the clipping check, forced colours and the CSP watch each fail on a page broken on purpose', async ({ page, request }) => {
+    await resetLog(request, richLog('en'));
+    await open(page, '/log');
+    await fontsSettled(page);
+    // The page as it is passes them all.
+    expect(await axeViolations(page)).toEqual([]);
+    expect(await tapTargetFailures(page)).toEqual([]);
+    expect(await clippedText(page)).toEqual([]);
+    expect(await forcedColourProblems(page)).toEqual([]);
+    expect(await cspViolations(page)).toEqual([]);
+
+    // Now break it five ways.
+    await page.evaluate(() => {
+      const main = document.querySelector('main') as HTMLElement;
+      // axe: an image with no alternative text, and words faded to a third.
+      const image = document.createElement('img');
+      image.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+      main.append(image);
+      const faint = document.createElement('p');
+      faint.textContent = 'Nearly invisible words.';
+      faint.style.opacity = '0.3';
+      main.prepend(faint);
+      // The tap sizes: a 20 px button, and a link in a sentence that is only as tall as its letters.
+      const small = document.createElement('button');
+      small.textContent = 'x';
+      small.style.inlineSize = '20px';
+      small.style.blockSize = '20px';
+      main.append(small);
+      const sentence = document.createElement('p');
+      sentence.innerHTML = 'A sentence with a <a href="/log">bare link</a> in it.';
+      main.append(sentence);
+      // Clipping: a box that cuts its words off.
+      const box = document.createElement('div');
+      box.textContent = 'These words are far too long for the box that holds them, and the box hides the rest.';
+      box.style.overflow = 'hidden';
+      box.style.whiteSpace = 'nowrap';
+      box.style.inlineSize = '5rem';
+      main.append(box);
+      // Forced colours: a field with no edge, and a mark that is only a gradient.
+      const field = document.createElement('input');
+      field.setAttribute('aria-label', 'A field');
+      field.style.border = '0';
+      main.append(field);
+      // A mark drawn only as a gradient, which forced colours would erase if the stylesheet did not step in.
+      const lost = document.createElement('mark');
+      lost.textContent = 'a lost mark';
+      lost.style.setProperty('background-image', 'linear-gradient(red, red)', 'important');
+      lost.style.setProperty('background-color', 'transparent', 'important');
+      main.append(lost);
+      // The CSP: an inline <style>, which `default-src 'self'` refuses.
+      const style = document.createElement('style');
+      style.textContent = 'body { outline: 0; }';
+      document.head.append(style);
+    });
+    expect((await axeViolations(page)).join('\n')).toMatch(/image-alt/);
+    expect((await axeViolations(page)).join('\n')).toMatch(/color-contrast/);
+    expect((await tapTargetFailures(page)).map((f) => f.needs)).toEqual(expect.arrayContaining(['44 x 44', '24 x 24 (inline)']));
+    expect((await clippedText(page)).join('\n')).toMatch(/cuts off \d+px sideways/);
+    expect((await forcedColourProblems(page)).join('\n')).toMatch(/has no edge/);
+    expect((await forcedColourProblems(page)).join('\n')).toMatch(/mark "a lost mark"/);
+    expect(await cspViolations(page)).not.toEqual([]);
+  });
+
+  test('the motion check fails when something moves under reduced motion', async ({ browser, baseURL, request }, info) => {
+    await resetLog(request, []);
+    const context = await browser.newContext({ baseURL, reducedMotion: 'reduce', colorScheme: scheme(info), viewport: { width: 360, height: 800 } });
+    try {
+      const page = await context.newPage();
+      await page.goto('/log');
+      await fontsSettled(page);
+      await expectNoMotion(page);
+      // Break the kill-switch: an element with an animation the CSS did not stop.
+      await page.evaluate(() => {
+        const dot = document.createElement('i');
+        dot.textContent = '.';
+        dot.style.setProperty('animation', 'eye-blink 1s infinite', 'important');
+        document.body.append(dot);
+      });
+      await expect(expectNoMotion(page)).rejects.toThrow();
     } finally {
       await context.close();
     }
