@@ -34,6 +34,11 @@ export const limits = {
    */
   bodyMaxBytes: 64 * 1024,
   /**
+   * The longest entry title, in UTF-16 code units after trimming, the unit the admin field's
+   * `maxlength` counts. Large on purpose: a guard against a pasted page, not a rule about titles (F-16).
+   */
+  titleMaxChars: 1000,
+  /**
    * Rows one record table may hold for one month and language (PD-20). A
    * client chooses its own Referer and user agent, so without a cap it could
    * grow the table without end; past it a new key is dropped, old ones count on.

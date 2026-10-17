@@ -61,6 +61,8 @@ test('the editor is first and empty, with its labels and its prompt, in the lang
   // English on the very first entry (decision 4).
   await expect(language(page, 'en')).toBeChecked();
   await expect(language(page, 'fa')).not.toBeChecked();
+  // The title field stops at the API's cap, so the person never meets the refusal (F-16).
+  await expect(titleField(page)).toHaveAttribute('maxlength', '1000');
   // The language control comes first, then the title, then the body, then the actions: the editor above Entries.
   const order = await page.evaluate(() => {
     const at = (selector: string) => document.querySelector(selector);
@@ -823,7 +825,7 @@ test('J3.4, J3.5, W6: the session ends while writing. The text stays, Sign in an
   expect((await request.post('/__test/clock', { data: { now: NOW + 70 * MINUTE } })).ok()).toBe(true);
   await publishButton(page).click();
   const failure = alertWith(page, 'Not published yet.');
-  await expect(failure).toContainText('You were signed out after an hour idle. Sign in to finish. Your text stays right here.');
+  await expect(failure).toContainText('You were signed out. Sign in to finish. Your text stays right here.');
   // The editor was not unmounted: it is the same text, still editable, and the app did not leave for the sign-in view.
   await expect(body(page)).toHaveText('Interrupted for seventy minutes, then finished.');
   await expect(titleField(page)).toHaveValue('Interrupted');

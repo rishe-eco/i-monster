@@ -186,8 +186,9 @@ export const copy = {
         // The browser refused to store the text, so "kept on this phone" would be untrue.
         notKept: "The connection dropped. Your text is still here, but this browser isn't keeping a copy, so leave this page open.",
       },
-      // The one session limit, an hour idle (AC-10); typing alone doesn't keep a session alive, so this is an ordinary case (J3.4).
-      signedOut: 'You were signed out after an hour idle. Sign in to finish. Your text stays right here.',
+      // No reason given: an hour idle is the usual one (typing alone doesn't keep a session alive, J3.4), but the 24 h limit
+      // and a passkey removed elsewhere end a session too, and a 401 doesn't say which (the founder's call, F-16).
+      signedOut: 'You were signed out. Sign in to finish. Your text stays right here.',
       retry: 'Try again',
       signInAnd: { publish: 'Sign in and publish', save: 'Sign in and save', unpublish: 'Sign in and unpublish' },
     },

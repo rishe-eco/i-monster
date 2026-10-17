@@ -250,7 +250,9 @@ export function readBody(raw: unknown): { doc: Doc } | { refusal: BodyRefusal } 
 export function readTitle(value: unknown): { title: string | null } | { refusal: 'REQUEST_INVALID' } {
   if (value === undefined || value === null) return { title: null };
   if (typeof value !== 'string' || /\p{Cc}/u.test(value)) return { refusal: 'REQUEST_INVALID' };
-  return { title: value.trim() || null };
+  const title = value.trim();
+  if (title.length > limits.titleMaxChars) return { refusal: 'REQUEST_INVALID' };
+  return { title: title || null };
 }
 
 export function getEntry(db: Db, id: string): AdminEntry | null {

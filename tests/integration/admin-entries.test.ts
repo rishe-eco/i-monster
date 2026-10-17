@@ -71,6 +71,11 @@ describe('AC-12: an untitled entry publishes, dated by the server', () => {
     expect(published.firstPublishedAt).toBe(NOW + DAY);
   });
 
+  it('keeps a title up to limits.titleMaxChars, counted after trimming (F-16)', async () => {
+    const longest = 'x'.repeat(limits.titleMaxChars);
+    expect((await save({ title: `  ${longest}  ` })).title).toBe(longest);
+  });
+
   it('keeps a title, trimmed, and drops a blank one', async () => {
     expect((await save({ title: '  A title  ' })).title).toBe('A title');
     expect((await save({ title: '   ' })).title).toBeNull();
@@ -315,6 +320,7 @@ describe('the refusals, by the bytes of the body (§6.2)', () => {
     ['a publish key that is a number', { publishKey: 7 }],
     ['a title that is a number', { title: 5 }],
     ['a title that is an object', { title: {} }],
+    ['a title over limits.titleMaxChars', { title: 'x'.repeat(limits.titleMaxChars + 1) }],
     ['a title with a line break', { title: 'two\nlines' }],
     ['a title with a control character', { title: 'a\u0007b' }],
     ['a publish flag that is a string', { publish: 'true' }],

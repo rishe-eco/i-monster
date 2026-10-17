@@ -213,6 +213,7 @@ function Fields({ idBase, lang, title, onTitle, doc, onDoc, readOnly, kept, dock
           lang={lang}
           dir={dirOf(lang)}
           value={title}
+          maxLength={limits.titleMaxChars}
           readOnly={readOnly}
           autocomplete="off"
           onInput={(event) => onTitle(cleanTitle((event.currentTarget as HTMLInputElement).value))}
