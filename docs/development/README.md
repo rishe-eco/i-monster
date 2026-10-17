@@ -10,7 +10,7 @@ The build is nine stages, in the order of build plan §3 (`root-sot/imnstr/modul
 | B4a | Passkeys and sessions (server) | L | B1 | MS2 | verified 2026-10-14 · [record](B4a.md) |
 | B4b | Auth screens: sign-in, setup, passkeys, codes | M | B4a | MS2 | verified 2026-10-15 · [record](B4b.md) |
 | CD1 | Deploy on push to `main`: workflow, root deploy script, `deploy/checks.sh` (change note 04, not in the plan's nine) | M | B2, B4b | — | verified 2026-10-15 · [record](CD1.md) |
-| B5 | Entries API, admin shell, entries list | M | B3, B4b | MS3 | planned |
+| B5 | Entries API, admin shell, entries list | M | B3, B4b | MS3 | verified 2026-10-17 · [record](B5.md) |
 | B6 | The editor: buffers, failures, in-place sign-in | L | B5 | MS3 | planned |
 | B7 | Podcast: public pages and the admin form | L | B6 | MS3 | planned |
 | B8 | Reader record | M | B3, B4a | MS3 | planned |
@@ -55,19 +55,20 @@ A stage that leaves something for a later one lists it in its own record, and it
 | Insert an episode as a draft, add a link, then publish (extra trigger); supply `episode.date`, today in `SITE_TZ` | B7 | B1 |
 | ~~Headers through Nginx and TLS, by `curl -I`~~ done | B2 | B1 |
 | Contrast of the dark colour pairs, measured | B9 | B1 |
-| Drop empty paragraphs before saving, or loosen `text+` in `shared/doc.ts` | B5, B6 | B3 |
-| `docHasText` for `BODY_REQUIRED` | B5 | B3 |
-| Refuse XML-forbidden control characters in `DOC_INVALID`, or strip them on paste (they are dropped at render now) | B5, B6 | B3 |
+| ~~Drop empty paragraphs before saving~~ server done (`normalizeDoc`); the client runs it before it sends | B6 | B3 |
+| ~~`docHasText` for `BODY_REQUIRED`~~ done | B5 | B3 |
+| ~~Refuse XML-forbidden control characters in `DOC_INVALID`~~ done; strip them on paste | B6 | B3 |
 | ~~Install with `npm ci --ignore-scripts` in the image~~ done | B2 | B3 |
 | Clear rows seeded on production with `reset-content` | B8 | B3 |
 | ~~Tune `imnstr_auth`'s rate and burst against the real sign-in flow~~ kept at 30r/m burst 10, with a floor test | B4a | B2 |
-| Raise `client_max_body_size` (1m) if a request body needs more | B5, B7 | B2 |
+| Raise `client_max_body_size` (1m) if a request body needs more (S-9; decide with the real editor) | B6, B7 | B2 |
 | Optional: `server_tokens off;` in `imnstr.conf` | any deploy | B2 |
 | Contrast of B3's new dark pairs (dates, lede, empty state, feed link) | B9 | B3 |
-| JSON `NOT_FOUND` for an unknown `/admin/api` path when signed in (now the public HTML 404) | B5 | B4a |
+| ~~JSON `NOT_FOUND` for an unknown `/admin/api` path when signed in~~ done | B5 | B4a |
 | Routers go inside `adminApiRoutes` after the guard, never under `auth/` (`auth-guard.test.ts` lists that prefix exactly) | B5, B7 | B4a |
 | ~~`@simplewebauthn/browser`; the `/admin/setup/<code>` page the CLI's link opens~~ done; each platform's `excludeCredentials` wording: Chrome with Google Password Manager done at MS2, the phone's owed | B4b, phone check (V-7) | B4a |
 | "this device" after a hybrid sign-in names the other device's passkey (`device_credential` defaults to `opened_by`); look at it with a real hybrid sign-in | phone check (V-7) | B4b |
 | Correct the stale "B4a puts routes here" comment in `imnstr.conf` | next conf change | B4a |
 | Prune old `imnstr` images on the box, filtered by label or repository, never a global prune | any deploy | CD1 |
+| Copy link, Save and the editor in the edit-view frame; a session ends after a test-clock jump over an hour, so tests sign in after each jump | B6 | B5 |
 | A stage that adds a deploy check adds it to `deploy/checks.sh`; a stop file (`imnstr.conf`, the compose file, `deploy/imnstr-deploy.sh`) or a new `.env` line in a stage's diff is planned before its push | every stage | CD1 |
