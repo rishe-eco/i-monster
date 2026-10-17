@@ -10,6 +10,7 @@ import type { Db } from './lib/db.ts';
 import type { Env } from './lib/env.ts';
 import { securityHeaders } from './lib/headers.ts';
 import { langFromPath } from './lib/i18n.ts';
+import { recordMiddleware } from './lib/record-middleware.ts';
 import { adminApiRoutes } from './routes/admin-api.ts';
 import { adminRoutes } from './routes/admin.tsx';
 import { logRoutes } from './routes/log.tsx';
@@ -40,7 +41,8 @@ export function createApp({ env, db, assets = buildAssets(undefined, { requireAd
   const withEtag = etag();
   app.use('*', (c, next) => (c.req.path.startsWith('/assets/') ? next() : withEtag(c, next)));
   // Sessions are read on /admin/api only, by the guard inside adminApiRoutes (D-8).
-  // B8 adds the reader-record middleware here, after language.
+  // The reader record counts after the response is decided, and skips cookie-carrying requests (PD-20, D-8).
+  app.use('*', recordMiddleware(db, env));
 
   app.route('/', systemRoutes(db, { prelaunch: env.prelaunch }));
   app.route('/', publicRoutes({ en: siteEn, fa: siteFa }));

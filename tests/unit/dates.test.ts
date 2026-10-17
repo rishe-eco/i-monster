@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { feedDate, formatAdminDate, formatAdminDay, formatAdminListDate, formatEntryDate } from '../../lib/dates.ts';
+import { feedDate, formatAdminDate, formatAdminDay, formatAdminListDate, formatEntryDate, recordMonth } from '../../lib/dates.ts';
 import { NOW } from '../helpers.ts';
 
 const TEHRAN = 'Asia/Tehran'; // UTC+03:30 all year since 2022
@@ -150,5 +150,19 @@ describe('formatFeedTitleDate (AC-40)', () => {
   it('writes Solar Hijri with Persian digits in Persian', async () => {
     const { formatFeedTitleDate } = await import('../../lib/dates.ts');
     expect(formatFeedTitleDate(Date.UTC(2026, 9, 20, 18, 30, 0), 'fa', 'Asia/Tehran')).toBe('۲۸ مهر ۱۴۰۵');
+  });
+});
+
+describe('recordMonth (PD-20)', () => {
+  it('files an instant under its Tehran month: 31 Oct 20:29 UTC is October, 20:31 is November', () => {
+    expect(recordMonth(Date.UTC(2026, 9, 31, 20, 29, 59), TEHRAN)).toBe('2026-10');
+    expect(recordMonth(Date.UTC(2026, 9, 31, 20, 30, 0), TEHRAN)).toBe('2026-11');
+    expect(recordMonth(Date.UTC(2026, 9, 31, 20, 31, 0), TEHRAN)).toBe('2026-11');
+  });
+
+  it('turns the year in the site timezone, and writes Latin digits', () => {
+    expect(recordMonth(Date.UTC(2026, 11, 31, 20, 31, 0), TEHRAN)).toBe('2027-01');
+    expect(recordMonth(Date.UTC(2026, 11, 31, 20, 31, 0), 'UTC')).toBe('2026-12');
+    expect(recordMonth(NOW, TEHRAN)).toBe('2026-10');
   });
 });

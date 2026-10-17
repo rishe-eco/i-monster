@@ -16,7 +16,9 @@
     "check": "tsc --noEmit && tsc --noEmit -p admin && eslint .",
     "backup": "tsx scripts/backup.ts",
     "setup-token": "tsx scripts/setup-token.ts",
-    "build": "vite build --config admin/vite.config.ts"
+    "build": "vite build --config admin/vite.config.ts",
+    "report": "tsx scripts/report.ts",
+    "reset-content": "tsx scripts/reset-content.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.4",

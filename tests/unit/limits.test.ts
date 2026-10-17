@@ -15,6 +15,7 @@ describe('limits', () => {
     expect(limits.signInPauseMs).toBe(5000);
     expect(limits.passkeyNameMax).toBe(60);
     expect(limits.bodyMaxBytes).toBe(64 * 1024);
+    expect(limits.recordKeysPerMonth).toBe(500);
   });
 });
 

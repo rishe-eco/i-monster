@@ -33,6 +33,12 @@ export const limits = {
    * rule: no message names it (plan §6.4, a proposal).
    */
   bodyMaxBytes: 64 * 1024,
+  /**
+   * Rows one record table may hold for one month and language (PD-20). A
+   * client chooses its own Referer and user agent, so without a cap it could
+   * grow the table without end; past it a new key is dropped, old ones count on.
+   */
+  recordKeysPerMonth: 500,
 } as const;
 
 /** Failures at which waiting starts, and the longest wait (PD-15). */

@@ -228,6 +228,19 @@ dc exec -T imnstr node --import tsx scripts/seed-entry.ts --lang en --body-file 
 dc exec -T imnstr node --import tsx scripts/backup.ts /backups/imnstr-manual.db
 ```
 
+**The reader record** (spec §3.1) is shown here and nowhere else. `--to` is optional and defaults to this month; both months are inclusive:
+
+```
+dc exec -T imnstr node --import tsx scripts/report.ts --from 2026-11 --to 2027-01
+```
+
+**`reset-content`** clears the entries, episodes and reader record that the demonstrations left, and keeps the passkeys and settings. **Take a backup first** (the `backup.ts` line above). Without `--yes` it only prints what it would delete, as row counts:
+
+```
+dc exec -T imnstr node --import tsx scripts/reset-content.ts
+dc exec -T imnstr node --import tsx scripts/reset-content.ts --yes
+```
+
 **The setup token** is how the first passkey is made, and how both are recovered if both are lost (spec §4.3). It needs server access, so it is made here and nowhere else:
 
 ```

@@ -128,3 +128,13 @@ export function formatFeedTitleDate(instant: number, lang: Lang, timeZone: strin
       : partsOf(instant, 'en-US', { timeZone, day: 'numeric', month: 'long', year: 'numeric' });
   return `${p.day} ${p.month} ${p.year}`;
 }
+
+/**
+ * The month the reader record files an instant under (PD-20): `YYYY-MM`,
+ * Gregorian, Latin digits, in the site's timezone, so a visit at 00:10 on the
+ * 1st in Tehran belongs to the new month even though UTC is still the old one.
+ */
+export function recordMonth(instant: number, timeZone: string = env.siteTz): string {
+  const p = partsOf(instant, 'en-US', { timeZone, year: 'numeric', month: '2-digit' });
+  return `${p.year}-${p.month}`;
+}
