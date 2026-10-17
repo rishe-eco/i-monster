@@ -63,6 +63,7 @@ A stage that leaves something for a later one lists it in its own record, and it
 | ~~Tune `imnstr_auth`'s rate and burst against the real sign-in flow~~ kept at 30r/m burst 10, with a floor test | B4a | B2 |
 | Raise `client_max_body_size` (1m) if a request body needs more (S-9): entries measured at B6, 65,550 B at most, no change; B7 measures an episode | B7 | B2 |
 | Optional: `server_tokens off;` in `imnstr.conf` | any deploy | B2 |
+| `gzip_types` for `text/javascript`, `text/css` and the feeds in `imnstr.conf` (only HTML is compressed; the editor's bundle goes out at 285 KB). A stop file: the founder's step | before E1's cold runs | B6 |
 | Contrast of B3's new dark pairs (dates, lede, empty state, feed link) | B9 | B3 |
 | ~~JSON `NOT_FOUND` for an unknown `/admin/api` path when signed in~~ done | B5 | B4a |
 | Routers go inside `adminApiRoutes` after the guard, never under `auth/` (`auth-guard.test.ts` lists that prefix exactly) | B5, B7 | B4a |
