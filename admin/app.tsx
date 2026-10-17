@@ -6,7 +6,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import { api, forgetSession, whenSignedOut, type Code, type SessionInfo } from './api.ts';
 import { copy, refusals } from './copy.ts';
-import { EntriesSection, EntryFrame } from './entries.tsx';
+import { EntryFrame, NewEntry } from './composer.tsx';
+import { EntriesSection } from './entries.tsx';
 import { PasskeysSection } from './passkeys.tsx';
 import { ReauthHost } from './reauth.tsx';
 import { SignIn } from './signin.tsx';
@@ -149,8 +150,12 @@ function Home({
     <main class="screen screen--wide">
       <Header signedIn />
       {welcome ? <Notice kind="success">{welcome}</Notice> : null}
-      {/* W1 order. The editor's slot: B5 puts the edit view's frame here, B6 the editor itself, new entries included. */}
-      {editing ? <EntryFrame key={editing} id={editing} onClose={() => setEditing(null)} onChanged={() => setEntriesChanged((n) => n + 1)} /> : null}
+      {/* W1 order. The editor's slot: the editor is first, empty, whenever nothing is being edited; Edit puts an entry in the same editor, in its frame. */}
+      {editing ? (
+        <EntryFrame key={editing} id={editing} onClose={() => setEditing(null)} onChanged={() => setEntriesChanged((n) => n + 1)} />
+      ) : (
+        <NewEntry onChanged={() => setEntriesChanged((n) => n + 1)} />
+      )}
       <EntriesSection onEdit={setEditing} refreshKey={entriesChanged} />
       {/* The Podcast section comes here in B7: it draws nothing until it exists. */}
       <PasskeysSection session={session} onRemovedHere={onRemovedHere} onSessionEnded={onSessionEnded} />

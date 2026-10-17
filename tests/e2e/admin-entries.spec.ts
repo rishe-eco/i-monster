@@ -1,6 +1,7 @@
 // The entries list and the edit view's frame in a real browser (plan B5, plate 8): the list's
 // states, the year rule around 1 January in Tehran, "Older", Edit, the unpublish confirm and
 // the republish notice. Every test runs in both colour schemes at 360 px (spec §4.6, AC-32).
+// The editor inside the frame is B6's (editor.spec.ts); here it is only found where B5 left the text.
 import { expect, test, type Page } from '@playwright/test';
 import { signedInAdmin, resetAdmin, type Admin } from './admin-support.ts';
 import { DAY, MIXED, NOW, expectColourScheme, expectNoSidewaysScroll, expectNoThirdParty, type Lang } from './support.ts';
@@ -63,7 +64,8 @@ test('the shell is in W1 order, and the list is collapsed and asks for nothing u
   const { page } = admin;
   await expect(entriesToggle(page)).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('#entries-body')).toBeHidden();
-  // The editor slot is empty until Edit; then Entries, then Passkeys (the Podcast slot, B7, draws nothing yet), then Sign out.
+  // The editor is first, empty, and Edit puts an entry in the same place; then Entries, then Passkeys (the Podcast slot, B7, draws nothing yet), then Sign out.
+  await expect(page.getByRole('textbox', { name: 'Entry text' })).toBeVisible();
   expect(await page.locator('h2 .disclosure > span:first-child').allInnerTexts()).toEqual(['Entries', 'Passkeys']);
   expect(admin.requests.filter((url) => url.includes('/admin/api/entries'))).toEqual([]);
   await openEntries(page);
@@ -203,7 +205,7 @@ test('"Older" brings the next page and goes when there is no more, and says noth
   await expectFits(admin, info);
 });
 
-test('a never-published draft opens with its header and no action: B6 publishes it', async ({ browser, baseURL, request }, info) => {
+test('a never-published draft opens in the editor with its header, Save draft and Publish, and Cancel closes it', async ({ browser, baseURL, request }, info) => {
   await seed(request, [{ id: 'a000000001', lang: 'en', text: 'Half a thought.', state: 'draft', createdAt: NOW - DAY }]);
   const admin = await signedInAdmin(browser, baseURL as string, request);
   const { page } = admin;
@@ -211,15 +213,17 @@ test('a never-published draft opens with its header and no action: B6 publishes 
   await page.getByRole('button', { name: /^Edit “Half a thought/ }).click();
   const frame = page.locator('.frame');
   await expect(frame.locator('.frame__status')).toHaveText('Draft');
-  await expect(frame.locator('.doc')).toHaveText('Half a thought.');
-  await expect(frame.getByRole('button', { name: /Unpublish|Publish/ })).toHaveCount(0);
+  await expect(frame.getByRole('textbox', { name: 'Entry text' })).toHaveText('Half a thought.');
+  await expect(frame.getByRole('button', { name: 'Save draft', exact: true })).toBeVisible();
+  await expect(frame.getByRole('button', { name: 'Publish', exact: true })).toBeVisible();
+  await expect(frame.getByRole('button', { name: 'Unpublish' })).toHaveCount(0);
   await expect(frame.locator('.frame__notice')).toHaveCount(0);
   await expect(frame.getByRole('button', { name: 'Cancel' })).toBeVisible();
-  // The text is read-only here: no field, no editable region.
-  await expect(frame.locator('input, textarea, [contenteditable]')).toHaveCount(0);
   await expectFits(admin, info);
   await frame.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.locator('.frame')).toHaveCount(0);
+  // The empty editor is back in the slot.
+  await expect(page.getByRole('textbox', { name: 'Entry text' })).toBeVisible();
 });
 
 for (const lang of ['en', 'fa'] as const) {
@@ -236,29 +240,26 @@ for (const lang of ['en', 'fa'] as const) {
     await openEntries(page);
     await page.getByRole('button', { name: `Edit ${MIXED[lang].title}` }).click();
 
-    // The frame: its header, and the title and body read-only, in the entry's own direction.
+    // The frame: its header, and the title and body in the editor, in the entry's own direction.
     const frame = page.locator('.frame');
     await expect(frame.locator('.frame__status')).toHaveText('Editing · published 8 Oct 2026');
     await expect(frame.locator('.frame__status')).toBeFocused();
-    await expect(frame.locator('.frame__title')).toHaveAttribute('dir', lang === 'fa' ? 'rtl' : 'ltr');
-    await expect(frame.locator('.doc')).toHaveAttribute('dir', lang === 'fa' ? 'rtl' : 'ltr');
-    await expect(frame.locator('.doc')).toHaveAttribute('lang', lang);
-    await expect(frame.locator('input, textarea, [contenteditable]')).toHaveCount(0);
+    await expect(frame.getByLabel('Title (optional)')).toHaveAttribute('dir', lang === 'fa' ? 'rtl' : 'ltr');
+    const editor = frame.getByRole('textbox', { name: 'Entry text' });
+    await expect(editor).toHaveAttribute('dir', lang === 'fa' ? 'rtl' : 'ltr');
+    await expect(editor).toHaveAttribute('lang', lang);
     // The runs of the other script are isolated, as on the public page (PD-8), and the marks are kept.
-    await expect(frame.locator(lang === 'fa' ? '.doc bdi[lang="en"]' : '.doc bdi[lang="fa"][dir="rtl"]').first()).toBeVisible();
-    await expect(frame.locator('.doc bdi[dir="ltr"]').first()).toContainText('https://example.org/passkeys/');
-    await expect(frame.locator('.doc mark')).toHaveCount(1);
-    const link = frame.locator('.doc a[href="https://example.org/paper"]');
-    await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    await expect(link).toHaveAttribute('target', '_blank');
-    // The title is text and isolated runs, nothing else: what a person wrote can't become markup.
-    expect(await frame.locator('.frame__title').evaluate((el) => el.querySelectorAll(':not(bdi)').length)).toBe(0);
+    await expect(editor.locator(lang === 'fa' ? 'bdi[lang="en"]' : 'bdi[lang="fa"][dir="rtl"]').first()).toBeVisible();
+    await expect(editor.locator('bdi[dir="ltr"]').first()).toContainText('https://example.org/passkeys/');
+    await expect(editor.locator('mark')).toHaveCount(1);
+    await expect(editor.locator('a[href="https://example.org/paper"]')).toHaveCount(1);
     await expectFits(admin, info);
 
     // Unpublish is outlined, not the filled primary (F19), and asks once.
     const unpublish = frame.getByRole('button', { name: 'Unpublish' });
     expect(await unpublish.evaluate((el) => el.classList.contains('btn--solid') || el.classList.contains('btn--primary'))).toBe(false);
     await expect(frame.getByRole('button', { name: 'Publish', exact: true })).toHaveCount(0);
+    await expect(frame.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
     await unpublish.click();
     const dialog = page.getByRole('dialog', { name: 'Take this entry off the site?' });
     await expect(dialog).toBeVisible();

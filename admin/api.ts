@@ -101,6 +101,12 @@ export interface EntryDetail {
   firstPublishedAt: number | null;
 }
 
+/** What the editor starts from (PD-10): the language of the last save or publish. */
+export interface Settings {
+  lastLanguage: Lang;
+  independenceNoteDismissed: boolean;
+}
+
 let csrf: string | null = null;
 let onSignedOut: (() => void) | null = null;
 
@@ -114,7 +120,16 @@ export function forgetSession(): void {
   csrf = null;
 }
 
-export async function api<T>(method: string, path: string, body?: unknown): Promise<Result<T>> {
+export interface ApiOptions {
+  /**
+   * Don't send the person to the sign-in view when this call finds the session gone: answer UNAUTHENTICATED
+   * and let the caller deal with it. The editor's writes use it, so a session that ended mid-write signs in
+   * over the text instead of unmounting it (W6, AC-16). Every other call keeps the app-wide behaviour.
+   */
+  keepOnSignedOut?: boolean;
+}
+
+export async function api<T>(method: string, path: string, body?: unknown, options: ApiOptions = {}): Promise<Result<T>> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (csrf) headers['X-CSRF-Token'] = csrf;
@@ -137,6 +152,6 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
     return { ok: true, data: record as T };
   }
   const code = typeof record?.code === 'string' && REFUSALS.has(record.code) ? (record.code as RefusalCode) : 'UNEXPECTED';
-  if (code === 'UNAUTHENTICATED') onSignedOut?.();
+  if (code === 'UNAUTHENTICATED' && !options.keepOnSignedOut) onSignedOut?.();
   return { ok: false, code };
 }

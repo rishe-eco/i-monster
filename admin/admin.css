@@ -405,52 +405,6 @@
   outline: none;
 }
 
-.frame__title {
-  display: flex;
-  align-items: center;
-  min-block-size: var(--hit-button);
-  margin-block-start: var(--space-xs);
-  padding-inline: var(--space-2);
-  border: var(--rule) solid var(--field-edge);
-  border-radius: var(--radius-field);
-  background: var(--input-fill);
-  font-weight: 700;
-  font-size: var(--size-read);
-  overflow-wrap: anywhere;
-}
-
-.frame__title:lang(fa) {
-  font-family: var(--font-ui-fa);
-}
-
-/* The body, read-only. It reads in the entry's own language and direction, whatever the admin's. */
-.doc {
-  min-block-size: 6.875rem;
-  margin-block-start: var(--space-1);
-  padding: var(--space-2);
-  border: var(--rule) solid var(--field-edge);
-  border-radius: var(--radius-button);
-  background: var(--input-fill);
-  font-family: var(--font-read);
-  font-size: var(--size-read);
-  line-height: var(--leading-read);
-  overflow-wrap: anywhere;
-}
-
-.doc:lang(fa) {
-  font-family: var(--font-read-fa);
-  line-height: var(--leading-read-fa);
-}
-
-.doc p + p {
-  margin-block-start: var(--space-1);
-}
-
-.doc a {
-  color: var(--link);
-  text-decoration: underline;
-}
-
 .frame__notice {
   margin-block-start: var(--space-lg);
   padding: var(--space-lg) var(--space-2);
@@ -461,7 +415,191 @@
   text-wrap: pretty;
 }
 
-.frame__actions {
+/* ── The editor (plan B6): language, title, body, toolbar, actions ── */
+
+.composer {
+  margin-block-start: var(--space-3);
+}
+
+/* The language: a segmented control, two options, the chosen one in solid ink. The radio covers its option, so the whole 44 px is the target. */
+.segmented {
+  min-inline-size: 0;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  border: 0;
+}
+
+.segmented__options {
+  display: flex;
+  border: var(--rule) solid var(--field-edge);
+  border-radius: var(--radius-button);
+  overflow: hidden;
+}
+
+.segmented__option {
+  position: relative;
+  flex: 1 1 0;
+  min-inline-size: 0;
+}
+
+.segmented__option input {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segmented__option span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--hit);
+  padding-inline: var(--space-2);
+  font-weight: 700;
+  font-size: var(--size-ui);
+  color: var(--ink);
+}
+
+.segmented__option span:lang(fa) {
+  font-family: var(--font-ui-fa);
+}
+
+.segmented__option input:checked + span {
+  background: var(--button-fill);
+  color: var(--button-ink);
+}
+
+.segmented__option input:focus-visible + span {
+  outline: 0.1875rem solid var(--monster);
+  outline-offset: -0.375rem;
+}
+
+.segmented[disabled] {
+  opacity: 0.6;
+}
+
+.segmented[disabled] .segmented__option input {
+  cursor: default;
+}
+
+/* The title is a line in the entry's own language and face. */
+.field__input--title {
+  font-weight: 700;
+  font-size: var(--size-read);
+}
+
+.field__input--title:lang(fa) {
+  font-family: var(--font-ui-fa);
+}
+
+/* The body: it reads in the entry's own language and direction, whatever the admin's. */
+.editor__body {
+  position: relative;
+  min-block-size: 6.875rem;
+  padding: var(--space-2);
+  border: var(--rule) solid var(--field-edge);
+  border-radius: var(--radius-button);
+  background: var(--input-fill);
+  color: var(--ink);
+  font-family: var(--font-read);
+  font-size: var(--size-read);
+  line-height: var(--leading-read);
+  overflow-wrap: anywhere;
+}
+
+.editor__body:lang(fa) {
+  font-family: var(--font-read-fa);
+  line-height: var(--leading-read-fa);
+}
+
+.editor__body:focus-within {
+  border-color: var(--ink);
+}
+
+/* ProseMirror's own element: no ring of its own (the body's edge shows the focus), and room for a few lines. */
+.editor__body .ProseMirror {
+  min-block-size: 4.5rem;
+  outline: none;
+}
+
+.editor__body p + p {
+  margin-block-start: var(--space-1);
+}
+
+.editor__body a {
+  color: var(--link);
+  text-decoration: underline;
+}
+
+/* The prompt, while the body is empty: drawn by a class and CSS, not by a plugin (AC-18). */
+.editor__body--blank::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  inset-block-start: var(--space-2);
+  inset-inline: var(--space-2);
+  color: var(--placeholder);
+  pointer-events: none;
+}
+
+/* The tools and the actions stay at the foot of the screen while the text scrolls, so with the keyboard up they are still in reach. */
+.dock {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1;
+  margin-block-start: var(--space-1);
+  padding-block: var(--space-1) var(--space-2);
+  border-block-start: var(--rule-soft-width) solid var(--rule-soft);
+  background: var(--ground);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.toolbar__tools {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.tool {
+  padding-inline: var(--space-2);
+}
+
+/* A tool that is on shows the highlighter itself. */
+.tool[aria-pressed='true'] {
+  border-color: var(--rule-strong);
+  background: var(--highlight);
+  color: var(--highlight-ink);
+}
+
+.toolbar__kept {
+  font-size: var(--size-meta);
+  color: var(--muted);
+}
+
+/* The link's address, in place under the body (plate 8, F5). */
+.linkfield {
+  margin-block-start: var(--space-1);
+  padding: var(--space-2);
+  border: var(--rule) solid var(--rule-soft);
+  border-radius: var(--radius-button);
+}
+
+.linkfield__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-block-start: var(--space-1);
+}
+
+.composer__actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -469,8 +607,57 @@
   margin-block-start: var(--space-lg);
 }
 
-.frame__actions:empty {
+.composer__actions:empty {
   display: none;
+}
+
+/* "Published. It's out there.": where it is, and Open and Copy link. */
+.published {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+}
+
+.published__where {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.published__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-block-start: var(--space-xs);
+}
+
+/* ProseMirror's own rules, the parts this editor can reach (prosemirror-view/style/prosemirror.css).
+   It has no lists, code or node selections, so those rules are left out. */
+.ProseMirror {
+  position: relative;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  white-space: break-spaces;
+  font-variant-ligatures: none;
+  font-feature-settings: 'liga' 0;
+}
+
+.ProseMirror-hideselection *::selection {
+  background: transparent;
+}
+
+.ProseMirror-hideselection {
+  caret-color: transparent;
+}
+
+.ProseMirror [draggable][contenteditable='false'] {
+  user-select: text;
+}
+
+img.ProseMirror-separator {
+  display: inline !important;
+  border: none !important;
+  margin: 0 !important;
 }
 
 /* ── Panels in place: add a passkey, enrol a device ── */

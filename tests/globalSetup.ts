@@ -8,7 +8,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '..');
-const SOURCES = [join(ROOT, 'admin'), join(ROOT, 'lib', 'limits.ts'), join(ROOT, 'lib', 'passkey-name.ts'), join(ROOT, 'lib', 'dates.ts'), join(ROOT, 'lib', 'env.ts'), join(ROOT, 'package-lock.json')];
+const SOURCES = [join(ROOT, 'admin'), join(ROOT, 'lib', 'limits.ts'), join(ROOT, 'lib', 'passkey-name.ts'), join(ROOT, 'lib', 'dates.ts'), join(ROOT, 'lib', 'env.ts'), join(ROOT, 'lib', 'bidi.ts'), join(ROOT, 'lib', 'i18n.ts'), join(ROOT, 'shared'), join(ROOT, 'package-lock.json')];
 
 function newest(path: string): number {
   const stat = statSync(path);

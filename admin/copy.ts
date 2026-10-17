@@ -145,7 +145,37 @@ export const copy = {
     opening: (words: string, lang: Lang) => (lang === 'fa' ? `«${words}»` : `“${words}”`),
   },
 
-  // The edit view's frame (plate 8): B6 puts the editor in it.
+  // The editor (plates 7, 8, 9, 12, 14): the same one writes a new entry and edits an old one.
+  editor: {
+    language: 'Language',
+    english: 'English',
+    // Each language's name in that language, as on the public switch.
+    persian: 'فارسی',
+    titleLabel: 'Title (optional)',
+    // Read by assistive technology only: the plate draws no label over the body, only its prompt (AC-18).
+    bodyLabel: 'Entry text',
+    placeholder: 'What did you learn? Say it so someone else would get it.',
+    toolbar: 'Formatting',
+    // HIG #6: the words, not icons.
+    link: 'Link',
+    highlight: 'Highlight',
+    linkAddress: 'Link address',
+    removeLink: 'Remove link',
+    done: 'Done',
+    linkRefused: "That address can't be used. It has to start with https://, http:// or mailto:.",
+    linkNeedsSelection: 'Select the words to link first.',
+    saveDraft: 'Save draft',
+    saved: 'Saved',
+    save: 'Save',
+    publish: 'Publish',
+    publishing: 'Publishing…',
+    // "Published. It's out there." with where it is; Copy link turns to "Copied" for a moment (F16).
+    published: { head: "Published. It's out there.", open: 'Open', copy: 'Copy link', copied: 'Copied' },
+    savedLive: { head: 'Saved.', body: "The live entry shows this now. Its link and date haven't changed." },
+    savedDraft: { head: 'Draft saved.', body: "It's in Entries, not on the site. Open it from any signed-in device." },
+  },
+
+  // The edit view's frame (plate 8): the editor sits in it.
   entry: {
     editingPublished: (date: string) => `Editing · published ${date}`,
     draftWasLive: (date: string) => `Draft · first published ${date}`,
@@ -154,8 +184,6 @@ export const copy = {
     loading: 'Opening…',
     loadFailed: "Couldn't open that entry.",
     retry: 'Try again',
-    titleLabel: 'Title',
-    bodyLabel: 'Entry',
     unpublish: 'Unpublish',
     unpublishing: 'Unpublishing…',
     confirm: {
@@ -170,10 +198,7 @@ export const copy = {
       before: 'Publishing puts it back at ',
       after: ", its original date. It won't be at the top of the log.",
     },
-    publish: 'Publish',
-    publishing: 'Publishing…',
     published: (date: string) => `Published, at ${date}.`,
-    open: 'Open',
   },
 
   reauth: {

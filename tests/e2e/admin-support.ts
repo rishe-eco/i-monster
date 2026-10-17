@@ -42,7 +42,8 @@ export async function signedInAdmin(browser: Browser, baseURL: string, request: 
   await page.goto(`/admin/setup/${token}`);
   await page.getByLabel('Name this passkey').fill('laptop');
   await page.getByRole('button', { name: /^Create a passkey/ }).click();
-  await expect(page.locator('.passkey')).toBeVisible();
+  // This device's own row: another device may already be signed in, with a passkey of the same name.
+  await expect(page.locator('.passkey').filter({ hasText: 'this device' })).toBeVisible();
   return { context, page, problems, requests };
 }
 

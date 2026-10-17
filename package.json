@@ -27,6 +27,12 @@
     "better-sqlite3": "^13.0.3",
     "hono": "^4.13.13",
     "preact": "^11.0.1",
+    "prosemirror-commands": "^1.7.2",
+    "prosemirror-history": "^1.5.1",
+    "prosemirror-keymap": "^1.2.3",
+    "prosemirror-model": "^1.25.12",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-view": "^1.42.6",
     "qrcode": "^1.5.4",
     "tsx": "^4.23.15"
   },
