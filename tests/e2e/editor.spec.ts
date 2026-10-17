@@ -27,6 +27,8 @@ async function write(page: Page, text: string): Promise<void> {
 /** Select the last `count` characters before the caret. In right-to-left text, "back" is the right arrow. */
 async function selectBack(page: Page, count: number, lang: Lang = 'en'): Promise<void> {
   for (let i = 0; i < count; i++) await page.keyboard.press(lang === 'fa' ? 'Shift+ArrowRight' : 'Shift+ArrowLeft');
+  // Key presses come faster than any hand; let the editor see the final selection before a toolbar button reads it.
+  await settle(page);
 }
 
 /** Let the browser report a selection change before the next key moves it again: it merges the changes of two quick key presses into one. */

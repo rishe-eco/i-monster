@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { baseKeymap, toggleMark } from 'prosemirror-commands';
 import { history, redo, undo } from 'prosemirror-history';
 import { keymap } from 'prosemirror-keymap';
-import { EditorState, Selection } from 'prosemirror-state';
+import { EditorState, Selection, TextSelection } from 'prosemirror-state';
 import { DecorationSet, EditorView } from 'prosemirror-view';
 import { dirOf, type Lang } from '../lib/i18n.ts';
 import { stripXmlForbidden, type Doc } from '../shared/doc.ts';
@@ -43,6 +43,24 @@ interface LinkField {
   from: number;
   to: number;
   existing: boolean;
+}
+
+/**
+ * Make ProseMirror's selection the one the DOM has right now. The browser reports a selection to the page a moment
+ * after it changes, and a toolbar button tapped in that moment would act on the words as they were before the last
+ * key or touch handle moved. Nothing is changed when the two already agree, or when the selection is not in the text.
+ */
+function catchUpWithSelection(view: EditorView): void {
+  const dom = window.getSelection();
+  if (!dom?.anchorNode || !dom.focusNode || !view.dom.contains(dom.anchorNode) || !view.dom.contains(dom.focusNode)) return;
+  try {
+    const anchor = view.posAtDOM(dom.anchorNode, dom.anchorOffset);
+    const head = view.posAtDOM(dom.focusNode, dom.focusOffset);
+    const { selection } = view.state;
+    if (selection.anchor !== anchor || selection.head !== head) view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, anchor, head)));
+  } catch {
+    // The DOM is in the middle of a change: the state stays as it is.
+  }
 }
 
 export function Editor({ value, onChange, lang, readOnly, labelId, placeholder, toolbarEnd, dock }: EditorProps) {
@@ -209,6 +227,7 @@ export function Editor({ value, onChange, lang, readOnly, labelId, placeholder, 
   const openLink = () => {
     const current = view.current;
     if (!current) return;
+    catchUpWithSelection(current);
     const { from, to, empty } = current.state.selection;
     const found = linkAt(current.state);
     if (found) {
@@ -252,6 +271,7 @@ export function Editor({ value, onChange, lang, readOnly, labelId, placeholder, 
     const current = view.current;
     const mark = schema.marks.highlight;
     if (!current || !mark) return;
+    catchUpWithSelection(current);
     toggleMark(mark)(current.state, current.dispatch);
     current.focus();
   };
@@ -330,7 +350,7 @@ export function Editor({ value, onChange, lang, readOnly, labelId, placeholder, 
       {/* The dock stays at the foot of the screen while the text above it scrolls, so with the keyboard up the tools and the actions are still in reach. */}
       <div class="dock" ref={dockEl}>
         <div class="toolbar">
-          <div class="toolbar__tools" role="toolbar" aria-label={t.toolbar}>
+          <div class="toolbar__tools" role="group" aria-label={t.toolbar}>
             <button type="button" class="btn tool" aria-expanded={field !== null} aria-controls={field ? fieldId : undefined} disabled={readOnly} onMouseDown={keepFocus} onClick={openLink}>
               {t.link}
             </button>
