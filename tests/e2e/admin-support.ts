@@ -1,7 +1,7 @@
 // A signed-in admin in a real browser, for the specs that are about what the admin does and not
 // about signing in (plan B5 on). Edge's virtual authenticator answers the passkey sheet; the setup
 // token comes from the e2e-only route, as a terminal would print it.
-import { expect, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { watchCsp } from './support.ts';
 
 export interface Admin {
@@ -56,4 +56,44 @@ export async function resetAdmin(request: APIRequestContext, now: number): Promi
   expect((await request.delete('/__test/auth')).ok()).toBe(true);
   expect((await request.delete('/__test/entries')).ok()).toBe(true);
   expect((await request.delete('/__test/episodes')).ok()).toBe(true);
+}
+
+/**
+ * A confirm dialog is a sheet on the bottom edge, at full width, on a phone, and a centred box of at most 26 rem
+ * from 48 em up (PL-2). Measured at the width the page is in, then at 1280, and the viewport is put back.
+ */
+export async function expectDialogPlace(page: Page, dialog: Locator): Promise<void> {
+  const size = page.viewportSize() ?? { width: 360, height: 800 };
+  const measure = () =>
+    dialog.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      return { top: box.top, bottom: box.bottom, width: box.width, viewportWidth: document.documentElement.clientWidth, viewportHeight: window.innerHeight };
+    });
+  await page.setViewportSize({ width: 360, height: Math.max(size.height, 500) });
+  const phone = await measure();
+  expect(Math.abs(phone.bottom - phone.viewportHeight), 'the dialog sits on the bottom edge').toBeLessThanOrEqual(1);
+  expect(Math.abs(phone.width - phone.viewportWidth), 'the dialog is as wide as the screen').toBeLessThanOrEqual(1);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const desktop = await measure();
+  expect(Math.abs(desktop.top - (desktop.viewportHeight - desktop.bottom)), 'the dialog is centred').toBeLessThanOrEqual(2);
+  expect(desktop.width).toBeLessThanOrEqual(26 * 16 + 1);
+  await page.setViewportSize(size);
+}
+
+/** A button's computed background, and the one a token gives: both as the browser resolves them, so schemes and formats agree. */
+export async function expectSolidInk(button: Locator): Promise<void> {
+  const [fill, ink, token, tokenInk] = await button.evaluate((el) => {
+    const resolve = (property: 'backgroundColor' | 'color', value: string) => {
+      const probe = document.createElement('i');
+      probe.style[property] = value;
+      document.body.append(probe);
+      const resolved = getComputedStyle(probe)[property];
+      probe.remove();
+      return resolved;
+    };
+    const style = getComputedStyle(el);
+    return [style.backgroundColor, style.color, resolve('backgroundColor', 'var(--button-fill)'), resolve('color', 'var(--button-ink)')];
+  });
+  expect(fill, 'a primary button is solid ink').toBe(token);
+  expect(ink, 'with the ink of its scheme on it').toBe(tokenInk);
 }

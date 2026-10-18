@@ -7,7 +7,7 @@ import { expect, test, type Browser, type Page } from '@playwright/test';
 import { resetAdmin, signedInAdmin, type Admin } from './admin-support.ts';
 import { plainEpisodes, resetPodcast, type SeedEpisode } from './podcast-support.ts';
 import { DAY, MIXED, NOW, watchCsp, type Lang } from './support.ts';
-import { sweep } from './sweep-support.ts';
+import { highlightedButtons, sweep } from './sweep-support.ts';
 
 const MINUTE = 60_000;
 
@@ -274,4 +274,19 @@ test('the date input keeps its whole year in view at 180 px: its padding narrows
   expect(narrow).toBeLessThanOrEqual(8);
   // Looked at, not measured: the browser draws the digits itself, so the page can't read how far they run. This is the picture the fix was made from.
   await date.screenshot({ path: info.outputPath('date-at-180.png') });
+});
+
+// ── The check for PL-1 shows it fails on the old look ──
+
+test('the highlighter check passes on the composer, allows a Highlight tool that is on, and fails on a primary drawn in the highlighter (PL-1)', async ({ browser, baseURL, request }) => {
+  const { page } = await signedInAdmin(browser, baseURL as string, request);
+  await writeWithMark(page, 'en');
+  // The tool is pressed after Highlight, and is the one button allowed the highlighter.
+  await expect(page.getByRole('button', { name: 'Highlight', exact: true })).toHaveAttribute('aria-pressed', /true|false/);
+  expect(await highlightedButtons(page)).toEqual([]);
+  // The old look: Publish drawn in the highlighter. The check names it.
+  await page.getByRole('button', { name: /^Publish/ }).evaluate((el) => {
+    el.style.setProperty('background-color', 'var(--highlight)', 'important');
+  });
+  expect(await highlightedButtons(page)).toEqual([expect.stringContaining('Publish')]);
 });

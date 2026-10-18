@@ -7,16 +7,15 @@
 // aside and offered back, and so are changes left in an edit (AC-43, J3.3): the section opens itself when
 // there is something to offer, so the offer is never hidden in a collapsed list.
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { formatAdminListDay, formatDay } from '../lib/dates.ts';
-import { localePath } from '../lib/i18n.ts';
+import { formatAdminListDay } from '../lib/dates.ts';
 import { api, type Code, type EpisodeRow, type EpisodesPage, type SessionInfo } from './api.ts';
 import { browserStorage } from './browser-storage.ts';
 import { createBuffers, type EpisodeEdit, type UnsentEpisode } from './buffers.ts';
 import { copy, refusals } from './copy.ts';
 import { Runs } from './doc.tsx';
-import { EditOffer, EpisodeFrame, LeaveDialog, NewEpisode, type Done } from './episode-form.tsx';
+import { DoneNotice, EditOffer, EpisodeFrame, LeaveDialog, NewEpisode, type Done } from './episode-form.tsx';
 import { Notice } from './ui.tsx';
-import { DiscardDialog, Offer, PublishedNotice, Said } from './writer.tsx';
+import { DiscardDialog, Offer } from './writer.tsx';
 
 interface Page {
   rows: EpisodeRow[];
@@ -52,7 +51,7 @@ function Row({ row, today, onEdit }: { row: EpisodeRow; today: string; onEdit: (
 /** What is open in the form's place: nothing, a new episode, or an episode being edited. */
 type Form =
   | null
-  | { kind: 'new'; initial: UnsentEpisode | null; restored: boolean }
+  | { kind: 'new'; initial: UnsentEpisode | null; restored: boolean; said: Done | null }
   | { kind: 'edit'; id: string; resume: EpisodeEdit | null; keptNote: boolean };
 
 export function PodcastSection({ onSession }: { onSession: (session: SessionInfo) => void }) {
@@ -113,7 +112,7 @@ export function PodcastSection({ onSession }: { onSession: (session: SessionInfo
 
   const startNew = () => {
     setSaid(null);
-    setForm({ kind: 'new', initial: buffers.read().unsent, restored: false });
+    setForm({ kind: 'new', initial: buffers.read().unsent, restored: false, said: null });
   };
 
   const startEdit = (id: string, resume: EpisodeEdit | null = null) => {
@@ -128,12 +127,12 @@ export function PodcastSection({ onSession }: { onSession: (session: SessionInfo
   const closeFrame = () => {
     const snapshot = buffers.apply({ type: 'edit-cancelled' }).snapshot;
     unsaved.current = false;
-    setForm(snapshot.unsent ? { kind: 'new', initial: snapshot.unsent, restored: true } : null);
+    setForm(snapshot.unsent ? { kind: 'new', initial: snapshot.unsent, restored: true, said: null } : null);
   };
 
   const putBack = () => {
     const snapshot = buffers.apply({ type: 'restored' }).snapshot;
-    if (snapshot.unsent) setForm({ kind: 'new', initial: snapshot.unsent, restored: true });
+    if (snapshot.unsent) setForm({ kind: 'new', initial: snapshot.unsent, restored: true, said: null });
   };
 
   const discardKept = () => {
@@ -147,9 +146,16 @@ export function PodcastSection({ onSession }: { onSession: (session: SessionInfo
     unsaved.current = false;
     // What the form was waiting for is confirmed; what an edit set aside comes back as a new form.
     const returned = buffers.read().unsent;
-    setForm(returned ? { kind: 'new', initial: returned, restored: true } : null);
+    setForm(returned ? { kind: 'new', initial: returned, restored: true, said: note } : null);
     setSaid(note);
   };
+
+  // What a closed form said sits directly above New episode. With the form gone the page is shorter and may
+  // have been scrolled past it, so the button, and the notice over it, are brought into view (PL-11).
+  const newEpisodeButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (said && form === null) newEpisodeButton.current?.scrollIntoView({ block: 'end' });
+  }, [said, form === null]);
 
   const today = page?.today ?? null;
   // Drawn from the buffer, not from a copy of it: the form can discard or put back what is set aside too.
@@ -188,19 +194,13 @@ export function PodcastSection({ onSession }: { onSession: (session: SessionInfo
           />
         ) : null}
 
-        {said?.kind === 'saved' ? <Said head={copy.episode.savedLive.head} body={copy.episode.savedLive.body} /> : null}
-        {said?.kind === 'draftSaved' ? <Said head={copy.episode.savedDraft.head} body={copy.episode.savedDraft.body} /> : null}
-        {said?.kind === 'published' ? <PublishedNotice path={localePath(said.lang, '/podcast')} head={copy.episode.published.head} /> : null}
-        {said?.kind === 'republished' ? (
-          <Said head={copy.episode.republished(formatDay(said.date, 'en')).head} body={copy.episode.republished(formatDay(said.date, 'en')).body} />
-        ) : null}
-
         {form?.kind === 'new' ? (
           <NewEpisode
             key={form.initial?.key ?? 'blank'}
             buffers={buffers}
             initial={form.initial}
             restored={form.restored}
+            said={form.said}
             today={today}
             onDone={done}
             onChanged={() => setChanged((n) => n + 1)}
@@ -225,9 +225,13 @@ export function PodcastSection({ onSession }: { onSession: (session: SessionInfo
           />
         ) : null}
         {form === null ? (
-          <button type="button" class="btn btn--primary episode-new" onClick={startNew}>
-            {copy.podcast.newEpisode}
-          </button>
+          <>
+            {/* What a form that closed did is said directly above New episode, where a failure would be (PL-11). */}
+            {said ? <DoneNotice done={said} /> : null}
+            <button type="button" class="btn btn--primary episode-new" ref={newEpisodeButton} onClick={startNew}>
+              {copy.podcast.newEpisode}
+            </button>
+          </>
         ) : null}
 
         {loadFailed ? (

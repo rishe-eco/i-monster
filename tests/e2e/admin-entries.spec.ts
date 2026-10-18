@@ -3,7 +3,7 @@
 // the republish notice. Every test runs in both colour schemes at 360 px (spec §4.6, AC-32).
 // The editor inside the frame is B6's (editor.spec.ts); here it is only found where B5 left the text.
 import { expect, test, type Page } from '@playwright/test';
-import { signedInAdmin, resetAdmin, type Admin } from './admin-support.ts';
+import { expectDialogPlace, expectSolidInk, signedInAdmin, resetAdmin, type Admin } from './admin-support.ts';
 import { DAY, MIXED, NOW, expectColourScheme, expectNoSidewaysScroll, expectNoThirdParty, type Lang } from './support.ts';
 
 const MINUTE = 60_000;
@@ -268,6 +268,8 @@ for (const lang of ['en', 'fa'] as const) {
     const box = await dialog.boundingBox();
     expect((box?.x ?? -1) >= 0 && (box?.x ?? 0) + (box?.width ?? 0) <= 360).toBe(true);
     await expectNoSidewaysScroll(page);
+    // On the bottom edge on a phone, centred on a desktop (PL-2), for an English entry and a Persian one alike.
+    await expectDialogPlace(page, dialog);
 
     // "Keep it live" leaves everything as it was.
     await dialog.getByRole('button', { name: 'Keep it live' }).click();
@@ -293,7 +295,8 @@ for (const lang of ['en', 'fa'] as const) {
 
     // Publish puts it back at the original date, and names it after.
     const publish = frame.getByRole('button', { name: 'Publish', exact: true });
-    expect(await publish.evaluate((el) => el.classList.contains('btn--solid'))).toBe(true);
+    await expectSolidInk(publish);
+    expect(await publish.evaluate((el) => el.classList.contains('btn--solid'))).toBe(false);
     await publish.click();
     await expect(frame.getByRole('status')).toContainText('Published, at 8 Oct 2026.');
     await expect(frame.getByRole('link', { name: 'Open' })).toHaveAttribute('href', path);

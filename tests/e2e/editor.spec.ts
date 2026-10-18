@@ -3,7 +3,7 @@
 // 360 px phone with the keyboard up and at 200% zoom. Every test runs in both colour schemes.
 // "Nothing lost" (buffers, failures, signing in over the text) has its own tests below these.
 import { expect, test, type Page } from '@playwright/test';
-import { signedInAdmin, resetAdmin, type Admin } from './admin-support.ts';
+import { expectDialogPlace, expectSolidInk, signedInAdmin, resetAdmin, type Admin } from './admin-support.ts';
 import { DAY, MIXED, NOW, expectColourScheme, expectNoSidewaysScroll, expectNoThirdParty, expectWithinColumn, type Lang } from './support.ts';
 
 test.beforeEach(async ({ request }) => {
@@ -190,8 +190,9 @@ test('Publish says Publishing… while it works, cannot be tapped twice, and mak
   await expect(page.getByRole('status').filter({ hasText: "Published. It's out there." })).toBeVisible();
   expect(posts).toHaveLength(1);
   expect(await listed(admin)).toHaveLength(1);
-  // Solid ink, apart from the highlighter (HIG #5).
-  expect(await publish.evaluate((el) => el.classList.contains('btn--solid'))).toBe(true);
+  // Solid ink, apart from the highlighter (HIG #5, PL-1): the primary button is the ink, in the scheme under test.
+  await expectSolidInk(publish);
+  expect(await publish.evaluate((el) => el.classList.contains('btn--solid'))).toBe(false);
   await expectFits(admin, info);
 });
 
@@ -956,6 +957,7 @@ test('Discard asks once more, and a text that was offered back is gone only when
   await offer.getByRole('button', { name: 'Discard' }).click();
   const dialog = page.getByRole('dialog', { name: 'Discard this text?' });
   await expect(dialog).toContainText("It's only on this phone.");
+  await expectDialogPlace(page, dialog);
   await dialog.getByRole('button', { name: 'Keep it' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(offer).toBeVisible();
@@ -1055,6 +1057,7 @@ test('leaving an edit that holds unsaved changes asks first; Keep editing leaves
   await frame.getByRole('button', { name: 'Cancel' }).click();
   const dialog = page.getByRole('dialog', { name: 'Leave without saving?' });
   await expect(dialog).toContainText("The changes to this entry aren't saved yet.");
+  await expectDialogPlace(page, dialog);
   await dialog.getByRole('button', { name: 'Keep editing' }).click();
   await expect(body(page)).toContainText('Unsaved.');
   await frame.getByRole('button', { name: 'Cancel' }).click();

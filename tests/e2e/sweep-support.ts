@@ -64,6 +64,27 @@ export async function brokenWords(page: Page): Promise<string[]> {
   });
 }
 
+/**
+ * In the admin the highlighter is the emphasis a text carries (PL-1): it fills a <mark>, a Highlight tool that is
+ * on, and a row under the pointer. A button that is drawn in it, and is not that tool, is a primary action in the
+ * old look. The token is resolved by the browser, so both schemes and every colour format agree.
+ */
+export async function highlightedButtons(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const probe = document.createElement('i');
+    probe.style.backgroundColor = 'var(--highlight)';
+    document.body.append(probe);
+    const highlight = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    const found: string[] = [];
+    for (const button of document.querySelectorAll<HTMLElement>('button, a.btn, [role=button]')) {
+      if (button.getClientRects().length === 0 || button.matches(".tool[aria-pressed='true']")) continue;
+      if (getComputedStyle(button).backgroundColor === highlight) found.push(`${button.tagName.toLowerCase()}.${button.className} "${(button.textContent ?? '').trim().slice(0, 30)}"`);
+    }
+    return found;
+  });
+}
+
 /** The wordmark in its widest state, which is the review's #2: every one forced open, and the 0.35 s growth finished. */
 async function revealWordmarks(page: Page): Promise<void> {
   await page.evaluate(() => document.querySelectorAll('.wordmark').forEach((el) => el.classList.add('is-revealed')));
@@ -197,6 +218,9 @@ export async function sweep(page: Page, info: TestInfo, options: SweepOptions = 
 
   // axe, at the width the page is first drawn in (360 px).
   expect(await axeViolations(page), `${name}: axe`).toEqual([]);
+
+  // The admin's primary actions are solid ink, not the highlighter (PL-1). `column` says this is the admin.
+  if (options.column) expect(await highlightedButtons(page), `${name}: buttons drawn in the highlighter`).toEqual([]);
 
   // Tap targets, at 360 px, in the resting state.
   if (!options.skip?.targets) expect(await tapTargetFailures(page), `${name}: tap targets at 360 px`).toEqual([]);

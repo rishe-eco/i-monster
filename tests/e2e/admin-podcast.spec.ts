@@ -3,7 +3,7 @@
 // a closed tab), the last link, unpublish and republish naming the date, the language fixed while a send
 // is unanswered (S-19), and every screen at 360 x 400 and at 180 px in both colour schemes.
 import { expect, test, type Page } from '@playwright/test';
-import { resetAdmin, signedInAdmin, type Admin } from './admin-support.ts';
+import { expectDialogPlace, resetAdmin, signedInAdmin, type Admin } from './admin-support.ts';
 import { dayBefore, resetPodcast, type SeedEpisode } from './podcast-support.ts';
 import { DAY, NOW, expectColourScheme, expectNoSidewaysScroll, expectNoThirdParty, expectWithinColumn, type Lang } from './support.ts';
 
@@ -408,6 +408,7 @@ test('F13, J5.10: unpublish, then publish again, which names the date and says t
   await frame(page).getByRole('button', { name: 'Unpublish', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('Take this episode off the site?');
+  await expectDialogPlace(page, dialog);
   await dialog.getByRole('button', { name: 'Unpublish' }).click();
   await expect(frame(page).getByRole('status').filter({ hasText: "Unpublished. It's in your podcast list as a draft." })).toBeVisible();
   expect(await (await request.get('/podcast')).text()).not.toContain('The wrong video was live');
@@ -693,6 +694,7 @@ test('J3.3, AC-43: Discard asks twice, and only the second answer drops the text
   await offer.getByRole('button', { name: 'Discard' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('Discard this text?');
+  await expectDialogPlace(page, dialog);
   await dialog.getByRole('button', { name: 'Keep it' }).click();
   await expect(offer).toBeVisible();
   expect(await buffer<unknown[]>(page, 'kept')).not.toBeNull();
@@ -734,6 +736,7 @@ test('AC-43: changes left in an edit are offered back after a reload, and Cancel
   await frame(page).getByRole('button', { name: 'Cancel', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('Leave without saving?');
+  await expectDialogPlace(page, dialog);
   await dialog.getByRole('button', { name: 'Keep editing' }).click();
   await expect(frame(page).getByLabel('Description', { exact: true })).toHaveValue('Changed, never saved.');
   await frame(page).getByRole('button', { name: 'Cancel', exact: true }).click();

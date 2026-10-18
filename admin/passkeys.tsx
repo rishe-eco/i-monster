@@ -175,7 +175,7 @@ export function PasskeysSection({ session, onRemovedHere, onSessionEnded }: Prop
           </h2>
           <p class="modal__body">{confirm.thisDevice ? copy.passkeys.removeDialog.own : copy.passkeys.removeDialog.other}</p>
           <div class="modal__actions">
-            <button type="button" class="btn btn--solid" onClick={() => void remove(confirm)}>
+            <button type="button" class="btn btn--primary" onClick={() => void remove(confirm)}>
               {copy.passkeys.removeDialog.confirm}
             </button>
             <button type="button" class="btn" onClick={() => setConfirm(null)}>

@@ -135,7 +135,7 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
   // What is set aside or kept, as the buffers hold it now. Whether the last write to them landed.
   const [snap, setSnap] = useState<Snapshot>(() => buffers.read());
   const [stored, setStored] = useState(true);
-  // What the last write made, shown above the editor (published) or beside the actions (draft).
+  // What the last write made, said just above the actions (PL-11).
   const [published, setPublished] = useState<{ id: string; lang: Lang } | null>(null);
   const [draftSaved, setDraftSaved] = useState(false);
   // "Back to your unsent entry" stays until the person does something else.
@@ -260,28 +260,38 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
   };
 
   const busy = writer.busy;
+  const t = copy.editor;
+  // What the last write did is said in the one place a failure is said, just above the actions (PL-11). A failure and a
+  // success never show together, and nothing is said about a write that is still out.
+  const quiet = busy === null && writer.failure === null && writer.signInProblem === null;
+  const success = !quiet ? null : published ? (
+    <EntryPublished id={published.id} lang={published.lang} head={t.published.head} />
+  ) : draftSaved ? (
+    <Said head={t.savedDraft.head} body={t.savedDraft.body} />
+  ) : said?.kind === 'saved' ? (
+    <Said head={t.savedLive.head} body={t.savedLive.body} />
+  ) : said?.kind === 'draftSaved' ? (
+    <Said head={t.savedDraft.head} body={t.savedDraft.body} />
+  ) : said?.kind === 'published' ? (
+    <EntryPublished id={said.id} lang={said.lang} head={said.head} />
+  ) : null;
   const dock = (
     <>
       <FailureNotice writer={writer} words={copy.editor.failure} kept={stored} onRetry={() => void write(writer.failure?.action === 'saveDraft' ? 'saveDraft' : 'publish')} onSignIn={() => void signInAndRetry()} />
+      {success}
       <div class="composer__actions">
         <button type="button" class="btn" disabled={busy !== null || draftSaved} onClick={() => void write('saveDraft')}>
           {draftSaved ? copy.editor.saved : copy.editor.saveDraft}
         </button>
-        <button type="button" class="btn btn--primary btn--solid" disabled={busy !== null} aria-busy={busy === 'publish'} onClick={() => void write('publish')}>
+        <button type="button" class="btn btn--primary" disabled={busy !== null} aria-busy={busy === 'publish'} onClick={() => void write('publish')}>
           {busy === 'publish' ? copy.editor.publishing : copy.editor.publish}
         </button>
       </div>
-      {draftSaved ? <Said head={copy.editor.savedDraft.head} body={copy.editor.savedDraft.body} /> : null}
     </>
   );
 
-  const t = copy.editor;
   return (
     <div class="composer">
-      {said?.kind === 'saved' ? <Said head={t.savedLive.head} body={t.savedLive.body} /> : null}
-      {said?.kind === 'draftSaved' ? <Said head={t.savedDraft.head} body={t.savedDraft.body} /> : null}
-      {said?.kind === 'published' ? <EntryPublished id={said.id} lang={said.lang} head={said.head} /> : null}
-      {published ? <EntryPublished id={published.id} lang={published.lang} head={t.published.head} /> : null}
       {/* Text found again when the page opened, or set aside while another entry was edited and not yet put back. */}
       {snap.kept.length > 0 ? (
         <Offer head={t.left.head} body={t.left.body}>
@@ -321,7 +331,7 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
 
 // ── An existing entry, in B5's frame ──
 
-/** What the last write did, said under the actions. */
+/** What the last write did, said just above the actions. */
 type Note = 'saved' | 'draftSaved' | 'unpublished' | 'published' | 'republished';
 
 interface FrameProps {
@@ -484,6 +494,18 @@ function EditForm({
 
   const t = copy.editor;
   const busy = writer.busy;
+  // What the last write did is said just above the actions, where a failure is said (PL-11). Never both, and nothing about a write still out.
+  const quiet = busy === null && writer.failure === null && writer.signInProblem === null;
+  const success = !quiet ? null : note === 'saved' ? (
+    <Said head={t.savedLive.head} body={t.savedLive.body} />
+  ) : note === 'draftSaved' ? (
+    <Said head={t.savedDraft.head} body={t.savedDraft.body} />
+  ) : note === 'unpublished' ? (
+    <Notice kind="success">{copy.entry.unpublished}</Notice>
+  ) : note === 'published' || note === 'republished' ? (
+    // A draft that was live returns at its original date, which it names (AC-34); a first publish says where it is.
+    <EntryPublished id={entry.id} lang={entry.lang} head={note === 'republished' && first !== null ? copy.entry.published(day(first)) : t.published.head} />
+  ) : null;
   const dock = (
     <>
       {entry.wasLive && first !== null ? (
@@ -494,6 +516,7 @@ function EditForm({
         </p>
       ) : null}
       <FailureNotice writer={writer} words={copy.editor.failure} kept={stored} onRetry={() => void (writer.failure && run(writer.failure.action))} onSignIn={() => void signInAndRetry()} />
+      {success}
       <div class="composer__actions">
         {entry.state === 'published' ? (
           <>
@@ -509,19 +532,12 @@ function EditForm({
             <button type="button" class="btn" disabled={busy !== null || note === 'draftSaved'} onClick={() => void run('saveDraft')}>
               {note === 'draftSaved' ? t.saved : t.saveDraft}
             </button>
-            <button type="button" class="btn btn--primary btn--solid" disabled={busy !== null} aria-busy={busy === 'publish'} onClick={() => void run('publish')}>
+            <button type="button" class="btn btn--primary" disabled={busy !== null} aria-busy={busy === 'publish'} onClick={() => void run('publish')}>
               {busy === 'publish' ? t.publishing : t.publish}
             </button>
           </>
         )}
       </div>
-      {note === 'saved' ? <Said head={t.savedLive.head} body={t.savedLive.body} /> : null}
-      {note === 'draftSaved' ? <Said head={t.savedDraft.head} body={t.savedDraft.body} /> : null}
-      {note === 'unpublished' ? <Notice kind="success">{copy.entry.unpublished}</Notice> : null}
-      {/* A draft that was live returns at its original date, which it names (AC-34); a first publish says where it is. */}
-      {note === 'published' || note === 'republished' ? (
-        <EntryPublished id={entry.id} lang={entry.lang} head={note === 'republished' && first !== null ? copy.entry.published(day(first)) : t.published.head} />
-      ) : null}
     </>
   );
 

@@ -276,7 +276,8 @@ export const copy = {
     secondTagLabel: 'Second tag (optional)',
     dateLabel: 'Date',
     links: 'Links',
-    link: 'Link',
+    // A link's caption when there are two or more, so a row is told from the next (PL-5). A lone link has none: "Links" says it.
+    link: (n: number) => `Link ${n}`,
     labelLabel: 'Label',
     addressLabel: 'Address',
     addressPlaceholder: 'https://youtu.be/…',

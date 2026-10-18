@@ -5,6 +5,7 @@
 // runs in both colour schemes at 360 px (spec §4.6, AC-32).
 import { expect, test, type Browser, type BrowserContext, type CDPSession, type Locator, type Page } from '@playwright/test';
 import { NOW, expectColourScheme, expectNoCookies, expectNoSidewaysScroll, expectNoThirdParty, scheme, watchRequests } from './support.ts';
+import { expectDialogPlace, expectSolidInk } from './admin-support.ts';
 
 const MINUTE = 60_000;
 const COOKIE = '__Host-imnstr_session';
@@ -265,6 +266,10 @@ test('J3.6 to J3.9: lose the phone, remove its passkey after signing in again, e
   await expect(confirm.getByRole('heading', { name: 'Remove "phone"?' })).toBeVisible();
   await expect(confirm).toContainText("It won't sign in any more, and anywhere it's signed in now is signed out at once.");
   await expectScreenFits(laptop, info, confirm.getByRole('button', { name: 'Remove', exact: true }));
+  // The confirm is a primary now (PL-1): solid ink, and 52 tall (AC-35).
+  await expectSolidInk(confirm.getByRole('button', { name: 'Remove', exact: true }));
+  expect((await confirm.getByRole('button', { name: 'Remove', exact: true }).boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(51.5);
+  await expectDialogPlace(laptop.page, confirm);
   await confirm.getByRole('button', { name: 'Remove', exact: true }).click();
 
   // The server wants a fresh sign-in: the one dialog asks, and the removal then goes through.
@@ -272,6 +277,8 @@ test('J3.6 to J3.9: lose the phone, remove its passkey after signing in again, e
   await expect(reauth.getByRole('heading', { name: "Show it's you" })).toBeVisible();
   await expect(reauth).toContainText('Sign in again before changing passkeys.');
   await expectScreenFits(laptop, info, reauth.getByRole('button', { name: 'Sign in again' }));
+  await expectDialogPlace(laptop.page, reauth);
+  await expectSolidInk(reauth.getByRole('button', { name: 'Sign in again' }));
   await reauth.getByRole('button', { name: 'Sign in again' }).click();
   await expect(laptop.page.getByText('Passkey "phone" removed.')).toBeVisible();
   await expect(laptop.page.getByRole('dialog')).toHaveCount(0);

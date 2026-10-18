@@ -135,20 +135,14 @@
   opacity: 0.6;
 }
 
-/* The primary action is the highlighter, with an ink edge so it stands out on the paper in both modes. */
+/* The primary action is solid ink (HIG #5). The highlighter is the emphasis a text carries, so in the admin it
+   fills a <mark>, a Highlight tool that is on, and a row under the pointer: nothing else. */
 .btn--primary {
   min-block-size: var(--hit-button);
-  border-color: var(--rule-strong);
-  background: var(--highlight);
-  color: var(--highlight-ink);
-  font-size: var(--size-button);
-}
-
-/* Solid ink, for the one action that can't be undone (HIG #5). */
-.btn--solid {
   border-color: var(--button-fill);
   background: var(--button-fill);
   color: var(--button-ink);
+  font-size: var(--size-button);
 }
 
 .btn--quiet {
@@ -641,6 +635,23 @@
   margin-block-start: var(--space-xs);
 }
 
+/* In the dock the notice shares a short screen with the editor (360 x 400, the keyboard up), so it is one row of
+   the head, Open and Copy link, and drops the address line: Copy link still copies it (PL-11). */
+.dock .published {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-1);
+}
+
+.dock .published__where {
+  display: none;
+}
+
+.dock .published__actions {
+  margin-block-start: 0;
+}
+
 /* ProseMirror's own rules, the parts this editor can reach (prosemirror-view/style/prosemirror.css).
    It has no lists, code or node selections, so those rules are left out. */
 .ProseMirror {
@@ -728,11 +739,21 @@ img.ProseMirror-separator {
 
 /* ── Dialogs: remove a passkey, show it's you ── */
 
+/* On a phone a dialog is a sheet on the bottom edge, at full width, where a thumb reaches its buttons (PL-2).
+   The `48em` rule below puts it back in the middle, as a box. The dialogs hold no field, so the keyboard never
+   covers one. The admin has no `viewport-fit=cover`, so the safe-area inset is 0 and the padding wins. */
 .modal {
-  inline-size: min(100% - 2 * var(--pad-page), 26rem);
-  padding: var(--space-3);
+  inline-size: 100%;
+  max-inline-size: none;
+  margin-block: auto 0;
+  margin-inline: 0;
+  /* The sheet's controls line up with the column behind it, so the page's gutter holds on the sheet too. */
+  padding: var(--space-3) var(--pad-page);
+  padding-block-end: max(var(--space-3), env(safe-area-inset-bottom));
   border: var(--rule) solid var(--rule-strong);
-  border-radius: var(--radius-dialog);
+  border-inline-width: 0;
+  border-block-end-width: 0;
+  border-radius: var(--radius-dialog) var(--radius-dialog) 0 0;
   background: var(--ground);
   color: var(--ink);
   font-family: var(--font-ui);
@@ -766,6 +787,14 @@ img.ProseMirror-separator {
 }
 
 @media (min-width: 48em) {
+  .modal {
+    inline-size: min(100% - 2 * var(--pad-page), 26rem);
+    margin: auto;
+    padding: var(--space-3);
+    border-width: var(--rule);
+    border-radius: var(--radius-dialog);
+  }
+
   .screen {
     padding-block-end: var(--space-8);
   }

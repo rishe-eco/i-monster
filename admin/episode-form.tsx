@@ -27,6 +27,16 @@ export type EpisodeBuffers = Buffers<UnsentEpisode, EpisodeEdit>;
 /** What a form that is finished leaves to say in the section: the episode was saved, or went live. */
 export type Done = { kind: 'saved' } | { kind: 'draftSaved' } | { kind: 'published'; lang: Lang } | { kind: 'republished'; date: string };
 
+/** What a finished form says, in the place a failure would: just above the actions (PL-11). */
+export function DoneNotice({ done }: { done: Done }) {
+  const t = copy.episode;
+  if (done.kind === 'saved') return <Said head={t.savedLive.head} body={t.savedLive.body} />;
+  if (done.kind === 'draftSaved') return <Said head={t.savedDraft.head} body={t.savedDraft.body} />;
+  if (done.kind === 'published') return <PublishedNotice path={localePath(done.lang, '/podcast')} head={t.published.head} />;
+  const republished = t.republished(formatDay(done.date, 'en'));
+  return <Said head={republished.head} body={republished.body} />;
+}
+
 const emptyText = (): EpisodeText => ({ name: '', description: '', tags: ['', ''], date: '', links: [{ label: '', url: '' }] });
 
 /** The form's text for an episode as the server has it: the form always shows at least one link to fill. */
@@ -190,9 +200,10 @@ function Fields({ idBase, lang, text, onText, today, readOnly, published, proble
           const named = link.label.trim() || t.thisLink;
           return (
             <div class="linkrow" key={index}>
-              <div class="linkrow__head">
-                <span class="field__label">{t.link}</span>
-                {canRemove ? (
+              {/* One link needs no caption over "Links" and has no Remove; with more, each is numbered (PL-5). */}
+              {canRemove ? (
+                <div class="linkrow__head">
+                  <span class="field__label">{t.link(index + 1)}</span>
                   <button
                     type="button"
                     class="text-btn"
@@ -202,8 +213,8 @@ function Fields({ idBase, lang, text, onText, today, readOnly, published, proble
                   >
                     {t.remove}
                   </button>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
               <div class="field">
                 <label class="field__label" for={`${base}-label`}>
                   {t.labelLabel}
@@ -295,6 +306,8 @@ interface NewProps {
   initial: UnsentEpisode | null;
   /** Say so: "Back to your unsent episode". */
   restored: boolean;
+  /** What an edit that closed into this form did: said above its actions (PL-11). */
+  said: Done | null;
   today: string | null;
   /** The form is finished: the server has it, and the section says what happened. */
   onDone: (done: Done) => void;
@@ -322,7 +335,7 @@ export function NewEpisode(props: NewProps) {
   return lang === null ? null : <NewForm {...props} initialLang={lang} />;
 }
 
-function NewForm({ buffers, initial, restored, today, onDone, onChanged, onSession, initialLang }: NewProps & { initialLang: Lang }) {
+function NewForm({ buffers, initial, restored, said, today, onDone, onChanged, onSession, initialLang }: NewProps & { initialLang: Lang }) {
   const [lang, setLang] = useState<Lang>(initial?.lang ?? initialLang);
   const [text, setText] = useState<EpisodeText>(initial ? { name: initial.name, description: initial.description, tags: initial.tags, date: initial.date, links: initial.links } : emptyText());
   const [snap, setSnap] = useState<Snapshot<UnsentEpisode, EpisodeEdit>>(() => buffers.read());
@@ -330,6 +343,8 @@ function NewForm({ buffers, initial, restored, today, onDone, onChanged, onSessi
   const [back, setBack] = useState(restored);
   const [problems, setProblems] = useState<Map<number, LinkProblem>>(new Map());
   const [discarding, setDiscarding] = useState<'kept' | 'unsent' | null>(null);
+  // What the edit that closed into this form did, said until the person types (PL-11).
+  const [saidNote, setSaidNote] = useState<Done | null>(said);
   const writer = useWriter(onSession);
   // The key is made at the first keystroke and kept until the server confirms the episode; the id is the row once there is one (PD-11).
   const key = useRef<string | null>(initial?.key ?? null);
@@ -356,6 +371,7 @@ function NewForm({ buffers, initial, restored, today, onDone, onChanged, onSessi
     else key.current ??= newKey();
     store({ type: 'typed', unsent: key.current === null ? null : { key: key.current, id: rowId.current, lang: merged.lang, ...merged.text } });
     setBack(false);
+    setSaidNote(null);
     setProblems(new Map());
     writer.edited();
     if (next.lang !== undefined) setLang(next.lang);
@@ -432,6 +448,8 @@ function NewForm({ buffers, initial, restored, today, onDone, onChanged, onSessi
 
   const t = copy.episode;
   const busy = writer.busy;
+  // An edit that closed on success says so here, just above the actions, where a failure is said (PL-11); never both.
+  const quiet = busy === null && writer.failure === null && writer.signInProblem === null;
   const dock = (
     <div class="dock">
       <FailureNotice
@@ -441,11 +459,12 @@ function NewForm({ buffers, initial, restored, today, onDone, onChanged, onSessi
         onRetry={() => void write(writer.failure?.action === 'saveDraft' ? 'saveDraft' : 'publish')}
         onSignIn={() => void signInAndRetry()}
       />
+      {quiet && saidNote ? <DoneNotice done={saidNote} /> : null}
       <div class="composer__actions">
         <button type="button" class="btn" disabled={busy !== null} onClick={() => void write('saveDraft')}>
           {t.saveDraft}
         </button>
-        <button type="button" class="btn btn--primary btn--solid" disabled={busy !== null} aria-busy={busy === 'publish'} onClick={() => void write('publish')}>
+        <button type="button" class="btn btn--primary" disabled={busy !== null} aria-busy={busy === 'publish'} onClick={() => void write('publish')}>
           {busy === 'publish' ? t.publishing : t.publish}
         </button>
       </div>
@@ -494,7 +513,7 @@ function NewForm({ buffers, initial, restored, today, onDone, onChanged, onSessi
 
 // ── An existing episode ──
 
-/** What the last write did, said under the actions. */
+/** What the last write did, said just above the actions. */
 type Note = 'saved' | 'draftSaved' | 'unpublished' | 'published' | 'republished';
 
 interface FrameProps {
@@ -659,6 +678,20 @@ function EditForm({
   const t = copy.episode;
   const busy = writer.busy;
   const republished = t.republished(day(episode.date));
+  // What the last write did is said just above the actions, where a failure is said (PL-11). Never both, and nothing about a write still out.
+  const quiet = busy === null && writer.failure === null && writer.signInProblem === null;
+  const success = !quiet ? null : note === 'saved' ? (
+    <Said head={t.savedLive.head} body={t.savedLive.body} />
+  ) : note === 'draftSaved' ? (
+    <Said head={t.savedDraft.head} body={t.savedDraft.body} />
+  ) : note === 'unpublished' ? (
+    <Notice kind="success">{t.unpublished}</Notice>
+  ) : note === 'republished' ? (
+    // A draft that was live returns at its date, which it names (plate 12); a first publish says where it is.
+    <Said head={republished.head} body={republished.body} />
+  ) : note === 'published' ? (
+    <PublishedNotice path={localePath(episode.lang, '/podcast')} head={t.published.head} />
+  ) : null;
   const dock = (
     <div class="dock">
       {episode.wasLive ? (
@@ -675,6 +708,7 @@ function EditForm({
         onRetry={() => void (writer.failure && run(writer.failure.action))}
         onSignIn={() => void signInAndRetry()}
       />
+      {success}
       <div class="composer__actions">
         {episode.state === 'published' ? (
           <>
@@ -690,18 +724,12 @@ function EditForm({
             <button type="button" class="btn" disabled={busy !== null || note === 'draftSaved'} onClick={() => void run('saveDraft')}>
               {note === 'draftSaved' ? t.saved : t.saveDraft}
             </button>
-            <button type="button" class="btn btn--primary btn--solid" disabled={busy !== null} aria-busy={busy === 'publish'} onClick={() => void run('publish')}>
+            <button type="button" class="btn btn--primary" disabled={busy !== null} aria-busy={busy === 'publish'} onClick={() => void run('publish')}>
               {busy === 'publish' ? t.publishing : t.publish}
             </button>
           </>
         )}
       </div>
-      {note === 'saved' ? <Said head={t.savedLive.head} body={t.savedLive.body} /> : null}
-      {note === 'draftSaved' ? <Said head={t.savedDraft.head} body={t.savedDraft.body} /> : null}
-      {note === 'unpublished' ? <Notice kind="success">{t.unpublished}</Notice> : null}
-      {/* A draft that was live returns at its date, which it names (plate 12); a first publish says where it is. */}
-      {note === 'republished' ? <Said head={republished.head} body={republished.body} /> : null}
-      {note === 'published' ? <PublishedNotice path={localePath(episode.lang, '/podcast')} head={t.published.head} /> : null}
     </div>
   );
 
