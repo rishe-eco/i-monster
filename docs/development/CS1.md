@@ -47,4 +47,7 @@
 
 **By reading:** house rule 4 (the two limits live only in `lib/limits.ts`; no test hard-codes an hour); §4 of the review checklist except the numbers this note changes (the cookie's attributes, CSRF, re-authentication, removal ending sessions, nothing on public routes); no stop file, migration, `.env` line or dependency in the diff.
 
-*The deploy:* TBD
+*The deploy* (2026-10-18, `main @ 0d72f8a`): pushed by the reviewer with the founder's word in chat (`d886160..0d72f8a`). Run [39159994468](https://github.com/rishe-eco/i-monster/actions/runs/39159994468): `check` green 19:42:32–19:43:03 UTC, `deploy` green 19:43:07–19:43:37 UTC, which ran `deploy/checks.sh`. From this machine afterwards:
+- `/`, `/fa/`, `/log`, `/fa/log`, `/podcast`, `/fa/podcast`, `/admin`: `200`; `/no-such-page`: `404`; each with the CSP and noindex and no `Set-Cookie` (`HEAD`). root-app's `https://m-root.com/`: `200`.
+- The copy is live (`GET` with a curl user agent, a bot to the record): "understand the world", "Monster wrote, newest on top", "Where Root’s ideas get tried." on `/`; "دنیا را بفهمم", "هیولا نوشت، تازه‌ترین بالا", "تجربه زیسته یک هیولا", "هیولا خوردشون" and the Tracker line without "اول روی خودم" on `/fa/`; `/fa/podcast`'s title and description, and `/log`'s lede and description, as CS-4 and CS-7 say.
+- The session change can't be seen without signing in. The founder's next sign-in on each device gets the 30-day cookie.
