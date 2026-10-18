@@ -97,4 +97,7 @@ So every e2e test has passed on the final code: 682 in run 3, and the one that f
 
 **The ceiling** (review checklist §8): headers through Nginx at the deploy; screen readers, the sheet on a real phone and the named offers read aloud go to V-3; Persian copy to F-2.
 
-*The deploy:* TBD
+*The deploy* (2026-10-18, `main @ f1eae8b`): pushed by the reviewer with the founder's word in chat (`b894598..f1eae8b`). Run [39130183020](https://github.com/rishe-eco/i-monster/actions/runs/39130183020): `check` green 13:07:45–13:08:12 UTC, `deploy` green 13:08:16–13:08:50 UTC, which ran `deploy/checks.sh`. From this machine afterwards:
+- `/`, `/fa/`, `/log`, `/fa/log`, `/podcast`, `/fa/podcast`, `/admin`: `200`; `/no-such-page`: `404`. Each has the exact CSP and `X-Robots-Tag: noindex`, and no `Set-Cookie` (`HEAD`). root-app's `https://m-root.com/`: `200`.
+- PL1 is what is served (`GET` with a user agent naming curl, which the reader record counts as a bot): the skip link first on `/no-such-page` ("Skip to content") and `/fa/` ("پرش به محتوا"), `<main id="main" tabindex="-1">`, the 404's owner line "This is iMNSTR’s site." with the cookie joke once, in the footer. `site.82532cfe35.css` holds `.skip-link`, `--fit-row-title` and `main:focus-visible`; `admin.d1cd67eee6.css` has no `.btn--solid` and has `.offer__name` and the sheet's safe-area padding; `admin.e214605c6c.js` knows `LANG_FIXED` and `DATE_FUTURE`.
+- The 21 Oct episode on production keeps its date by PL-9's exception: an edit that sends it passes, and from 21 Oct it is no longer in the future. F-17 (compression) is unchanged.
