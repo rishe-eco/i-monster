@@ -194,6 +194,30 @@ test.describe('the wordmark', () => {
     }
   });
 
+  test('a tap reveals even where the click calls itself a mouse or names no pointer (Safari on an iPhone)', async ({ page }) => {
+    // The intro is played to its end first, so its timers can't open or close the wordmark: only the taps do.
+    await page.clock.install();
+    await page.goto('/');
+    await page.clock.runFor(3000);
+    const hero = page.locator('.wordmark--hero');
+    // iOS Safari before 18.2 sends a plain MouseEvent click; from 18.2 a PointerEvent click typed "mouse" (WebKit bug 282988).
+    await hero.evaluate((el) => {
+      el.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'touch', bubbles: true }));
+      el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    });
+    await expect(hero).toHaveClass(/is-revealed/);
+    await hero.evaluate((el) => {
+      el.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'touch', bubbles: true }));
+      el.dispatchEvent(new PointerEvent('click', { pointerType: 'mouse', bubbles: true, cancelable: true }));
+    });
+    await expect(hero).not.toHaveClass(/is-revealed/);
+    // A keyboard's Enter has no pointerdown before it: never a tap, even after one.
+    await hero.focus();
+    await page.keyboard.press('Enter');
+    await page.mouse.move(5, 700);
+    await expect(hero).not.toHaveClass(/is-revealed/);
+  });
+
   test('a mouse click on the hero neither reloads nor leaves it open', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => {

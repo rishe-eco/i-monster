@@ -60,11 +60,21 @@
     if (!tapped) mark.classList.remove('is-revealed');
   }, 2900);
 
+  // What pressed the link is read from its `pointerdown`, not from the click: Safari before 18.2 gives
+  // a click no `pointerType`, and later versions call a tap "mouse" there (WebKit bug 282988), so an
+  // iPhone's tap would do nothing. A keyboard's Enter has no pointerdown, so it is never a tap.
+  let pressedBy = '';
+  mark.addEventListener('pointerdown', (event) => {
+    pressedBy = event.pointerType;
+  });
+
   mark.addEventListener('click', (event) => {
     // The link points at this very page: following it would only reload.
     event.preventDefault();
+    const by = pressedBy;
+    pressedBy = '';
     // A mouse already has hover and a keyboard has focus; a finger or a pen has neither.
-    if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+    if (by !== 'touch' && by !== 'pen') return;
     // A tap takes over from the intro, so the intro's timer never hides what the person asked to see.
     tapped = true;
     window.clearTimeout(on);

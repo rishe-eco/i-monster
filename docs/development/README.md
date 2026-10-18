@@ -14,7 +14,7 @@ The build is nine stages, in the order of build plan §3 (`root-sot/imnstr/modul
 | B6 | The editor: buffers, failures, in-place sign-in | L | B5 | MS3 | verified 2026-10-17 · [record](B6.md); E1 and the phone keyboard owed to V-7 |
 | B7 | Podcast: public pages and the admin form | L | B6 | MS3 | verified 2026-10-17 · [record](B7.md); the phone and screen readers owed |
 | B8 | Reader record | M | B3, B4a | MS3 | verified 2026-10-17 · [record](B8.md) |
-| B9 | Motion, wordmark and the access sweep | M | B7 | MS4 | planned |
+| B9 | Motion, wordmark and the access sweep | M | B7 | MS4 | verified 2026-10-18 · [record](B9.md); a real phone tap and screen readers owed |
 
 Milestones (plan §3). At each, the full suites run one at a time and the counts are recorded here.
 
@@ -72,7 +72,7 @@ A stage that leaves something for a later one lists it in its own record, and it
 | ~~Nav and 404 links to `/podcast` answer 404 until the route exists~~ done in B7 | B7 | B1 |
 | ~~Insert an episode as a draft, add a link, then publish (extra trigger); supply `episode.date`, today in `SITE_TZ`~~ done in B7 (`createOrGet`'s `afterInsert`) | B7 | B1 |
 | ~~Headers through Nginx and TLS, by `curl -I`~~ done | B2 | B1 |
-| Contrast of the dark colour pairs, measured | B9 | B1 |
+| ~~Contrast of the dark colour pairs, measured~~ done (`tests/unit/contrast.test.ts`, V-2) | B9 | B1 |
 | ~~Drop empty paragraphs before saving~~ done, on the server and in the client | B6 | B3 |
 | ~~`docHasText` for `BODY_REQUIRED`~~ done | B5 | B3 |
 | ~~Refuse XML-forbidden control characters in `DOC_INVALID`; strip them on paste~~ done | B6 | B3 |
@@ -82,7 +82,7 @@ A stage that leaves something for a later one lists it in its own record, and it
 | ~~Raise `client_max_body_size` (1m) if a request body needs more (S-9)~~ no change: entries 65,550 B (B6), episodes 159,392 B (B7) at most | B7 | B2 |
 | Optional: `server_tokens off;` in `imnstr.conf` | any deploy | B2 |
 | `gzip_types` for `text/javascript`, `text/css` and the feeds in `imnstr.conf` (only HTML is compressed; the editor's bundle goes out at 285 KB). A stop file: the founder's step | before E1's cold runs | B6 |
-| Contrast of B3's new dark pairs (dates, lede, empty state, feed link) | B9 | B3 |
+| ~~Contrast of B3's new dark pairs (dates, lede, empty state, feed link)~~ done in B9 | B9 | B3 |
 | ~~JSON `NOT_FOUND` for an unknown `/admin/api` path when signed in~~ done | B5 | B4a |
 | ~~Routers go inside `adminApiRoutes` after the guard, never under `auth/`~~ done in B5 and B7 | B5, B7 | B4a |
 | ~~`@simplewebauthn/browser`; the `/admin/setup/<code>` page the CLI's link opens~~ done; each platform's `excludeCredentials` wording: Chrome with Google Password Manager done at MS2, the phone's owed | B4b, phone check (V-7) | B4a |
@@ -95,6 +95,8 @@ A stage that leaves something for a later one lists it in its own record, and it
 | A stage that adds a deploy check adds it to `deploy/checks.sh`; a stop file (`imnstr.conf`, the compose file, `deploy/imnstr-deploy.sh`) or a new `.env` line in a stage's diff is planned before its push | every stage | CD1 |
 | E1 / M3 (AC-15), warm and cold, five each per language; typing on real phone keyboards in both languages; the dock under a real keyboard; PD-7's fallback if typing fails | the phone check (V-7) | B6 |
 | ~~B7's form reuses `buffers.ts` (kind `episode`), the failure notice and signing in over the text; its language stays fixed while a send is unanswered~~ done in B7 | B7 | B6 |
-| Screen readers on the editor; `forced-colors` for its `<mark>` | step 9, B9 | B6 |
+| Screen readers on the editor; ~~`forced-colors` for its `<mark>`~~ done in B9's sweep | step 9 | B6 |
 | Real show links; platform marks for known platforms (every pill is the same until supplied); the episode form on a real phone (keyboard, native date picker); screen readers on the form | the founder (F-2), phone check (V-7), step 9 | B7 |
-| A Persian name with `C++` or `.NET` in a plain `<input>` draws `++C` / `NET.` (no `<bdi>` in an input; the entry title too); the date input clips its year at 180 px | V-4, B9 | B7 |
+| A Persian name with `C++` or `.NET` in a plain `<input>` draws `++C` / `NET.` (no `<bdi>` in an input; the entry title too); ~~the date input clips its year at 180 px~~ done in B9 | V-4 | B7 |
+| A real tap on the landing hero (iPhone and Android); screen readers on the wordmark; real browser text size and zoom in four browsers; Windows High Contrast | phone check (V-7, V-9), step 9 | B9 |
+| A deploy check that `/` names a hashed `wordmark.js` that answers 200 | the next stage editing `deploy/checks.sh` | B9 |
