@@ -59,6 +59,27 @@ Run in the main checkout on the milestone script, one heavy runner at a time, al
 - **Content on production:** the founder published one episode from the admin on 2026-10-18 (B7's write path, live), and `/podcast` shows it. `/log` shows two English test entries dated 18 Oct (after the 10-17 `reset-content`); how they were made isn't recorded. `reset-content` clears all of it after E1, as plan §8 says.
 - **Owed: E1 / M3 (AC-15), so MS3 is not closed.** The founder had no phone this session. E1, the phone keyboards and the episode form on a phone wait for the phone check (V-9, with V-7). MS3 closes when E1's warm median passes (eval plan §4.1).
 
+### MS4 · 2026-10-18
+
+Run in the main checkout on the milestone script, one heavy runner at a time, all on `main @ e8a7b90` (B9's deploy record, the last stage).
+
+| Suite | Result | On |
+|---|---|---|
+| `npm ci --ignore-scripts` | 207 packages, 0 vulnerabilities (MS3: 205; B9 added `@axe-core/playwright`) | `e8a7b90` |
+| `npm run check` | clean | `e8a7b90` |
+| `npm test` | **46 files, 982 tests passed** (MS3: 45 files, 948), 60 s | `e8a7b90` |
+| `npm run e2e` | **563 passed, 9 skipped**, one worker, 22.9 min (MS3: 445 and 9, 12.4 min). The skips are still `auth.spec.ts`'s dark runs, by design. No test retried or flaked | `e8a7b90` |
+
+**The access sweep passes:** `sweep.spec.ts` 78 and `admin-sweep.spec.ts` 40, both colour schemes, inside the e2e run above. That covers axe at WCAG 2.2 AA, 360 and 180 px, 200% root text, forced colours, reduced motion, tap sizes and the CSP watch, plus the tests that prove each check fails on a page broken on purpose. The English composer in `admin-sweep`, which flaked once at B9's review, passed in both schemes.
+
+**Fixed at the milestone:** nothing. Every suite was green on the first run.
+
+**By hand:**
+- **Production is ready for the step-9 live review,** checked by `curl` on 2026-10-18 (pages with curl's agent, which the record skips as a bot for R1 and R3; feeds by `HEAD`, so R2 counts nothing). `/`, `/fa/`, `/log`, `/fa/log`, `/podcast`, `/fa/podcast` and `/admin` answer `200`, and each language's `404` answers `404`, all with `X-Robots-Tag: noindex`. Both feeds answer `200` as `application/atom+xml`. Signed out, `/admin/api/session`, `…/entries` and `…/episodes` answer `401`, and `/__test/clock` answers `404`. Every page names B9's `wordmark.ee17e9ae4b.js` (3,586 B). HTML is gzipped. **JS and CSS are not** (`admin.43e3d692f3.js` 310,699 B, `site.c5ed580ad2.css` 35,402 B): F-17, still open.
+- **Content on production:** the same two English test entries as at MS3, the founder's one episode, and **no Persian entry** (`/fa/log` shows its empty state).
+- **Owed: feed readers (V-5, plan §8 puts it at MS4).** NetNewsWire or Feedly, by eye: Persian right to left and the `<bdi>` runs in content. It needs a Persian entry on production with a Latin run in it (`C++`, say) first. Real subscriptions there also serve V-8 (the aggregators' user agents, due by MS4), and `reset-content` clears the entry afterwards.
+- **MS4's suites are green and the step-9 live review can start, but MS4 is not closed:** V-5 is owed, and the launch gate also needs MS3 closed (E1, V-9). The founder had no phone this session.
+
 Parallel lanes: never more than two at once. B2 and B3 can run together; B3 and B4a can run together; B5 and B8 can run together. The only shared file at risk is `app.ts`, which gains one line per stage.
 
 ## Owed
