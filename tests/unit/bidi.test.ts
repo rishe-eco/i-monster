@@ -2,7 +2,7 @@
 // English word, a URL with trailing punctuation, "Root 2.0" inside Persian,
 // Persian inside English, and digits next to Latin text.
 import { describe, expect, it } from 'vitest';
-import { isolate, isolateRuns } from '../../lib/bidi.ts';
+import { guessLang, isolate, isolateRuns } from '../../lib/bidi.ts';
 
 describe('isolate in a Persian paragraph', () => {
   it('wraps an English word that starts the paragraph', () => {
@@ -74,5 +74,24 @@ describe('isolateRuns', () => {
         .map((r) => r.text)
         .join(''),
     ).toBe(text);
+  });
+});
+
+describe('guessLang (PL-7: an edit buffer stored before PL1 has no language)', () => {
+  it('reads mostly Arabic-script letters as Persian, and a Latin name inside them stays Persian', () => {
+    expect(guessLang('یادداشتی دربارهٔ Root')).toBe('fa');
+  });
+
+  it('reads mostly Latin letters as English, and a Persian word inside them stays English', () => {
+    expect(guessLang('A note about آموخته‌ها and more')).toBe('en');
+  });
+
+  it('counts the Arabic presentation forms the bidi runs count', () => {
+    expect(guessLang('ﻫﻤﻠﻪ')).toBe('fa');
+  });
+
+  it('falls back to English for text with no letters', () => {
+    expect(guessLang('')).toBe('en');
+    expect(guessLang('2026 — !')).toBe('en');
   });
 });

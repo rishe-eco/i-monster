@@ -425,6 +425,8 @@ test.describe('the skip link', () => {
           expect(box!.height).toBeGreaterThanOrEqual(44);
           await page.keyboard.press('Enter');
           await expect(page.locator('main')).toBeFocused();
+          // The target is not a control: no focus ring frames the whole page (found at PL1's review).
+          expect(await page.locator('main').evaluate((el) => getComputedStyle(el).outlineStyle)).toBe('none');
         });
       }
     }

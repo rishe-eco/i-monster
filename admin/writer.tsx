@@ -251,13 +251,6 @@ export function Said({ head, body }: { head: string; body: string }) {
   );
 }
 
-/** The language of some words, by their script: Persian when more of the letters are Arabic-script than Latin. For a buffer that kept no language. */
-export function guessLang(text: string): Lang {
-  const arabic = (text.match(/[\u0600-\u06FF]/g) ?? []).length;
-  const latin = (text.match(/[A-Za-z]/g) ?? []).length;
-  return arabic > latin ? 'fa' : 'en';
-}
-
 /**
  * What a kept text is called, so an offer says which text Put it back restores (PL-7): in the text's own language and
  * direction whatever the admin's is, with the runs of the other script isolated. `placeholder` is a name the text

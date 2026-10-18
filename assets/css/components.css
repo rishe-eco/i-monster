@@ -25,6 +25,12 @@
   transform: none;
 }
 
+/* The skip link's target takes focus only so the next Tab starts inside it. It is not a control, so it draws no
+   ring: base.css's :focus-visible would otherwise frame the whole page after the skip (found at PL1's review). */
+main:focus-visible {
+  outline: none;
+}
+
 .wrap {
   /* The container the hero wordmark's size is measured against (--fit-wordmark in tokens.css). */
   container-type: inline-size;

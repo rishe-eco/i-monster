@@ -42,6 +42,19 @@ function split(text: string, pattern: RegExp, accept: (m: string) => boolean, ma
   return runs;
 }
 
+const LATIN_LETTERS = new RegExp(`[${LATIN}]`, 'g');
+const ARABIC_LETTERS = new RegExp(`[${ARABIC}]`, 'g');
+
+/**
+ * The language some words are in, by their script: Persian when more of the letters are Arabic-script than Latin.
+ * Only for text that kept no language of its own (an admin edit buffer stored before PL1, named in its offer).
+ */
+export function guessLang(text: string): Lang {
+  const arabic = text.match(ARABIC_LETTERS)?.length ?? 0;
+  const latin = text.match(LATIN_LETTERS)?.length ?? 0;
+  return arabic > latin ? 'fa' : 'en';
+}
+
 /** Split text into runs, marking those that need isolating inside a paragraph of `lang`. */
 export function isolateRuns(text: string, lang: Lang): Run[] {
   // URLs, without their trailing punctuation, which belongs to the sentence.

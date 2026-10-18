@@ -13,9 +13,9 @@ import { browserStorage } from './browser-storage.ts';
 import { createBuffers, type EpisodeEdit, type UnsentEpisode } from './buffers.ts';
 import { copy, refusals } from './copy.ts';
 import { Runs } from './doc.tsx';
-import { DoneNotice, EditOffer, EpisodeFrame, LeaveDialog, NewEpisode, type Done } from './episode-form.tsx';
+import { DoneNotice, EditOffer, EpisodeFrame, EpisodeName, LeaveDialog, NewEpisode, type Done } from './episode-form.tsx';
 import { Notice } from './ui.tsx';
-import { DiscardDialog, Offer, OfferName } from './writer.tsx';
+import { DiscardDialog, Offer } from './writer.tsx';
 
 interface Page {
   rows: EpisodeRow[];
@@ -178,7 +178,7 @@ export function PodcastSection({ onSession }: { onSession: (session: SessionInfo
           <Offer
             head={copy.episode.left.head}
             body={copy.episode.left.body}
-            name={keptTop ? <OfferName text={keptTop.name.trim() === '' ? copy.podcast.noName : keptTop.name.trim()} lang={keptTop.lang} placeholder={keptTop.name.trim() === ''} /> : undefined}
+            name={keptTop ? <EpisodeName name={keptTop.name} lang={keptTop.lang} /> : undefined}
           >
             <button type="button" class="btn" onClick={putBack}>
               {copy.episode.left.put}

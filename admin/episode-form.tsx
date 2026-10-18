@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import { formatDay } from '../lib/dates.ts';
 import { dirOf, localePath, type Lang } from '../lib/i18n.ts';
+import { guessLang } from '../lib/bidi.ts';
 import { limits } from '../lib/limits.ts';
 import { stripXmlForbidden } from '../shared/doc.ts';
 import { httpsSuggestion, isHttpsLink } from '../shared/link.ts';
@@ -19,7 +20,7 @@ import { api, type Code, type EpisodeDetail, type SessionInfo, type Settings } f
 import { episodeHasContent, type Buffers, type EpisodeEdit, type EpisodeText, type Snapshot, type UnsentEpisode } from './buffers.ts';
 import { copy, refusals } from './copy.ts';
 import { Modal, Notice } from './ui.tsx';
-import { DiscardDialog, FailureNotice, LanguageControl, Offer, OfferName, PublishedNotice, Said, UNANSWERED, guessLang, newKey, useWriter, type Action } from './writer.tsx';
+import { DiscardDialog, FailureNotice, LanguageControl, Offer, OfferName, PublishedNotice, Said, UNANSWERED, newKey, useWriter, type Action } from './writer.tsx';
 import { unpublishEpisode, writeEditEpisode, writeNewEpisode } from './episode-writes.ts';
 
 export type EpisodeBuffers = Buffers<UnsentEpisode, EpisodeEdit>;
@@ -54,7 +55,7 @@ function textOf(episode: EpisodeDetail): EpisodeText {
 const cleanLine = (text: string): string => stripXmlForbidden(text).replace(/\p{Cc}/gu, ' ');
 
 /** What an offer of kept text is called, so the person can tell which text Put it back restores (PL-7): the episode's name, or "No name yet". In its own language and direction. */
-function EpisodeName({ name, lang }: { name: string; lang: Lang }) {
+export function EpisodeName({ name, lang }: { name: string; lang: Lang }) {
   return name.trim() === '' ? <OfferName text={copy.podcast.noName} lang={lang} placeholder /> : <OfferName text={name.trim()} lang={lang} />;
 }
 

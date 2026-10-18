@@ -13,6 +13,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { formatAdminDay } from '../lib/dates.ts';
 import { dirOf, localePath, type Lang } from '../lib/i18n.ts';
+import { guessLang } from '../lib/bidi.ts';
 import { limits } from '../lib/limits.ts';
 import { docText, stripXmlForbidden, type Doc } from '../shared/doc.ts';
 import { excerpt } from '../shared/excerpt.ts';
@@ -22,7 +23,7 @@ import { copy, refusals } from './copy.ts';
 import { Editor } from './editor.tsx';
 import { EMPTY_DOC } from './editor-model.ts';
 import { Modal, Notice, siteTimeZone } from './ui.tsx';
-import { DiscardDialog, FailureNotice, LanguageControl, Offer, OfferName, PublishedNotice, Said, UNANSWERED, guessLang, newKey, useWriter, type Action } from './writer.tsx';
+import { DiscardDialog, FailureNotice, LanguageControl, Offer, OfferName, PublishedNotice, Said, UNANSWERED, newKey, useWriter, type Action } from './writer.tsx';
 import { unpublishEntry, writeEdit, writeNew } from './writes.ts';
 
 /** The title is one line: the characters the server refuses in one (control characters) and the ones XML forbids are dropped as they arrive, say from a paste. */

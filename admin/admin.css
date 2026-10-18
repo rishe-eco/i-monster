@@ -136,7 +136,7 @@
 }
 
 /* The primary action is solid ink (HIG #5). The highlighter is the emphasis a text carries, so in the admin it
-   fills a <mark>, a Highlight tool that is on, and a row under the pointer: nothing else. */
+   fills a <mark> and a Highlight tool that is on: nothing else. */
 .btn--primary {
   min-block-size: var(--hit-button);
   border-color: var(--button-fill);
