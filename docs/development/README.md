@@ -15,6 +15,7 @@ The build is nine stages, in the order of build plan §3 (`root-sot/imnstr/modul
 | B7 | Podcast: public pages and the admin form | L | B6 | MS3 | verified 2026-10-17 · [record](B7.md); the phone and screen readers owed |
 | B8 | Reader record | M | B3, B4a | MS3 | verified 2026-10-17 · [record](B8.md) |
 | B9 | Motion, wordmark and the access sweep | M | B7 | MS4 | verified 2026-10-18 · [record](B9.md); a real phone tap and screen readers owed |
+| PL1 | Live-review polish: step 9's F1–F5, D1, D2, P1–P4 (change note 05, not in the plan's nine) | M | B9, step 9 | — | verified 2026-10-18 · [record](PL1.md); the skip link with screen readers and the sheet on a phone owed (V-3) |
 
 Milestones (plan §3). At each, the full suites run one at a time and the counts are recorded here.
 
@@ -121,3 +122,5 @@ A stage that leaves something for a later one lists it in its own record, and it
 | A Persian name with `C++` or `.NET` in a plain `<input>` draws `++C` / `NET.` (no `<bdi>` in an input; the entry title too); ~~the date input clips its year at 180 px~~ done in B9 | V-4 | B7 |
 | A real tap on the landing hero (iPhone and Android); screen readers on the wordmark; real browser text size and zoom in four browsers; Windows High Contrast | phone check (V-7, V-9), step 9 | B9 |
 | A deploy check that `/` names a hashed `wordmark.js` that answers 200 | the next stage editing `deploy/checks.sh` | B9 |
+| Real Persian for PL1's keys `skip`, `log.newer`, `podcast.newer`, `notFound.ownerLine` (placeholders) | the founder (F-2) | PL1 |
+| The wordmark's accessible name while revealed: i-MoNSTeR shown, iMNSTR named (axe `label-content-name-mismatch`); the sweep checks the page at rest | the founder, with V-3 | PL1 |
