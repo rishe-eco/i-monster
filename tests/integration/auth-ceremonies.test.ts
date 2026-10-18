@@ -54,8 +54,10 @@ describe('registering the first passkey with a setup token', () => {
     expect(parts).toContain('SameSite=Strict');
     expect(parts).toContain('Path=/');
     expect(parts.some((p) => /^Domain=/i.test(p))).toBe(false);
-    // A session cookie with no lifetime of its own: the server alone decides when it ends.
-    expect(parts.some((p) => /^(Max-Age|Expires)=/i.test(p))).toBe(false);
+    // The cookie lives as long as the absolute limit, so closing the browser doesn't end a session (change note 06).
+    // The server still decides: an idle or old session is refused whatever the browser keeps.
+    expect(parts).toContain(`Max-Age=${limits.sessionAbsoluteMs / 1000}`);
+    expect(parts.some((p) => /^Expires=/i.test(p))).toBe(false);
   });
 
   it('keeps only the hash of the session id (PD-13)', async () => {
@@ -422,25 +424,30 @@ describe('back-off (PD-15)', () => {
 });
 
 describe('sessions on the server (AC-10)', () => {
-  it('answers 401 once a session has been idle for 1 h, and not before', async () => {
+  it('answers 401 once a session has been idle for the idle limit (7 days), and not before', async () => {
     const { client } = await signedIn(app, t.db, env);
-    setNow(NOW + 59 * MINUTE);
+    const idle = limits.sessionIdleMs;
+    setNow(NOW + idle - MINUTE);
     expect((await client.get('/admin/api/session')).status).toBe(200);
     // That request counted as activity, so idle is measured from it.
-    setNow(NOW + 59 * MINUTE + 61 * MINUTE);
+    setNow(NOW + idle - MINUTE + idle - MINUTE);
+    expect((await client.get('/admin/api/session')).status).toBe(200);
+    setNow(NOW + 2 * (idle - MINUTE) + idle);
     const res = await client.get('/admin/api/session');
     expect(res.status).toBe(401);
     expect(res.json).toEqual({ code: 'UNAUTHENTICATED' });
     expect(row<{ n: number }>('SELECT count(*) AS n FROM session').n).toBe(0);
   });
 
-  it('answers 401 24 h after sign-in however busy it has been', async () => {
+  it('answers 401 at the absolute limit (30 days) after sign-in however busy it has been', async () => {
     const { client } = await signedIn(app, t.db, env);
-    for (let minutes = 50; minutes <= 24 * 60; minutes += 50) {
-      setNow(NOW + minutes * MINUTE);
-      expect((await client.get('/admin/api/session')).status, `at ${minutes} min`).toBe(200);
+    // A request every day keeps the session alive right up to the limit.
+    const step = 24 * 60 * MINUTE;
+    for (let at = step; at < limits.sessionAbsoluteMs; at += step) {
+      setNow(NOW + at);
+      expect((await client.get('/admin/api/session')).status, `at day ${at / step}`).toBe(200);
     }
-    setNow(NOW + 24 * 60 * MINUTE + MINUTE);
+    setNow(NOW + limits.sessionAbsoluteMs + MINUTE);
     expect((await client.get('/admin/api/session')).status).toBe(401);
   });
 
@@ -522,7 +529,7 @@ describe('freshness and re-authentication (AC-11)', () => {
     expect(client.cookie).not.toBe(before.cookie);
     expect(client.csrf).not.toBe(before.csrf);
     expect(row<{ n: number }>('SELECT count(*) AS n FROM session').n).toBe(1);
-    // The old id is gone; the 24 h limit is still counted from the first sign-in.
+    // The old id is gone; the absolute limit is still counted from the first sign-in.
     const old = new Client(app, env);
     old.cookie = before.cookie;
     expect((await old.get('/admin/api/session')).status).toBe(401);

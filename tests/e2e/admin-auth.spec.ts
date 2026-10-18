@@ -4,7 +4,7 @@
 // with its own authenticator, as a phone and a laptop would have. Every test
 // runs in both colour schemes at 360 px (spec §4.6, AC-32).
 import { expect, test, type Browser, type BrowserContext, type CDPSession, type Locator, type Page } from '@playwright/test';
-import { NOW, expectColourScheme, expectNoCookies, expectNoSidewaysScroll, expectNoThirdParty, scheme, watchRequests } from './support.ts';
+import { NOW, PAST_IDLE, expectColourScheme, expectNoCookies, expectNoSidewaysScroll, expectNoThirdParty, scheme, watchRequests } from './support.ts';
 import { expectDialogPlace, expectSolidInk } from './admin-support.ts';
 
 const MINUTE = 60_000;
@@ -587,8 +587,8 @@ test('the remove dialog and the sign-in dialog are keyboard-reachable, and Escap
 
 test('a session that has ended sends the screen to sign-in, and says so (AC-10)', async ({ browser, baseURL }) => {
   const phone = await firstDevice(browser, baseURL as string);
-  // Two hours with no request: the server has ended the session, and the next action finds out.
-  await setClock(phone.page, NOW + 2 * 60 * MINUTE);
+  // Past the idle limit with no request: the server has ended the session, and the next action finds out.
+  await setClock(phone.page, NOW + PAST_IDLE);
   await phone.page.getByRole('button', { name: 'Enrol another device' }).click();
   await expect(phone.page.getByRole('heading', { name: "It's you, right?" })).toBeVisible();
   await expect(phone.page.getByRole('status').filter({ hasText: 'You were signed out. Sign in to carry on.' })).toBeVisible();

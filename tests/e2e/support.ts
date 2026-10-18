@@ -152,6 +152,8 @@ export async function loadedFamilies(page: Page): Promise<string[]> {
 /** The fixed instant every e2e fixture date is relative to (2026-10-10 12:00 UTC). */
 export const NOW = Date.UTC(2026, 9, 10, 12, 0, 0);
 export const DAY = 24 * 60 * 60 * 1000;
+/** A clock jump that ends a session: past `limits.sessionIdleMs` in `lib/limits.ts` (7 days, change note 06). */
+export const PAST_IDLE = 8 * DAY;
 
 export interface SeedEntry {
   lang: Lang;

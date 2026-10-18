@@ -27,7 +27,7 @@ beforeEach(async () => {
 });
 
 /**
- * Move the clock and sign in again: a session idles out after an hour, and these tests jump by days.
+ * Move the clock and sign in again: these tests jump by days, past the session limits.
  * The entries' own dates are what is under test, not the session's.
  */
 async function clockTo(instant: number): Promise<void> {

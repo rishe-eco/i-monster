@@ -13,9 +13,9 @@ export const en: Strings = {
   },
   feedTitle: 'iMNSTR — Learnings',
   landing: {
-    description: 'iMNSTR makes things to understand them, then writes down what it learned.',
+    description: 'iMNSTR makes things to understand the world, then writes down what it learned.',
     learningsTitle: 'Learnings',
-    learningsLine: 'things I figured out, newest on top',
+    learningsLine: 'Monster wrote, newest on top',
     podcastTitle: 'Monster Podcast',
     podcastLine: 'I talk with people, you listen',
     buildingHeading: 'Things I’m building',
@@ -30,8 +30,8 @@ export const en: Strings = {
   },
   log: {
     title: 'Learnings',
-    lede: 'Things I figured out. Newest on top.',
-    description: 'Things iMNSTR figured out, newest on top.',
+    lede: 'Monster wrote. Newest on top.',
+    description: 'Monster wrote, newest on top.',
     older: 'Older entries',
     newer: 'Newer entries',
     empty: 'Nothing published here at the moment.',

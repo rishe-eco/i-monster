@@ -5,7 +5,7 @@ import type { SiteContent } from './site.ts';
 export const siteEn: SiteContent = {
   who: [
     { text: 'I make things so I can ' },
-    { text: 'understand them', mark: true },
+    { text: 'understand the world', mark: true },
     { text: '. Right now that’s Root and Tracker. Then I ' },
     { text: 'write down what I learned', mark: true },
     { text: ', before I forget it.' },
@@ -18,7 +18,7 @@ export const siteEn: SiteContent = {
     },
     {
       name: 'Tracker',
-      line: 'Where Root’s ideas get tried on me first.',
+      line: 'Where Root’s ideas get tried.',
     },
     {
       name: 'Root Studio',

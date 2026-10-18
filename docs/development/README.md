@@ -16,6 +16,7 @@ The build is nine stages, in the order of build plan §3 (`root-sot/imnstr/modul
 | B8 | Reader record | M | B3, B4a | MS3 | verified 2026-10-17 · [record](B8.md) |
 | B9 | Motion, wordmark and the access sweep | M | B7 | MS4 | verified 2026-10-18 · [record](B9.md); a real phone tap and screen readers owed |
 | PL1 | Live-review polish: step 9's F1–F5, D1, D2, P1–P4 (change note 05, not in the plan's nine) | M | B9, step 9 | — | verified 2026-10-18 · [record](PL1.md); the skip link with screen readers and the sheet on a phone owed (V-3) |
+| CS1 | Copy changes and sessions of 7 days idle, 30 at most, with a 30-day cookie (change note 06, not in the plan) | S | PL1 | — | verified 2026-10-18 · [record](CS1.md) |
 
 Milestones (plan §3). At each, the full suites run one at a time and the counts are recorded here.
 
@@ -124,3 +125,4 @@ A stage that leaves something for a later one lists it in its own record, and it
 | A deploy check that `/` names a hashed `wordmark.js` that answers 200 | the next stage editing `deploy/checks.sh` | B9 |
 | Real Persian for PL1's keys `skip`, `log.newer`, `podcast.newer`, `notFound.ownerLine` (placeholders) | the founder (F-2) | PL1 |
 | The wordmark's accessible name while revealed: i-MoNSTeR shown, iMNSTR named (axe `label-content-name-mismatch`); the sweep checks the page at rest | the founder, with V-3 | PL1 |
+| Sign in once on each device after CS1 deploys: sessions opened before it have a cookie that ends with the browser | the founder | CS1 |

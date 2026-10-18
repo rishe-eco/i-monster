@@ -84,7 +84,13 @@ test('a setup token enrols the first passkey and signs in, with the cookie the s
 
   const cookies = (await laptop.context.cookies()).filter((c) => c.name === COOKIE);
   expect(cookies).toHaveLength(1);
-  expect(cookies[0]).toMatchObject({ httpOnly: true, secure: true, sameSite: 'Strict', path: '/', expires: -1 });
+  expect(cookies[0]).toMatchObject({ httpOnly: true, secure: true, sameSite: 'Strict', path: '/' });
+  // It outlives the browser: it lasts as long as a session can, 30 days (change note 06), counted on the browser's
+  // own clock, which the test clock doesn't move. The server still ends an idle or old session itself.
+  const browserNow = await laptop.page.evaluate(() => (performance.timeOrigin + performance.now()) / 1000);
+  const lifetime = (cookies[0]?.expires ?? -1) - browserNow;
+  expect(lifetime).toBeGreaterThan(30 * 24 * 60 * 60 - 120);
+  expect(lifetime).toBeLessThanOrEqual(30 * 24 * 60 * 60 + 5);
   expect(cookies[0]?.value).toMatch(/^[A-Za-z0-9_-]{22}$/);
   // HttpOnly: script can't read it, so nothing in the page can leak it.
   expect(await laptop.page.evaluate(() => document.cookie)).toBe('');

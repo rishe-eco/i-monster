@@ -25,7 +25,7 @@ beforeEach(async () => {
   client = (await signedIn(app, t.db, env)).client;
 });
 
-/** Move the clock and sign in again: a session idles out after an hour, and these tests jump by days. */
+/** Move the clock and sign in again: these tests jump by days, past the session limits. */
 async function clockTo(instant: number): Promise<void> {
   setNow(instant);
   client = (await signedIn(app, t.db, env)).client;
@@ -574,9 +574,9 @@ describe('the links table, by direct SQL (house rule 6)', () => {
   });
 });
 
-describe('a session that ended an hour ago still cannot write', () => {
-  it('answers 401 for a write after the idle hour', async () => {
-    setNow(NOW + 2 * HOUR);
+describe('a session that has idled out still cannot write', () => {
+  it('answers 401 for a write after the idle limit', async () => {
+    setNow(NOW + limits.sessionIdleMs + HOUR);
     const res = await client.post('/admin/api/episodes', { publishKey: randomUUID(), lang: 'en' });
     expect(res.status).toBe(401);
     expect(res.text).toBe('{"code":"UNAUTHENTICATED"}');

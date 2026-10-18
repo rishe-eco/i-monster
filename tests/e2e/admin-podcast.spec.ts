@@ -5,13 +5,12 @@
 import { expect, test, type Page } from '@playwright/test';
 import { expectDialogPlace, resetAdmin, signedInAdmin, type Admin } from './admin-support.ts';
 import { dayBefore, resetPodcast, type SeedEpisode } from './podcast-support.ts';
-import { DAY, NOW, expectColourScheme, expectNoSidewaysScroll, expectNoThirdParty, expectWithinColumn, type Lang } from './support.ts';
+import { DAY, NOW, PAST_IDLE, expectColourScheme, expectNoSidewaysScroll, expectNoThirdParty, expectWithinColumn, type Lang } from './support.ts';
 
 test.beforeEach(async ({ request }) => {
   await resetAdmin(request, NOW);
 });
 
-const MINUTE = 60_000;
 const section = (page: Page) => page.locator('#podcast-body');
 const podcastToggle = (page: Page) => page.getByRole('button', { name: 'Podcast', exact: true });
 
@@ -575,8 +574,8 @@ test('J5.5a, W6: the session ends while writing. Everything stays, Sign in and p
   const keys = watchKeys(page);
   await openNew(page);
   await fillNew(page, 'en');
-  // Typing alone does not keep a session alive, so an hour idle ends it.
-  expect((await request.post('/__test/clock', { data: { now: NOW + 70 * MINUTE } })).ok()).toBe(true);
+  // Typing alone does not keep a session alive, so the idle limit ends it.
+  expect((await request.post('/__test/clock', { data: { now: NOW + PAST_IDLE } })).ok()).toBe(true);
   await publishButton(page).click();
   const failure = alertWith(page, 'Not published yet.');
   await expect(failure).toContainText('You were signed out. Sign in to finish. Your episode stays right here.');
@@ -603,7 +602,7 @@ test('Sign in and save, over an edit: the session ended, the changes stay, and t
   const { page } = admin;
   await openEdit(page, 'The wrong video was live');
   await frame(page).getByLabel('Description', { exact: true }).fill('Fixed after an hour.');
-  expect((await request.post('/__test/clock', { data: { now: NOW + 90 * MINUTE } })).ok()).toBe(true);
+  expect((await request.post('/__test/clock', { data: { now: NOW + PAST_IDLE } })).ok()).toBe(true);
   await frame(page).getByRole('button', { name: 'Save', exact: true }).click();
   const failure = alertWith(page, 'Not saved.');
   await expect(failure).toContainText('You were signed out. Sign in to finish. Your episode stays right here.');

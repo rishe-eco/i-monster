@@ -6,7 +6,7 @@ import type { SiteContent } from './site.ts';
 export const siteFa: SiteContent = {
   who: [
     { text: 'چیزهایی می‌سازم تا ' },
-    { text: 'بفهمم‌شان', mark: true },
+    { text: 'دنیا را بفهمم', mark: true },
     { text: '. بعد ' },
     { text: 'آنچه یاد گرفتم را می‌نویسم', mark: true },
     { text: '، پیش از آنکه فراموشش کنم.' },
@@ -19,7 +19,7 @@ export const siteFa: SiteContent = {
     },
     {
       name: 'Tracker',
-      line: 'جایی که ایده‌های Root اول روی خودم امتحان می‌شوند.',
+      line: 'جایی که ایده‌های Root امتحان می‌شوند.',
     },
     {
       name: 'Root Studio',
@@ -28,7 +28,7 @@ export const siteFa: SiteContent = {
     },
   ],
   show: {
-    name: 'پادکست مانستر',
+    name: 'تجربه زیسته یک هیولا',
     links: [
       { label: 'YouTube', url: 'https://example.com/monster-podcast-fa/youtube' },
       { label: 'Castbox', url: 'https://example.com/monster-podcast-fa/castbox' },

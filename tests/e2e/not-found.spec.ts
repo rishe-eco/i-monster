@@ -15,7 +15,7 @@ import {
 
 // The owner line is one sentence and no more; the cookie line is the footer's, once (PL-3).
 const OWNER_LINE: Record<Lang, string> = { en: 'This is iMNSTR’s site.', fa: 'این سایت iMNSTR است.' };
-const NO_COOKIES: Record<Lang, string> = { en: 'No cookies here. The monster ate them.', fa: 'اینجا کوکی نداریم. هیولا خوردشان.' };
+const NO_COOKIES: Record<Lang, string> = { en: 'No cookies here. The monster ate them.', fa: 'اینجا کوکی نداریم. هیولا خوردشون.' };
 
 const PAGES: [Lang, string, string][] = [
   ['en', '/no-such-page', 'Something ate this page.'],

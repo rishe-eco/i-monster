@@ -4,7 +4,7 @@
 // "Nothing lost" (buffers, failures, signing in over the text) has its own tests below these.
 import { expect, test, type Page } from '@playwright/test';
 import { expectDialogPlace, expectSolidInk, signedInAdmin, resetAdmin, type Admin } from './admin-support.ts';
-import { DAY, MIXED, NOW, expectColourScheme, expectNoSidewaysScroll, expectNoThirdParty, expectWithinColumn, type Lang } from './support.ts';
+import { DAY, MIXED, NOW, PAST_IDLE, expectColourScheme, expectNoSidewaysScroll, expectNoThirdParty, expectWithinColumn, type Lang } from './support.ts';
 
 test.beforeEach(async ({ request }) => {
   await resetAdmin(request, NOW);
@@ -598,8 +598,6 @@ test('at 200% zoom (180 px) nothing scrolls sideways and the toolbar, the action
 
 // ── Nothing is lost (plan B6, PD-12, AC-16, AC-43): buffers, failures, and signing in over the text ──
 
-const MINUTE = 60_000;
-
 /** A buffer as the page keeps it on this device, or null. */
 async function buffer(page: Page, name: 'unsent' | 'edit' | 'kept'): Promise<Record<string, unknown> | null> {
   const raw = await page.evaluate((key) => localStorage.getItem(key), `imnstr:entry:${name}`);
@@ -821,8 +819,8 @@ test('J3.4, J3.5, W6: the session ends while writing. The text stays, Sign in an
   const keys = watchKeys(page);
   await titleField(page).fill('Interrupted');
   await write(page, 'Interrupted for seventy minutes, then finished.');
-  // Typing alone does not keep a session alive, so an hour idle ends it (S-17).
-  expect((await request.post('/__test/clock', { data: { now: NOW + 70 * MINUTE } })).ok()).toBe(true);
+  // Typing alone does not keep a session alive, so the idle limit ends it (S-17).
+  expect((await request.post('/__test/clock', { data: { now: NOW + PAST_IDLE } })).ok()).toBe(true);
   await publishButton(page).click();
   const failure = alertWith(page, 'Not published yet.');
   await expect(failure).toContainText('You were signed out. Sign in to finish. Your text stays right here.');
@@ -887,7 +885,7 @@ test('Sign in and save, over an edit: the session ended, the changes stay, and t
   await body(page).click();
   await page.keyboard.press('Control+End');
   await page.keyboard.type(' Fixed after an hour.');
-  expect((await request.post('/__test/clock', { data: { now: NOW + 90 * MINUTE } })).ok()).toBe(true);
+  expect((await request.post('/__test/clock', { data: { now: NOW + PAST_IDLE } })).ok()).toBe(true);
   await frame.getByRole('button', { name: 'Save', exact: true }).click();
   const failure = alertWith(page, 'Not saved.');
   await expect(failure).toContainText('Sign in to finish.');
@@ -900,7 +898,7 @@ test('a cancelled passkey sheet is not an error: it says so, and the text and th
   const admin = await signedInAdmin(browser, baseURL as string, request);
   const { page } = admin;
   await write(page, 'Still here.');
-  expect((await request.post('/__test/clock', { data: { now: NOW + 70 * MINUTE } })).ok()).toBe(true);
+  expect((await request.post('/__test/clock', { data: { now: NOW + PAST_IDLE } })).ok()).toBe(true);
   await publishButton(page).click();
   const failure = alertWith(page, 'Not published yet.');
   // The browser's sheet is closed without choosing: the ceremony rejects with NotAllowedError.

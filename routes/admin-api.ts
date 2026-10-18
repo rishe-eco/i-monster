@@ -14,6 +14,7 @@ import type { AppEnv } from '../lib/context.ts';
 import { CSRF_HEADER, csrfMatches } from '../lib/csrf.ts';
 import type { Db } from '../lib/db.ts';
 import type { Env } from '../lib/env.ts';
+import { limits } from '../lib/limits.ts';
 import { originGuard } from '../lib/origin.ts';
 import { cleanPasskeyName } from '../lib/passkey-name.ts';
 import { lastLanguage } from '../lib/publish.ts';
@@ -85,7 +86,10 @@ export function adminApiRoutes(db: Db, env: Env): Hono<AppEnv> {
   // Secure `__Host-` cookie on http://localhost, so development needs no
   // exception and the production attributes are the ones always exercised.
   const cookieOptions = { prefix: 'host', secure: true, httpOnly: true, sameSite: 'Strict', path: '/' } as const;
-  const setSessionCookie = (c: Context<AppEnv>, value: string) => setCookie(c, SESSION_COOKIE, value, cookieOptions);
+  // The cookie lives as long as a session can (change note 06), so closing the browser doesn't sign the admin out.
+  // The server still decides: `lib/sessions.ts` refuses an idle or old session whatever the browser keeps.
+  const setSessionCookie = (c: Context<AppEnv>, value: string) =>
+    setCookie(c, SESSION_COOKIE, value, { ...cookieOptions, maxAge: limits.sessionAbsoluteMs / 1000 });
   const clearSessionCookie = (c: Context<AppEnv>) => deleteCookie(c, SESSION_COOKIE, cookieOptions);
   const cookieValue = (c: Context<AppEnv>) => getCookie(c, SESSION_COOKIE, 'host');
 

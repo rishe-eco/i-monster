@@ -4,12 +4,16 @@
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 
 export const limits = {
-  /** A session with no `/admin/api` request for this long ends (AC-10). */
-  sessionIdleMs: 1 * HOUR,
-  /** A session ends this long after it opened, however busy (AC-10). */
-  sessionAbsoluteMs: 24 * HOUR,
+  /**
+   * A session with no `/admin/api` request for this long ends (AC-10). Change note 06: 7 days, not 1 h, so the passkey
+   * (and the device's PIN prompt) is asked for once in a while, not at every visit. The founder's call, 2026-10-18.
+   */
+  sessionIdleMs: 7 * DAY,
+  /** A session ends this long after it opened, however busy (AC-10; change note 06: 30 days, not 24 h). */
+  sessionAbsoluteMs: 30 * DAY,
   /** A passkey assertion this recent counts as a fresh sign-in (AC-11). */
   freshSignInMs: 5 * MINUTE,
   /** The setup token from the CLI (AC-21). */

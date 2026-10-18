@@ -4,7 +4,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetClock, setNow } from '../../lib/clock.ts';
 import { Client, COOKIE_NAME, resetAuth, signedIn } from '../authHelpers.ts';
-import { NOW, tempDb, testApp, testEnv } from '../helpers.ts';
+import { limits } from '../../lib/limits.ts';
+import { HOUR, NOW, tempDb, testApp, testEnv } from '../helpers.ts';
 
 const t = tempDb();
 const env = testEnv();
@@ -75,7 +76,7 @@ describe('AC-8: every admin API route answers 401 without a session', () => {
     const { client } = await signedIn(app, t.db, env);
     const cookie = client.cookie;
     const csrf = client.csrf;
-    setNow(NOW + 2 * 60 * 60 * 1000);
+    setNow(NOW + limits.sessionIdleMs + HOUR);
     for (const { method, path } of guardedRoutes()) {
       const stale = new Client(app, env);
       stale.cookie = cookie;
@@ -255,7 +256,7 @@ describe('D-8: no session on a public route', () => {
 
   it('does not refresh the session, and does not end an expired one', async () => {
     const { client } = await signedIn(app, t.db, env);
-    setNow(NOW + 90 * 60 * 1000); // past the idle limit
+    setNow(NOW + limits.sessionIdleMs + HOUR); // past the idle limit
     for (const path of publicPaths) await client.get(path);
     // Untouched: the stale row is still there, and still last seen at sign-in.
     expect(t.db.prepare('SELECT last_seen_at FROM session').get()).toEqual({ last_seen_at: NOW });

@@ -23,7 +23,7 @@ const podcastPath = (lang: Lang) => (lang === 'fa' ? '/fa/podcast' : '/podcast')
 // The show links the content file gives each language (content/site.<lang>.ts): the Persian show's are its own (AC-29).
 const SHOW: Record<Lang, { name: string; urls: string[] }> = {
   en: { name: 'Monster Podcast', urls: ['https://example.com/monster-podcast/youtube', 'https://example.com/monster-podcast/castbox'] },
-  fa: { name: 'پادکست مانستر', urls: ['https://example.com/monster-podcast-fa/youtube', 'https://example.com/monster-podcast-fa/castbox'] },
+  fa: { name: 'تجربه زیسته یک هیولا', urls: ['https://example.com/monster-podcast-fa/youtube', 'https://example.com/monster-podcast-fa/castbox'] },
 };
 
 for (const lang of LANGS) {

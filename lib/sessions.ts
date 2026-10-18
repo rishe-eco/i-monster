@@ -2,7 +2,7 @@
 // its SHA-256 is stored, so a copy of the database can't sign anyone in.
 // Nothing here runs on a public route: `touchSession` is called only by the
 // /admin/api guard, so a page request never refreshes, reads or sets a session
-// (D-8). There is no "remember me", no heartbeat and no sliding of the 24 h limit.
+// (D-8). There is no "remember me", no heartbeat and no sliding of the absolute limit (both in `lib/limits.ts`).
 import { createHash, randomBytes } from 'node:crypto';
 import { now } from './clock.ts';
 import { newCsrfToken } from './csrf.ts';

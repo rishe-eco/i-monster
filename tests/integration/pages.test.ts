@@ -27,12 +27,12 @@ describe('the landing pages', () => {
 
   it('show who this is, the projects, and the way into the log and the podcast (AC-1)', async () => {
     const en = await html('/');
-    expect(en).toContain('<mark>understand them</mark>');
+    expect(en).toContain('<mark>understand the world</mark>');
     expect(en).toContain('Root Studio');
     expect(en).toContain('href="/log"');
     expect(en).toContain('href="/podcast"');
     const fa = await html('/fa/');
-    expect(fa).toContain('<mark>بفهمم‌شان</mark>');
+    expect(fa).toContain('<mark>دنیا را بفهمم</mark>');
     expect(fa).toContain('href="/fa/log"');
     expect(fa).toContain('href="/fa/podcast"');
   });
@@ -61,7 +61,7 @@ describe('the landing pages', () => {
 
   it('carry the footer line (AC-7)', async () => {
     expect(await html('/')).toContain('No cookies here. The monster ate them.');
-    expect(await html('/fa/')).toContain('اینجا کوکی نداریم. هیولا خوردشان.');
+    expect(await html('/fa/')).toContain('اینجا کوکی نداریم. هیولا خوردشون.');
   });
 
   it('isolate a Latin project name inside Persian text', async () => {

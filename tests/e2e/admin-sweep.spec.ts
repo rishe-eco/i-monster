@@ -6,10 +6,9 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { resetAdmin, signedInAdmin, type Admin } from './admin-support.ts';
 import { plainEpisodes, resetPodcast, type SeedEpisode } from './podcast-support.ts';
-import { DAY, MIXED, NOW, watchCsp, type Lang } from './support.ts';
+import { DAY, MIXED, NOW, PAST_IDLE, watchCsp, type Lang } from './support.ts';
 import { highlightedButtons, sweep } from './sweep-support.ts';
 
-const MINUTE = 60_000;
 
 test.beforeEach(async ({ request }) => {
   await resetAdmin(request, NOW);
@@ -175,7 +174,7 @@ test('the write-time failure: signed out', async ({ browser, baseURL, request },
   const { page } = await signedInAdmin(browser, baseURL as string, request);
   await body(page).click();
   await page.keyboard.type('Still here after the session ended.');
-  expect((await request.post('/__test/clock', { data: { now: NOW + 70 * MINUTE } })).ok()).toBe(true);
+  expect((await request.post('/__test/clock', { data: { now: NOW + PAST_IDLE } })).ok()).toBe(true);
   await page.getByRole('button', { name: /^Publish/ }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'Not published yet.' })).toContainText('Sign in to finish.');
   await sweep(page, info, { column: COLUMN });

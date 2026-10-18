@@ -3,8 +3,8 @@ import { backoffSeconds, limits } from '../../lib/limits.ts';
 
 describe('limits', () => {
   it('holds the values of plan §6.4', () => {
-    expect(limits.sessionIdleMs).toBe(60 * 60_000);
-    expect(limits.sessionAbsoluteMs).toBe(24 * 60 * 60_000);
+    expect(limits.sessionIdleMs).toBe(7 * 24 * 60 * 60_000);
+    expect(limits.sessionAbsoluteMs).toBe(30 * 24 * 60 * 60_000);
     expect(limits.freshSignInMs).toBe(5 * 60_000);
     expect(limits.setupTokenMs).toBe(30 * 60_000);
     expect(limits.enrolmentCodeMs).toBe(10 * 60_000);
