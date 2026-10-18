@@ -26,6 +26,10 @@ export const refusals: Record<Code, string> = {
   BODY_REQUIRED: "There's nothing to save yet. Write something first.",
   DOC_INVALID: "That text can't be saved. Check it for odd characters or a link that isn't a web or email address, then try again.",
   LANG_INVALID: 'Choose a language, English or Persian.',
+  // A language is changed only until the first publish: the page, the feed and the link have carried it since (PL-8).
+  LANG_FIXED: 'This was published, so its language stays.',
+  // An episode's date can't be a day that hasn't come (PL-9).
+  DATE_FUTURE: "That day hasn't come yet. Pick today or an earlier day.",
   // What publishing an episode asks for (PD-23), and the one thing a link may not be (AC-17).
   DESCRIPTION_REQUIRED: 'Add a description before publishing.',
   TAGS_ONE_OR_TWO: 'Give the episode one or two tags before publishing.',

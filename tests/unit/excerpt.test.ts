@@ -1,7 +1,7 @@
 // The opening words a list row shows for an untitled entry (plate 8): plain text, about 120
 // characters, cut at a word.
 import { describe, expect, it } from 'vitest';
-import { excerpt } from '../../lib/entries.ts';
+import { excerpt } from '../../shared/excerpt.ts';
 
 describe('excerpt', () => {
   it('returns a short text as it is, with its white space collapsed', () => {

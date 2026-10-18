@@ -800,6 +800,18 @@ img.ProseMirror-separator {
   }
 }
 
+/* The name of the text an offer holds, under the head, in that text's own language and direction (PL-7). */
+.offer__name {
+  margin-block-start: var(--space-xs);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.offer__name--placeholder {
+  font-weight: 400;
+  font-style: italic;
+}
+
 /* A notice that carries a choice or a button: the words, then the buttons under them. */
 .offer__actions {
   display: flex;

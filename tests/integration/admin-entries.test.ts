@@ -98,7 +98,6 @@ describe('AC-13: an edit changes the text and nothing else', () => {
     const res = await client.call('PUT', `/admin/api/entries/${entry.id}`, {
       title: 'After',
       body: body('New words.'),
-      lang: 'fa',
       state: 'draft',
       firstPublishedAt: 1,
       publishKey: randomUUID(),
@@ -691,5 +690,69 @@ describe('what the API never says (house rules 1 and 9)', () => {
       Object.assign(console, originals);
     }
     expect(lines).toEqual([]);
+  });
+});
+
+describe('PL-8: a never-published entry may change language, a published or was-live one may not', () => {
+  const putEntry = (id: string, fields: Record<string, unknown>) => client.call('PUT', `/admin/api/entries/${id}`, { body: body('Words.'), ...fields });
+
+  it('changes the language of a never-published draft, and remembers the new one as the last language used (AC-42)', async () => {
+    const draft = await save({ lang: 'en' });
+    expect(await lastLanguage()).toBe('en');
+    const res = await putEntry(draft.id, { lang: 'fa', body: body('سلام.') });
+    expect(res.status, res.text).toBe(200);
+    expect(res.json.entry).toMatchObject({ id: draft.id, lang: 'fa', state: 'draft', firstPublishedAt: null });
+    expect(rowOf(draft.id)).toMatchObject({ lang: 'fa', state: 'draft', first_published_at: null, publish_key: rowOf(draft.id).publish_key });
+    expect(await lastLanguage()).toBe('fa');
+    // It keeps its row: one entry, and it publishes onto the other language's log.
+    expect(count()).toBe(1);
+    const published = await client.call('POST', `/admin/api/entries/${draft.id}/publish`, {});
+    expect(published.status).toBe(200);
+    expect((await publicPage('fa', draft.id)).status).toBe(200);
+    expect((await publicPage('en', draft.id)).status).toBe(404);
+  });
+
+  it('refuses a language change on a published entry with LANG_FIXED (409), and changes nothing', async () => {
+    const entry = await save({ publish: true, lang: 'en' });
+    const before = rowOf(entry.id);
+    const res = await putEntry(entry.id, { lang: 'fa', title: 'Changed' });
+    expect(res.status).toBe(409);
+    expect(res.text).toBe(codeBody('LANG_FIXED'));
+    expect(rowOf(entry.id)).toEqual(before);
+    expect(await lastLanguage()).toBe('en');
+  });
+
+  it('refuses it on a draft that was live, too (AC-14, AC-34)', async () => {
+    const entry = await save({ publish: true, lang: 'en' });
+    await client.call('POST', `/admin/api/entries/${entry.id}/unpublish`, {});
+    const before = rowOf(entry.id);
+    expect(before).toMatchObject({ state: 'draft' });
+    const res = await putEntry(entry.id, { lang: 'fa' });
+    expect(res.status).toBe(409);
+    expect(res.text).toBe(codeBody('LANG_FIXED'));
+    expect(rowOf(entry.id)).toEqual(before);
+  });
+
+  it('accepts the language it already has, on any entry', async () => {
+    const entry = await save({ publish: true, lang: 'fa', body: body('سلام.') });
+    expect((await putEntry(entry.id, { lang: 'fa', body: body('سلام دوباره.') })).status).toBe(200);
+  });
+
+  it('refuses a lang that is not en or fa with LANG_INVALID (400), before the body is read', async () => {
+    const draft = await save({});
+    for (const lang of ['de', '', 7, null, 'EN']) {
+      const res = await putEntry(draft.id, { lang, body: 'junk' });
+      expect(res.status, String(lang)).toBe(400);
+      expect(res.text, String(lang)).toBe(codeBody('LANG_INVALID'));
+    }
+    expect(rowOf(draft.id)).toMatchObject({ lang: 'en' });
+  });
+
+  it('behaves as it did with no lang: the language stays, and the last language is the row\'s', async () => {
+    const draft = await save({ lang: 'fa', body: body('سلام.') });
+    const res = await putEntry(draft.id, { body: body('سلام.') });
+    expect(res.status).toBe(200);
+    expect(res.json.entry).toMatchObject({ lang: 'fa' });
+    expect(await lastLanguage()).toBe('fa');
   });
 });

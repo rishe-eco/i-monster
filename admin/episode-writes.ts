@@ -49,8 +49,9 @@ async function publishRow(episode: EpisodeDetail): Promise<EpisodeWrite> {
   return api<{ episode: EpisodeDetail }>('POST', `${episodePath(episode.id)}/publish`, {}, IN_PLACE);
 }
 
-function putText(id: string, text: EpisodeText): Promise<EpisodeWrite> {
-  return api<{ episode: EpisodeDetail }>('PUT', episodePath(id), fieldsOf(text), IN_PLACE);
+/** `lang` goes with the PUT only for an episode that has never been published: the server refuses a change for any other (PL-8). */
+function putText(id: string, text: EpisodeText, lang?: Lang): Promise<EpisodeWrite> {
+  return api<{ episode: EpisodeDetail }>('PUT', episodePath(id), { ...fieldsOf(text), ...(lang ? { lang } : {}) }, IN_PLACE);
 }
 
 /** New text: saved as a draft, or published. `onRow` hears the row's id the moment the server has made it. */
@@ -71,12 +72,13 @@ export async function writeNewEpisode(
     episode = made.data.episode;
     onRow(episode.id);
     if (!holds(episode, composition)) {
-      const updated = await putText(episode.id, composition);
+      const updated = await putText(episode.id, composition, composition.lang);
       if (!updated.ok) return updated;
       episode = updated.data.episode;
     }
   } else {
-    const updated = await putText(composition.id, composition);
+    // The row exists and has never been published, so its language may have changed since it was made (PL-8).
+    const updated = await putText(composition.id, composition, composition.lang);
     if (!updated.ok) return updated;
     episode = updated.data.episode;
   }
@@ -84,8 +86,8 @@ export async function writeNewEpisode(
 }
 
 /** An episode that exists: its text saved, and, for a draft, published after. */
-export async function writeEditEpisode(id: string, text: EpisodeText, publish: boolean): Promise<EpisodeWrite> {
-  const updated = await putText(id, text);
+export async function writeEditEpisode(id: string, text: EpisodeText, publish: boolean, lang?: Lang): Promise<EpisodeWrite> {
+  const updated = await putText(id, text, lang);
   if (!updated.ok) return updated;
   return publish ? publishRow(updated.data.episode) : updated;
 }

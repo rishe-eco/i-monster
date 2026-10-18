@@ -14,21 +14,33 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { formatAdminDay } from '../lib/dates.ts';
 import { dirOf, localePath, type Lang } from '../lib/i18n.ts';
 import { limits } from '../lib/limits.ts';
-import { stripXmlForbidden, type Doc } from '../shared/doc.ts';
+import { docText, stripXmlForbidden, type Doc } from '../shared/doc.ts';
+import { excerpt } from '../shared/excerpt.ts';
 import { api, type Code, type EntryDetail, type SessionInfo, type Settings } from './api.ts';
 import type { Buffers, EditBuffer, Snapshot, Unsent } from './buffers.ts';
 import { copy, refusals } from './copy.ts';
 import { Editor } from './editor.tsx';
 import { EMPTY_DOC } from './editor-model.ts';
 import { Modal, Notice, siteTimeZone } from './ui.tsx';
-import { DiscardDialog, FailureNotice, LanguageControl, Offer, PublishedNotice, Said, UNANSWERED, newKey, useWriter, type Action } from './writer.tsx';
+import { DiscardDialog, FailureNotice, LanguageControl, Offer, OfferName, PublishedNotice, Said, UNANSWERED, guessLang, newKey, useWriter, type Action } from './writer.tsx';
 import { unpublishEntry, writeEdit, writeNew } from './writes.ts';
 
 /** The title is one line: the characters the server refuses in one (control characters) and the ones XML forbids are dropped as they arrive, say from a paste. */
 const cleanTitle = (title: string): string => stripXmlForbidden(title).replace(/\p{Cc}/gu, ' ');
 
-/** What the editor holds, as one comparable string: an edit is unsaved while this differs from the entry as the server has it. */
-const signature = (title: string, doc: Doc): string => JSON.stringify([title.trim(), doc]);
+/** What the editor holds, as one comparable string: an edit is unsaved while this differs from the entry as the server has it. The language is part of it, since a never-published entry may change it (PL-8). */
+const signature = (title: string, doc: Doc, lang: Lang): string => JSON.stringify([title.trim(), doc, lang]);
+
+/**
+ * What an offer of kept text is called, so the person can tell which text Put it back restores (PL-7): the entry's title,
+ * or else its opening words in its own language's quotes, cut as the entries list cuts them. In the text's own language
+ * and direction. An entry with neither has no name to give.
+ */
+function EntryName({ title, doc, lang }: { title: string; doc: Doc; lang: Lang }) {
+  const words = excerpt(docText(doc));
+  const name = title.trim() !== '' ? title.trim() : words !== '' ? copy.entries.opening(words, lang) : '';
+  return name === '' ? null : <OfferName text={name} lang={lang} />;
+}
 
 // ── The editor's fields ──
 
@@ -290,11 +302,13 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
     </>
   );
 
+  // The text Put it back restores is the last one set aside: the buffer's stack keeps the newest on top.
+  const keptTop = snap.kept[snap.kept.length - 1];
   return (
     <div class="composer">
       {/* Text found again when the page opened, or set aside while another entry was edited and not yet put back. */}
       {snap.kept.length > 0 ? (
-        <Offer head={t.left.head} body={t.left.body}>
+        <Offer head={t.left.head} body={t.left.body} name={keptTop ? <EntryName title={keptTop.title} doc={keptTop.doc} lang={keptTop.lang} /> : undefined}>
           <button type="button" class="btn" disabled={busy !== null} onClick={putBack}>
             {t.left.put}
           </button>
@@ -310,9 +324,10 @@ function NewForm({ buffers, returned, initial, initialLang, onChanged, onSession
           </button>
         </Offer>
       ) : null}
-      {/* Once a draft is saved the row has a language, and a PUT never changes it: the control is fixed from then on.
-          It is fixed too while a send went unanswered, since the row may exist in the language it was sent in. */}
-      <LanguageControl name="entry-language" lang={lang} locked={busy !== null || rowId.current !== null || unanswered.current} onChange={onLang} />
+      {/* A draft saved here has never been published, so its language may still change: the next Save draft or Publish
+          sends it (PL-8). The control is fixed while a send is out, and while one went unanswered with no row known, since the
+          row may exist in the language it was sent in and a new key for another would publish the same text twice. */}
+      <LanguageControl name="entry-language" lang={lang} locked={busy !== null || unanswered.current} onChange={onLang} />
       <Fields
         idBase="new"
         lang={lang}
@@ -420,16 +435,20 @@ function EditForm({
   const [entry, setEntry] = useState(loaded);
   const [title, setTitle] = useState(resume ? resume.title : (loaded.title ?? ''));
   const [doc, setDoc] = useState<Doc>(resume ? resume.doc : loaded.body);
+  // A never-published entry may change its language (PL-8). A buffer from before PL1 has none: it reads as "unchanged", the row's own.
+  const [lang, setLang] = useState<Lang>(loaded.firstPublishedAt === null ? (resume?.lang ?? loaded.lang) : loaded.lang);
   // The text as the server has it, so "unsaved" means a difference from it, and a change put back isn't one.
-  const [base, setBase] = useState(() => signature(loaded.title ?? '', loaded.body));
+  const [base, setBase] = useState(() => signature(loaded.title ?? '', loaded.body, loaded.lang));
   const [stored, setStored] = useState(true);
   const [note, setNote] = useState<Note | null>(null);
   const [confirming, setConfirming] = useState(false);
   const writer = useWriter(onSession);
-  const live = useRef({ title, doc, entry, base });
-  live.current = { title, doc, entry, base };
+  const live = useRef({ title, doc, lang, entry, base });
+  live.current = { title, doc, lang, entry, base };
+  // Once published, an entry keeps its language: the page, the feed and the link have carried it (AC-14).
+  const mayChangeLanguage = entry.firstPublishedAt === null;
 
-  const dirty = signature(title, doc) !== base;
+  const dirty = signature(title, doc, lang) !== base;
   useEffect(() => onDirty(dirty), [dirty]);
 
   const zone = siteTimeZone();
@@ -443,31 +462,37 @@ function EditForm({
         : copy.entry.draft;
 
   /** Every change is written to the edit buffer as it is made, for as long as it differs from the entry. */
-  const change = (next: Partial<{ title: string; doc: Doc }>) => {
+  const change = (next: Partial<{ title: string; doc: Doc; lang: Lang }>) => {
     const merged = { ...live.current, ...next };
     live.current = merged;
-    const differs = signature(merged.title, merged.doc) !== merged.base;
-    const result = buffers.apply(differs ? { type: 'edit-typed', edit: { id: loaded.id, title: merged.title, doc: merged.doc } } : { type: 'discarded', which: 'edit' });
+    const differs = signature(merged.title, merged.doc, merged.lang) !== merged.base;
+    const result = buffers.apply(
+      differs ? { type: 'edit-typed', edit: { id: loaded.id, title: merged.title, doc: merged.doc, lang: merged.lang } } : { type: 'discarded', which: 'edit' },
+    );
     setStored(result.stored);
     writer.edited();
     // Saying "Saved" or "Published" about text that has changed since would be wrong; what the server did to the entry's state stays true.
     setNote((current) => (current === 'unpublished' ? current : null));
     if (next.title !== undefined) setTitle(next.title);
     if (next.doc !== undefined) setDoc(next.doc);
+    if (next.lang !== undefined) setLang(next.lang);
   };
 
   const run = async (action: Action) => {
     const before = live.current.entry;
     const sent = { title: live.current.title, doc: live.current.doc };
-    const result = await writer.attempt(action, () => (action === 'unpublish' ? unpublishEntry(before.id) : writeEdit(before.id, sent, action === 'publish')));
+    // The language goes only for an entry that may still change it; the server refuses it for any other (LANG_FIXED).
+    const sentLang = before.firstPublishedAt === null ? live.current.lang : undefined;
+    const result = await writer.attempt(action, () => (action === 'unpublish' ? unpublishEntry(before.id) : writeEdit(before.id, sent, action === 'publish', sentLang)));
     if (!result?.ok) return;
     const next = result.data.entry;
     setEntry(next);
     onChanged();
     if (action === 'unpublish') return setNote('unpublished');
     // The server has the text: the edit buffer is cleared, and what is unsaved is measured from here.
-    setBase(signature(sent.title, sent.doc));
-    live.current = { ...live.current, base: signature(sent.title, sent.doc) };
+    const savedBase = signature(sent.title, sent.doc, next.lang);
+    setBase(savedBase);
+    live.current = { ...live.current, lang: next.lang, base: savedBase };
     const keptBefore = buffers.read().kept.length > 0;
     const after = buffers.apply({ type: 'edit-confirmed' });
     setStored(after.stored);
@@ -552,10 +577,12 @@ function EditForm({
         </button>
       </div>
       {keptNote ? <Offer head={t.keptNote.head} body={t.keptNote.body} /> : null}
+      {/* Shown while the entry has never been published (PL-8): a published or was-live entry keeps its language. */}
+      {mayChangeLanguage ? <LanguageControl name="edit-language" lang={lang} locked={busy !== null} onChange={(next) => change({ lang: next })} /> : null}
 
       <Fields
         idBase="edit"
-        lang={entry.lang}
+        lang={lang}
         title={title}
         onTitle={(next) => change({ title: next })}
         doc={doc}
@@ -613,13 +640,17 @@ export function LeaveDialog({ onStay, onLeave }: { onStay: () => void; onLeave: 
   );
 }
 
-/** The offer for changes left in the edit buffer when the page opened: put them back, or discard (asking once more). */
-export function EditOffer({ onPut, onDiscard }: { onPut: () => void; onDiscard: () => void }) {
+/**
+ * The offer for changes left in the edit buffer when the page opened: put them back, or discard (asking once more).
+ * It names the entry the changes are to (PL-7). A buffer from before PL1 has no language, and the entry isn't read
+ * yet, so the language of its words stands in for it.
+ */
+export function EditOffer({ edit, onPut, onDiscard }: { edit: EditBuffer; onPut: () => void; onDiscard: () => void }) {
   const t = copy.editor.leftEdit;
   const [asking, setAsking] = useState(false);
   return (
     <>
-      <Offer head={t.head} body={t.body}>
+      <Offer head={t.head} body={t.body} name={<EntryName title={edit.title} doc={edit.doc} lang={edit.lang ?? guessLang(`${edit.title} ${docText(edit.doc)}`)} />}>
         <button type="button" class="btn" onClick={onPut}>
           {t.put}
         </button>

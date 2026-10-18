@@ -15,7 +15,7 @@ import { copy, refusals } from './copy.ts';
 import { Runs } from './doc.tsx';
 import { DoneNotice, EditOffer, EpisodeFrame, LeaveDialog, NewEpisode, type Done } from './episode-form.tsx';
 import { Notice } from './ui.tsx';
-import { DiscardDialog, Offer } from './writer.tsx';
+import { DiscardDialog, Offer, OfferName } from './writer.tsx';
 
 interface Page {
   rows: EpisodeRow[];
@@ -159,7 +159,10 @@ export function PodcastSection({ onSession }: { onSession: (session: SessionInfo
 
   const today = page?.today ?? null;
   // Drawn from the buffer, not from a copy of it: the form can discard or put back what is set aside too.
-  const hasKept = buffers.read().kept.length > 0;
+  const kept = buffers.read().kept;
+  const hasKept = kept.length > 0;
+  // Put it back restores the last one set aside, and the offer names it (PL-7).
+  const keptTop = kept[kept.length - 1];
 
   return (
     <section class="section" aria-labelledby="podcast-heading">
@@ -172,7 +175,11 @@ export function PodcastSection({ onSession }: { onSession: (session: SessionInfo
       <div id="podcast-body" hidden={!open}>
         {/* What was left here when the page opened: unsent text, and changes to an episode. Nothing is dropped without a word (AC-43). */}
         {hasKept && form === null ? (
-          <Offer head={copy.episode.left.head} body={copy.episode.left.body}>
+          <Offer
+            head={copy.episode.left.head}
+            body={copy.episode.left.body}
+            name={keptTop ? <OfferName text={keptTop.name.trim() === '' ? copy.podcast.noName : keptTop.name.trim()} lang={keptTop.lang} placeholder={keptTop.name.trim() === ''} /> : undefined}
+          >
             <button type="button" class="btn" onClick={putBack}>
               {copy.episode.left.put}
             </button>
@@ -183,6 +190,7 @@ export function PodcastSection({ onSession }: { onSession: (session: SessionInfo
         ) : null}
         {editOffer && form?.kind !== 'edit' ? (
           <EditOffer
+            edit={editOffer}
             onPut={() => {
               setEditOffer(null);
               startEdit(editOffer.id, editOffer);

@@ -4,50 +4,13 @@
 // schemes, and loops the language of the entry or episode it works on (house rule 8; the admin itself is English).
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { resetAdmin, signedInAdmin } from './admin-support.ts';
-import { resetPodcast, type SeedEpisode } from './podcast-support.ts';
-import { DAY, NOW, expectNoSidewaysScroll, type Lang } from './support.ts';
+import { resetPodcast } from './podcast-support.ts';
+import { LANGS, WORDS, body, episode, language, openEntry, openEpisode, openPodcast, section, seedEntry, write } from './polish-support.ts';
+import { NOW, expectNoSidewaysScroll } from './support.ts';
 
 test.beforeEach(async ({ request }) => {
   await resetAdmin(request, NOW);
 });
-
-const LANGS: Lang[] = ['en', 'fa'];
-const WORDS: Record<Lang, { title: string; text: string; more: string }> = {
-  en: { title: 'An old entry', text: 'Broken link here, see the paper.', more: ' Fixed.' },
-  fa: { title: 'نوشتهٔ قدیمی', text: 'پیوند خراب است، مقاله را ببینید.', more: ' درست شد.' },
-};
-
-// ── Entries ──
-
-const body = (page: Page) => page.getByRole('textbox', { name: 'Entry text' });
-
-async function write(page: Page, text: string): Promise<void> {
-  await body(page).click();
-  await page.keyboard.type(text);
-}
-
-async function openEntries(page: Page): Promise<void> {
-  const toggle = page.getByRole('button', { name: 'Entries', exact: true });
-  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
-}
-
-async function seedEntry(request: Parameters<typeof resetAdmin>[0], lang: Lang, extra: Record<string, unknown> = {}): Promise<string> {
-  const id = 'a000000010';
-  const entry: Record<string, unknown> = { id, lang, title: WORDS[lang].title, text: WORDS[lang].text, firstPublishedAt: NOW - 2 * DAY, ...extra };
-  // A draft that was never published has no first date at all: the route takes it absent, not null.
-  if (entry['firstPublishedAt'] === null) delete entry['firstPublishedAt'];
-  const res = await request.post('/__test/entries', { data: { entries: [entry] } });
-  expect(res.ok()).toBe(true);
-  return id;
-}
-
-/** Open an entry's frame: the list names a Persian one in «», which the button's name carries. */
-async function openEntry(page: Page, lang: Lang): Promise<Locator> {
-  await openEntries(page);
-  await page.getByRole('button', { name: `Edit ${WORDS[lang].title}` }).click();
-  await expect(page.locator('.frame .frame__status')).toContainText(/Editing|Draft/);
-  return page.locator('.frame');
-}
 
 /**
  * What a write said sits directly above the actions, in the place a failure takes, and is the only notice there
@@ -103,7 +66,7 @@ test('a new entry: Draft saved and Published say so directly above the actions, 
 });
 
 for (const lang of LANGS) {
-  test(`an entry's frame: Saved, Unpublished and Published say so directly above the actions, in ${lang === 'fa' ? 'Persian' : 'English'} (PL-11)`, async ({ browser, baseURL, request }) => {
+  test(`an entry's frame: Saved, Unpublished and Published say so directly above the actions, in ${language(lang)} (PL-11)`, async ({ browser, baseURL, request }) => {
     await seedEntry(request, lang);
     const { page } = await signedInAdmin(browser, baseURL as string, request);
     await page.setViewportSize({ width: 360, height: 400 });
@@ -122,7 +85,7 @@ for (const lang of LANGS) {
     await expect(frame.getByRole('link', { name: 'Open' })).toBeVisible();
   });
 
-  test(`a draft's frame: Draft saved and Published say so directly above the actions, in ${lang === 'fa' ? 'Persian' : 'English'} (PL-11)`, async ({ browser, baseURL, request }) => {
+  test(`a draft's frame: Draft saved and Published say so directly above the actions, in ${language(lang)} (PL-11)`, async ({ browser, baseURL, request }) => {
     await seedEntry(request, lang, { state: 'draft', firstPublishedAt: null });
     const { page } = await signedInAdmin(browser, baseURL as string, request);
     await page.setViewportSize({ width: 360, height: 400 });
@@ -151,33 +114,8 @@ test('an edit closed by Save says so in the composer it returns to, directly abo
 
 // ── Episodes ──
 
-const section = (page: Page) => page.locator('#podcast-body');
-
-async function openPodcast(page: Page): Promise<void> {
-  const toggle = page.getByRole('button', { name: 'Podcast', exact: true });
-  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
-}
-
-const episode = (lang: Lang, extra: Partial<SeedEpisode> = {}): SeedEpisode => ({
-  lang,
-  name: lang === 'fa' ? 'ساختن در جمع' : 'Building in public',
-  description: lang === 'fa' ? 'چه چیزی پروژه را زنده نگه می‌دارد.' : 'What keeps a project going.',
-  tags: [lang === 'fa' ? 'ساختن' : 'making'],
-  date: '2026-10-03',
-  links: [{ label: 'YouTube', url: 'https://youtu.be/q81abc' }],
-  firstPublishedAt: NOW - 7 * DAY,
-  ...extra,
-});
-
-async function openEpisode(page: Page, lang: Lang): Promise<Locator> {
-  await openPodcast(page);
-  await section(page).getByRole('button', { name: `Edit ${episode(lang).name}` }).click();
-  await expect(section(page).locator('.frame .frame__status')).toContainText(/Editing|Draft/);
-  return section(page).locator('.frame');
-}
-
 for (const lang of LANGS) {
-  test(`an episode's frame: Saved, Unpublished and Published say so directly above the actions, in ${lang === 'fa' ? 'Persian' : 'English'} (PL-11)`, async ({ browser, baseURL, request }) => {
+  test(`an episode's frame: Saved, Unpublished and Published say so directly above the actions, in ${language(lang)} (PL-11)`, async ({ browser, baseURL, request }) => {
     await resetPodcast(request, [episode(lang)]);
     const { page } = await signedInAdmin(browser, baseURL as string, request);
     await page.setViewportSize({ width: 360, height: 400 });
@@ -193,7 +131,7 @@ for (const lang of LANGS) {
     await expectSaidAbove(page, actions, /Published|Back/);
   });
 
-  test(`a new episode, saved or published, says so directly above New episode, in ${lang === 'fa' ? 'Persian' : 'English'} (PL-11)`, async ({ browser, baseURL, request }) => {
+  test(`a new episode, saved or published, says so directly above New episode, in ${language(lang)} (PL-11)`, async ({ browser, baseURL, request }) => {
     await resetPodcast(request, []);
     const { page } = await signedInAdmin(browser, baseURL as string, request);
     await page.setViewportSize({ width: 360, height: 400 });
@@ -220,7 +158,7 @@ for (const lang of LANGS) {
 // ── The episode form's link captions (PL-5) ──
 
 for (const lang of LANGS) {
-  test(`one link has no caption of its own, and two or more are Link 1, Link 2, in ${lang === 'fa' ? 'Persian' : 'English'} (PL-5)`, async ({ browser, baseURL, request }) => {
+  test(`one link has no caption of its own, and two or more are Link 1, Link 2, in ${language(lang)} (PL-5)`, async ({ browser, baseURL, request }) => {
     await resetPodcast(request, []);
     const { page } = await signedInAdmin(browser, baseURL as string, request);
     await openPodcast(page);

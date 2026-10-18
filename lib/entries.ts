@@ -12,6 +12,7 @@ import {
 import type { Db } from './db.ts';
 import type { Lang } from './i18n.ts';
 import { now } from './clock.ts';
+import { excerpt } from '../shared/excerpt.ts';
 import { limits } from './limits.ts';
 import { newId } from './ids.ts';
 import { createOrGet, getRow, publish, rememberLanguage, unpublish, type PublishRow } from './publish.ts';
@@ -230,18 +231,6 @@ function toAdminEntry(row: FullRow): AdminEntry {
   };
 }
 
-/** The first `max` characters of the text, cut at a word, with "…" when something was left out. */
-export function excerpt(text: string, max = 120): string {
-  const flat = text.replace(/\s+/g, ' ').trim();
-  // Characters, not UTF-16 units, so an emoji is never cut in half.
-  const chars = Array.from(flat);
-  if (chars.length <= max) return flat;
-  const head = chars.slice(0, max);
-  // A space right after the cut means the head already ends on a word.
-  const at = chars[max] === ' ' ? -1 : head.lastIndexOf(' ');
-  return `${(at > 0 ? head.slice(0, at) : head).join('').trimEnd()}…`;
-}
-
 function toAdminRow(row: FullRow): AdminRow {
   return {
     id: row.id,
@@ -315,16 +304,25 @@ export function createEntry(db: Db, input: NewEntry): AdminEntry {
 }
 
 /**
- * Change an entry's title and body, and nothing else: not its state, its
- * language or any date but `updated_at` (AC-13). Returns null for no such entry.
+ * Change an entry's title and body, and its language while it has never been published (PL-8). Nothing else:
+ * not its state or any date but `updated_at` (AC-13). A published entry, and a draft that was live, keep their
+ * language, since the page, the feed and the link have carried it: a different one is `LANG_FIXED`. With no
+ * `lang` the language stays as it is. The language the save leaves is remembered as the last used (AC-42).
+ * Returns null for no such entry.
  */
-export function updateEntry(db: Db, id: string, input: { title: string | null; body: Doc }): AdminEntry | null {
+export function updateEntry(
+  db: Db,
+  id: string,
+  input: { title: string | null; body: Doc; lang?: Lang },
+): AdminEntry | { refusal: 'LANG_FIXED' } | null {
   return db.transaction(() => {
-    const result = db.prepare('UPDATE entry SET title = ?, body = ?, updated_at = ? WHERE id = ?').run(input.title, JSON.stringify(input.body), now(), id);
-    if (result.changes === 0) return null;
-    const row = getRow<FullRow>(db, 'entry', id) as FullRow;
-    rememberLanguage(db, row.lang);
-    return toAdminEntry(row);
+    const row = getRow<FullRow>(db, 'entry', id);
+    if (!row) return null;
+    const lang = input.lang ?? row.lang;
+    if (lang !== row.lang && row.first_published_at !== null) return { refusal: 'LANG_FIXED' as const };
+    db.prepare('UPDATE entry SET lang = ?, title = ?, body = ?, updated_at = ? WHERE id = ?').run(lang, input.title, JSON.stringify(input.body), now(), id);
+    rememberLanguage(db, lang);
+    return toAdminEntry(getRow<FullRow>(db, 'entry', id) as FullRow);
   })();
 }
 

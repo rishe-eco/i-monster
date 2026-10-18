@@ -90,13 +90,17 @@ export function entryRoutes(db: Db, { refuse, readJson }: ApiKit): Hono<AppEnv> 
     if (!isId(id) || !getEntry(db, id)) return refuse(c, 'NOT_FOUND');
     const json = await readJson(c);
     if (!json) return refuse(c, 'REQUEST_INVALID');
-    // `lang`, `state` and the dates are not read: an edit changes the title and the body (AC-13).
+    // `state` and the dates are not read: an edit changes the title and the body (AC-13), and the language while the
+    // entry has never been published (PL-8). A `lang` that isn't one of the two is refused first, as on a new entry.
+    if (json.lang !== undefined && !isLang(json.lang)) return refuse(c, 'LANG_INVALID');
     const title = readTitle(json.title);
     if ('refusal' in title) return refuse(c, title.refusal);
     const body = readBody(json.body);
     if ('refusal' in body) return refuse(c, body.refusal);
-    const entry = updateEntry(db, id, { title: title.title, body: body.doc });
-    return entry ? c.json({ entry: entryJson(entry) }) : refuse(c, 'NOT_FOUND');
+    const entry = updateEntry(db, id, { title: title.title, body: body.doc, lang: isLang(json.lang) ? json.lang : undefined });
+    if (!entry) return refuse(c, 'NOT_FOUND');
+    if ('refusal' in entry) return refuse(c, entry.refusal);
+    return c.json({ entry: entryJson(entry) });
   });
 
   routes.post('/entries/:id/publish', (c) => {

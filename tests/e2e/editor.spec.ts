@@ -396,8 +396,9 @@ test('Save draft keeps the entry on the server, off every public page, and the b
   expect(entry).toMatchObject({ lang: 'en', title: 'On the bus', state: 'draft' });
   expect(await (await request.get('/log')).text()).not.toContain(entry?.id ?? '-');
   expect((await request.get(`/log/${entry?.id}`)).status()).toBe(404);
-  // The language is the row's now: the control can't change it under a saved draft.
-  await expect(language(page, 'fa')).toBeDisabled();
+  // A saved draft has never been published, so its language may still change (PL-8): the control is usable, and
+  // a switch then Publish lands the same row on the Persian log.
+  await expect(language(page, 'fa')).toBeEnabled();
   await expectFits(admin, info);
 
   // Going on: the next change brings Save draft back, and saves onto the same row.
@@ -421,6 +422,22 @@ test('Save draft keeps the entry on the server, off every public page, and the b
   expect(await (await request.get(`/log/${entry?.id}`)).text()).toContain('More. Done.');
   await expect(titleField(page)).toHaveValue('');
   await expect(language(page, 'fa')).toBeEnabled();
+
+  // The first F2 test of the note: a draft saved in English, then switched and published, is on /fa/log and not on /log.
+  await language(page, 'en').check();
+  await write(page, 'Switched before the first publish.');
+  await saveDraftButton(page).click();
+  await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeDisabled();
+  await language(page, 'fa').check();
+  await expect(body(page)).toHaveAttribute('dir', 'rtl');
+  await publishButton(page).click();
+  await expect(page.getByRole('status').filter({ hasText: "Published. It's out there." })).toBeVisible();
+  const switched = (await listed(admin)).find((e) => e.excerpt.includes('Switched before'));
+  expect(switched).toMatchObject({ lang: 'fa', state: 'published' });
+  // By its id: a Persian page isolates the English words in <bdi>, so the sentence is not one run of text there.
+  expect((await request.get(`/fa/log/${switched?.id}`)).status()).toBe(200);
+  expect((await request.get(`/log/${switched?.id}`)).status()).toBe(404);
+  expect(await (await request.get('/log')).text()).not.toContain('Switched before the first publish.');
 });
 
 test('a draft saved on one device is in the list on a second, opens there, and publishes there; it was on no public page until then (AC-44, J2.11, J2.12)', async ({ browser, baseURL, request }, info) => {

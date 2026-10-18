@@ -11,6 +11,7 @@ import { now } from '../lib/clock.ts';
 import { todayIn } from '../lib/dates.ts';
 import {
   createEpisode,
+  dateRefusal,
   getEpisode,
   listEpisodesForAdmin,
   publishEpisode,
@@ -73,12 +74,16 @@ export function episodeRoutes(db: Db, { refuse, readJson }: ApiKit, options: { s
     if (json.publish !== undefined && typeof json.publish !== 'boolean') return refuse(c, 'REQUEST_INVALID');
     const read = readEpisodeInput(json);
     if ('refusal' in read) return refuse(c, read.refusal);
+    // A day that hasn't come yet is refused (PL-9). A new episode has no date of its own to keep.
+    const today = todayIn(now(), options.siteTz);
+    const future = dateRefusal(read.input.date, today);
+    if (future) return refuse(c, future);
     const episode = createEpisode(db, {
       publishKey: json.publishKey.toLowerCase(),
       lang: json.lang,
       input: read.input,
       publish: json.publish === true,
-      today: todayIn(now(), options.siteTz),
+      today,
     });
     if (refused(episode)) return refuse(c, episode.refusal);
     // New or existing, the same answer: a retry can't tell, and needn't (AC-25).
@@ -87,13 +92,19 @@ export function episodeRoutes(db: Db, { refuse, readJson }: ApiKit, options: { s
 
   routes.put('/episodes/:id', async (c) => {
     const id = c.req.param('id');
-    if (!isId(id) || !getEpisode(db, id)) return refuse(c, 'NOT_FOUND');
+    const existing = isId(id) ? getEpisode(db, id) : null;
+    if (!isId(id) || !existing) return refuse(c, 'NOT_FOUND');
     const json = await readJson(c);
     if (!json) return refuse(c, 'REQUEST_INVALID');
-    // `lang`, `state` and the dates but `date` are not read: an edit changes the text, tags, date and links.
+    // `state` and the dates but `date` are not read: an edit changes the text, tags, date and links, and the language
+    // while the episode has never been published (PL-8). A `lang` that isn't one of the two is refused first.
+    if (json.lang !== undefined && !isLang(json.lang)) return refuse(c, 'LANG_INVALID');
     const read = readEpisodeInput(json);
     if ('refusal' in read) return refuse(c, read.refusal);
-    const episode = updateEpisode(db, id, read.input);
+    // The date the episode already has is let through, even after today, so a fixture or a typo fix can be saved (PL-9).
+    const future = dateRefusal(read.input.date, todayIn(now(), options.siteTz), existing.date);
+    if (future) return refuse(c, future);
+    const episode = updateEpisode(db, id, read.input, isLang(json.lang) ? json.lang : undefined);
     if (!episode) return refuse(c, 'NOT_FOUND');
     if (refused(episode)) return refuse(c, episode.refusal);
     return c.json({ episode: episodeJson(episode) });

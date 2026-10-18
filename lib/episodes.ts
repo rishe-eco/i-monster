@@ -121,7 +121,7 @@ export interface EpisodeInput {
 
 export type InputRefusal = 'REQUEST_INVALID' | 'TAGS_ONE_OR_TWO' | 'LINK_NOT_HTTPS';
 export type PublishRefusal = 'NAME_REQUIRED' | 'DESCRIPTION_REQUIRED' | 'TAGS_ONE_OR_TWO' | 'LINK_REQUIRED';
-export type EpisodeRefusal = InputRefusal | PublishRefusal | 'LAST_LINK';
+export type EpisodeRefusal = InputRefusal | PublishRefusal | 'LAST_LINK' | 'LANG_FIXED' | 'DATE_FUTURE';
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -195,6 +195,15 @@ export function readEpisodeInput(json: Record<string, unknown>): { input: Episod
     links.push({ label: label.text, url: rawUrl });
   }
   return { input: { name: name.text, description: description.text, tags, date, links } };
+}
+
+/**
+ * An episode's date can't be after today in `SITE_TZ` (PL-9): scheduled publishing is out of scope, so a day that
+ * hasn't come is not a date it can have. An edit that sends the date the episode already has is let through, so
+ * an episode seeded or entered with a later date can still have a typo fixed. `date` is null when none was sent.
+ */
+export function dateRefusal(date: string | null, today: string, current?: string): 'DATE_FUTURE' | null {
+  return date !== null && date > today && date !== current ? 'DATE_FUTURE' : null;
 }
 
 /**
@@ -347,21 +356,25 @@ export function createEpisode(db: Db, input: NewEpisode): AdminEpisode | { refus
 }
 
 /**
- * Change an episode's text, tags, date and links, and nothing else: not its state, its language or any
- * date but `updated_at` (AC-13's twin). The links in the request are the whole list. A published episode
- * must still hold what publishing asked for, and an empty list there is `LAST_LINK`, not `LINK_REQUIRED`:
- * the episode has a link now, and the save would take it away (AC-17). Null for no such episode.
+ * Change an episode's text, tags, date and links, and its language while it has never been published (PL-8):
+ * not its state or any date but `updated_at` (AC-13's twin). A published episode, and a draft that was live,
+ * keep their language: a different one is `LANG_FIXED`. The links in the request are the whole list. A
+ * published episode must still hold what publishing asked for, and an empty list there is `LAST_LINK`, not
+ * `LINK_REQUIRED`: the episode has a link now, and the save would take it away (AC-17). Null for no such episode.
  */
-export function updateEpisode(db: Db, id: string, input: EpisodeInput): AdminEpisode | { refusal: EpisodeRefusal } | null {
+export function updateEpisode(db: Db, id: string, input: EpisodeInput, newLang?: Lang): AdminEpisode | { refusal: EpisodeRefusal } | null {
   try {
     return db.transaction(() => {
       const row = getRow<Row>(db, 'episode', id);
       if (!row) return null;
+      const lang = newLang ?? row.lang;
+      if (lang !== row.lang && row.first_published_at !== null) return { refusal: 'LANG_FIXED' as const };
       if (row.state === 'published') {
         const refusal = checkPublishable({ ...input, linkCount: input.links.length });
         if (refusal) return { refusal: refusal === 'LINK_REQUIRED' ? ('LAST_LINK' as const) : refusal };
       }
-      db.prepare('UPDATE episode SET name = ?, description = ?, tag1 = ?, tag2 = ?, date = ?, updated_at = ? WHERE id = ?').run(
+      db.prepare('UPDATE episode SET lang = ?, name = ?, description = ?, tag1 = ?, tag2 = ?, date = ?, updated_at = ? WHERE id = ?').run(
+        lang,
         input.name,
         input.description,
         input.tags[0] ?? null,
@@ -371,7 +384,7 @@ export function updateEpisode(db: Db, id: string, input: EpisodeInput): AdminEpi
         id,
       );
       replaceLinks(db, id, input.links);
-      rememberLanguage(db, row.lang);
+      rememberLanguage(db, lang);
       return toAdminEpisode(db, getRow<Row>(db, 'episode', id) as Row);
     })();
   } catch (error) {

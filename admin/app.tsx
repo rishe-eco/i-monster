@@ -195,6 +195,7 @@ function Home({
       {/* W1 order. The editor's slot: the editor is first, empty, whenever nothing is being edited; Edit puts an entry in the same editor, in its frame. */}
       {editOffer && !editing ? (
         <EditOffer
+          edit={editOffer}
           onPut={() => {
             setEditOffer(null);
             startEdit(editOffer.id, editOffer);

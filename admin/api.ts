@@ -20,6 +20,8 @@ export type RefusalCode =
   | 'BODY_REQUIRED'
   | 'DOC_INVALID'
   | 'LANG_INVALID'
+  | 'LANG_FIXED'
+  | 'DATE_FUTURE'
   | 'DESCRIPTION_REQUIRED'
   | 'TAGS_ONE_OR_TWO'
   | 'LINK_REQUIRED'
@@ -70,6 +72,8 @@ const REFUSALS: ReadonlySet<string> = new Set<RefusalCode>([
   'BODY_REQUIRED',
   'DOC_INVALID',
   'LANG_INVALID',
+  'LANG_FIXED',
+  'DATE_FUTURE',
   'DESCRIPTION_REQUIRED',
   'TAGS_ONE_OR_TWO',
   'LINK_REQUIRED',

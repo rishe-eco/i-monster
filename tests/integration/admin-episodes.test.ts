@@ -100,7 +100,6 @@ describe('AC-17: an episode is added, edited, unpublished and republished', () =
       tags: ['a', 'b'],
       date: '2026-10-01',
       links: [YT, CB],
-      lang: 'fa',
       state: 'draft',
       firstPublishedAt: 1,
       publishKey: randomUUID(),
@@ -118,7 +117,7 @@ describe('AC-17: an episode is added, edited, unpublished and republished', () =
     await clockTo(NOW + 5 * DAY);
     const off = await client.post(`/admin/api/episodes/${episode.id}/unpublish`);
     expect(off.json.episode).toMatchObject({ id: episode.id, state: 'draft', wasLive: true, firstPublishedAt: NOW, date: '2026-10-10' });
-    expect(await (await publicPage('en')).text()).not.toContain('Why a monster?');
+    expect(await (await publicPage('en')).text()).not.toContain('Why a monster');
     // The episode's page is the list, so "gone" is the list without it; its links survive the unpublish.
     expect(linkRows(episode.id)).toHaveLength(1);
     await clockTo(NOW + 9 * DAY);
@@ -348,7 +347,8 @@ describe('PD-23, the date: a calendar day, filled in with today in SITE_TZ', () 
       expect(res.status, date).toBe(400);
       expect(res.text, date).toBe('{"code":"REQUEST_INVALID"}');
     }
-    expect((await save({ date: '2028-02-29' })).date).toBe('2028-02-29');
+    // A leap day that has passed: a date after today is refused now (PL-9).
+    expect((await save({ date: '2024-02-29' })).date).toBe('2024-02-29');
   });
 
   it('shows the date as a day on the public page, without conversion, in both languages', async () => {
@@ -580,5 +580,106 @@ describe('a session that ended an hour ago still cannot write', () => {
     const res = await client.post('/admin/api/episodes', { publishKey: randomUUID(), lang: 'en' });
     expect(res.status).toBe(401);
     expect(res.text).toBe('{"code":"UNAUTHENTICATED"}');
+  });
+});
+
+describe('PL-8: a never-published episode may change language, a published or was-live one may not', () => {
+  it('changes the language of a never-published draft, and remembers it as the last language used (AC-42)', async () => {
+    const draft = await save({ lang: 'en' });
+    const res = await put(draft.id, { ...whole(), lang: 'fa' });
+    expect(res.status, res.text).toBe(200);
+    expect(res.json.episode).toMatchObject({ id: draft.id, lang: 'fa', state: 'draft', firstPublishedAt: null });
+    expect(rowOf(draft.id)).toMatchObject({ lang: 'fa', first_published_at: null, publish_key: rowOf(draft.id).publish_key });
+    expect(await lastLanguage()).toBe('fa');
+    expect(count()).toBe(1);
+    // It publishes onto the other language's page, and not this one's.
+    expect((await client.call('POST', `/admin/api/episodes/${draft.id}/publish`, {})).status).toBe(200);
+    expect(await (await publicPage('fa')).text()).toContain('Why a monster');
+    expect(await (await publicPage('en')).text()).not.toContain('Why a monster');
+  });
+
+  it('refuses a language change on a published episode with LANG_FIXED (409), and changes nothing', async () => {
+    const episode = await save({ ...whole(), publish: true });
+    const before = rowOf(episode.id);
+    const res = await put(episode.id, { ...whole({ name: 'Changed' }), lang: 'fa' });
+    expect(res.status).toBe(409);
+    expect(res.text).toBe('{"code":"LANG_FIXED"}');
+    expect(rowOf(episode.id)).toEqual(before);
+    expect(linkRows(episode.id)).toHaveLength(1);
+    expect(await lastLanguage()).toBe('en');
+  });
+
+  it('refuses it on a draft that was live, too (AC-14)', async () => {
+    const episode = await save({ ...whole(), publish: true });
+    await client.call('POST', `/admin/api/episodes/${episode.id}/unpublish`, {});
+    const before = rowOf(episode.id);
+    const res = await put(episode.id, { ...whole(), lang: 'fa' });
+    expect(res.status).toBe(409);
+    expect(res.text).toBe('{"code":"LANG_FIXED"}');
+    expect(rowOf(episode.id)).toEqual(before);
+  });
+
+  it('accepts the language it already has, and refuses one that is not en or fa with LANG_INVALID (400)', async () => {
+    const episode = await save({ ...whole(), publish: true });
+    expect((await put(episode.id, { ...whole(), lang: 'en' })).status).toBe(200);
+    for (const lang of ['de', '', 7, null, 'FA']) {
+      const res = await put(episode.id, { ...whole(), lang });
+      expect(res.status, String(lang)).toBe(400);
+      expect(res.text, String(lang)).toBe('{"code":"LANG_INVALID"}');
+    }
+  });
+
+  it('behaves as it did with no lang', async () => {
+    const draft = await save({ lang: 'fa' });
+    const res = await put(draft.id, whole());
+    expect(res.status).toBe(200);
+    expect(res.json.episode).toMatchObject({ lang: 'fa' });
+    expect(await lastLanguage()).toBe('fa');
+  });
+});
+
+describe('PL-9: an episode date after today is refused, an edit may keep the date it has', () => {
+  // The fixed clock is 10 Oct 2026 in the site's zone.
+  it('refuses a new episode dated tomorrow with DATE_FUTURE (400), and accepts today', async () => {
+    const res = await attempt({ ...whole(), date: '2026-10-11' });
+    expect(res.status).toBe(400);
+    expect(res.text).toBe('{"code":"DATE_FUTURE"}');
+    expect(count()).toBe(0);
+    expect((await attempt({ ...whole(), date: '2026-10-10' })).status).toBe(200);
+    expect((await attempt({ ...whole(), date: '2026-10-09' })).status).toBe(200);
+  });
+
+  it('refuses it on a publish too, with no row made and no language remembered', async () => {
+    const res = await attempt({ ...whole(), date: '2026-12-01', publish: true, lang: 'fa' });
+    expect(res.status).toBe(400);
+    expect(res.text).toBe('{"code":"DATE_FUTURE"}');
+    expect(count()).toBe(0);
+    expect(await lastLanguage()).toBe('en');
+  });
+
+  it('lets a save send the date the episode already has, even after today, and refuses a different later one', async () => {
+    // Seeded directly, as a fixture dated after the clock is: the route would have refused it.
+    insertEpisodeFixture(t.db, { lang: 'en', id: 'e000000024', name: 'Later', description: 'x', tags: ['t'], date: '2026-10-24', links: [YT] });
+    expect((await put('e000000024', { ...whole({ name: 'Typo fixed' }), date: '2026-10-24' })).status).toBe(200);
+    expect(rowOf('e000000024')).toMatchObject({ name: 'Typo fixed', date: '2026-10-24' });
+    const res = await put('e000000024', { ...whole(), date: '2026-10-25' });
+    expect(res.status).toBe(400);
+    expect(res.text).toBe('{"code":"DATE_FUTURE"}');
+    expect(rowOf('e000000024')).toMatchObject({ date: '2026-10-24' });
+    // And an earlier day is always allowed.
+    expect((await put('e000000024', { ...whole(), date: '2026-10-09' })).status).toBe(200);
+    // Once moved, the old later date is no longer "its own".
+    expect((await put('e000000024', { ...whole(), date: '2026-10-24' })).text).toBe('{"code":"DATE_FUTURE"}');
+  });
+
+  it('is decided in the site\'s zone, not UTC: at 23:30 UTC the 11th has begun in Tehran, so the 11th is today', async () => {
+    await clockTo(Date.UTC(2026, 9, 10, 23, 30));
+    expect((await attempt({ ...whole(), date: '2026-10-11' })).status).toBe(200);
+    expect((await attempt({ ...whole(), date: '2026-10-12' })).text).toBe('{"code":"DATE_FUTURE"}');
+    // Just before midnight in the zone (20:29 UTC is 23:59 in Tehran, UTC+3:30), the 11th has not begun.
+    await clockTo(Date.UTC(2026, 9, 10, 20, 29));
+    expect((await attempt({ ...whole(), date: '2026-10-11' })).text).toBe('{"code":"DATE_FUTURE"}');
+    await clockTo(Date.UTC(2026, 9, 10, 20, 31));
+    expect((await attempt({ ...whole(), date: '2026-10-11' })).status).toBe(200);
   });
 });

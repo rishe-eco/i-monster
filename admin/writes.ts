@@ -36,8 +36,9 @@ async function publishRow(entry: EntryDetail): Promise<Write> {
   return api<{ entry: EntryDetail }>('POST', `${entryPath(entry.id)}/publish`, {}, IN_PLACE);
 }
 
-async function putText(id: string, text: Text): Promise<Write> {
-  return api<{ entry: EntryDetail }>('PUT', entryPath(id), { title: titleOf(text.title), body: text.doc }, IN_PLACE);
+/** `lang` goes with the PUT only for an entry that has never been published: the server refuses a change for any other (PL-8). */
+async function putText(id: string, text: Text, lang?: Lang): Promise<Write> {
+  return api<{ entry: EntryDetail }>('PUT', entryPath(id), { title: titleOf(text.title), body: text.doc, ...(lang ? { lang } : {}) }, IN_PLACE);
 }
 
 /** New text: saved as a draft, or published. `onRow` hears the row's id the moment the server has made it. */
@@ -60,22 +61,23 @@ export async function writeNew(
     entry = made.data.entry;
     onRow(entry.id);
     if (!holds(entry, composition)) {
-      const updated = await putText(entry.id, composition);
+      const updated = await putText(entry.id, composition, composition.lang);
       if (!updated.ok) return updated;
       entry = updated.data.entry;
     }
   } else {
-    const updated = await putText(composition.id, composition);
+    // The row exists and has never been published, so its language may have changed since it was made (PL-8).
+    const updated = await putText(composition.id, composition, composition.lang);
     if (!updated.ok) return updated;
     entry = updated.data.entry;
   }
   return publish ? publishRow(entry) : { ok: true, data: { entry } };
 }
 
-/** An entry that exists: its title and body saved, and, for a draft, published after. */
-export async function writeEdit(id: string, text: Text, publish: boolean): Promise<Write> {
+/** An entry that exists: its title and body saved, and, for a draft, published after. `lang` is sent only when the entry may change it. */
+export async function writeEdit(id: string, text: Text, publish: boolean, lang?: Lang): Promise<Write> {
   if (!docHasText(text.doc)) return BODY_REQUIRED;
-  const updated = await putText(id, text);
+  const updated = await putText(id, text, lang);
   if (!updated.ok) return updated;
   return publish ? publishRow(updated.data.entry) : updated;
 }

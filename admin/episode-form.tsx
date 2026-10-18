@@ -19,7 +19,7 @@ import { api, type Code, type EpisodeDetail, type SessionInfo, type Settings } f
 import { episodeHasContent, type Buffers, type EpisodeEdit, type EpisodeText, type Snapshot, type UnsentEpisode } from './buffers.ts';
 import { copy, refusals } from './copy.ts';
 import { Modal, Notice } from './ui.tsx';
-import { DiscardDialog, FailureNotice, LanguageControl, Offer, PublishedNotice, Said, UNANSWERED, newKey, useWriter, type Action } from './writer.tsx';
+import { DiscardDialog, FailureNotice, LanguageControl, Offer, OfferName, PublishedNotice, Said, UNANSWERED, guessLang, newKey, useWriter, type Action } from './writer.tsx';
 import { unpublishEpisode, writeEditEpisode, writeNewEpisode } from './episode-writes.ts';
 
 export type EpisodeBuffers = Buffers<UnsentEpisode, EpisodeEdit>;
@@ -53,11 +53,20 @@ function textOf(episode: EpisodeDetail): EpisodeText {
 /** One line: the characters the server refuses in one (control characters) and the ones XML forbids are dropped as they arrive, say from a paste. */
 const cleanLine = (text: string): string => stripXmlForbidden(text).replace(/\p{Cc}/gu, ' ');
 
+/** What an offer of kept text is called, so the person can tell which text Put it back restores (PL-7): the episode's name, or "No name yet". In its own language and direction. */
+function EpisodeName({ name, lang }: { name: string; lang: Lang }) {
+  return name.trim() === '' ? <OfferName text={copy.podcast.noName} lang={lang} placeholder /> : <OfferName text={name.trim()} lang={lang} />;
+}
+
 const isFilled = (link: { label: string; url: string }): boolean => link.label.trim() !== '' || link.url.trim() !== '';
 
-/** The text as one comparable string, the way the server keeps it: an edit is unsaved while this differs from the episode as the server has it. */
-const signature = (text: EpisodeText): string =>
+/**
+ * The text as one comparable string, the way the server keeps it: an edit is unsaved while this differs from the episode as
+ * the server has it. The language is part of it, since a never-published episode may change it (PL-8).
+ */
+const signature = (text: EpisodeText, lang: Lang): string =>
   JSON.stringify([
+    lang,
     text.name.trim(),
     text.description.replace(/\r\n?/g, '\n').trim(),
     text.tags.map((tag) => tag.trim()),
@@ -91,13 +100,15 @@ interface FieldsProps {
   /** A published episode keeps one link: its only one has no Remove. */
   published: boolean;
   problems: Map<number, LinkProblem>;
+  /** The server refused the date: a day that hasn't come (PL-9). It is said here, at the field, and nothing typed is lost. */
+  dateProblem: boolean;
   /** Whether a copy of the text is in the local buffer: "Kept on this phone", the only draft signal (W7). */
   kept: boolean;
   dock: ComponentChildren;
 }
 
 /** Name, description, tags, date and links, in the episode's language and direction (AC-42). */
-function Fields({ idBase, lang, text, onText, today, readOnly, published, problems, kept, dock }: FieldsProps) {
+function Fields({ idBase, lang, text, onText, today, readOnly, published, problems, dateProblem, kept, dock }: FieldsProps) {
   const t = copy.episode;
   const dir = dirOf(lang);
   const set = (next: Partial<EpisodeText>) => onText({ ...text, ...next });
@@ -187,9 +198,18 @@ function Fields({ idBase, lang, text, onText, today, readOnly, published, proble
           id={`${idBase}-date`}
           type="date"
           value={text.date || today || ''}
+          // The server's day is the latest an episode can have (PL-9); the server is what refuses, since a field's `max` only hints.
+          max={today ?? undefined}
           readOnly={readOnly}
+          aria-invalid={dateProblem ? true : undefined}
+          aria-describedby={dateProblem ? `${idBase}-date-problem` : undefined}
           onInput={(event) => set({ date: (event.currentTarget as HTMLInputElement).value })}
         />
+        {dateProblem ? (
+          <p class="field__error" id={`${idBase}-date-problem`} role="alert">
+            {refusals.DATE_FUTURE}
+          </p>
+        ) : null}
       </div>
 
       <fieldset class="links">
@@ -401,6 +421,7 @@ function NewForm({ buffers, initial, restored, said, today, onDone, onChanged, o
       if (!answer.ok && UNANSWERED.has(answer.code) && rowId.current === null) unanswered.current = true;
       return answer;
     });
+    if (result && !result.ok && result.code === 'DATE_FUTURE') document.getElementById('new-episode-date')?.focus();
     if (!result?.ok) return;
     const episode = result.data.episode;
     onChanged();
@@ -448,6 +469,7 @@ function NewForm({ buffers, initial, restored, said, today, onDone, onChanged, o
 
   const t = copy.episode;
   const busy = writer.busy;
+  const keptTop = snap.kept[snap.kept.length - 1];
   // An edit that closed on success says so here, just above the actions, where a failure is said (PL-11); never both.
   const quiet = busy === null && writer.failure === null && writer.signInProblem === null;
   const dock = (
@@ -456,6 +478,7 @@ function NewForm({ buffers, initial, restored, said, today, onDone, onChanged, o
         writer={writer}
         words={t.failure}
         kept={stored}
+        atField="DATE_FUTURE"
         onRetry={() => void write(writer.failure?.action === 'saveDraft' ? 'saveDraft' : 'publish')}
         onSignIn={() => void signInAndRetry()}
       />
@@ -475,7 +498,7 @@ function NewForm({ buffers, initial, restored, said, today, onDone, onChanged, o
     <div class="composer" id="new-episode">
       {/* Text found again when the page opened, or set aside while another episode was edited and not yet put back. */}
       {snap.kept.length > 0 ? (
-        <Offer head={t.left.head} body={t.left.body}>
+        <Offer head={t.left.head} body={t.left.body} name={keptTop ? <EpisodeName name={keptTop.name} lang={keptTop.lang} /> : undefined}>
           <button type="button" class="btn" disabled={busy !== null} onClick={putBack}>
             {t.left.put}
           </button>
@@ -491,9 +514,10 @@ function NewForm({ buffers, initial, restored, said, today, onDone, onChanged, o
           </button>
         </Offer>
       ) : null}
-      {/* Once a row exists it has a language, and a PUT never changes it: the control is fixed from then on.
-          It is fixed too while a send went unanswered, since the row may exist in the language it was sent in. */}
-      <LanguageControl name="episode-language" lang={lang} locked={busy !== null || rowId.current !== null || unanswered.current} onChange={(next) => change({ lang: next })} />
+      {/* A draft saved here has never been published, so its language may still change: the next Save draft or Publish
+          sends it (PL-8). The control is fixed while a send is out, and while one went unanswered with no row known, since the
+          row may exist in the language it was sent in and a new key for another would add the episode twice. */}
+      <LanguageControl name="episode-language" lang={lang} locked={busy !== null || unanswered.current} onChange={(next) => change({ lang: next })} />
       <Fields
         idBase="new-episode"
         lang={lang}
@@ -503,6 +527,7 @@ function NewForm({ buffers, initial, restored, said, today, onDone, onChanged, o
         readOnly={busy !== null}
         published={false}
         problems={problems}
+        dateProblem={writer.failure?.code === 'DATE_FUTURE'}
         kept={stored && snap.unsent !== null}
         dock={dock}
       />
@@ -603,17 +628,21 @@ function EditForm({
   // What the server says about the episode changes as it is published and unpublished; the text is the person's.
   const [episode, setEpisode] = useState(loaded);
   const [text, setText] = useState<EpisodeText>(resume ? { name: resume.name, description: resume.description, tags: resume.tags, date: resume.date, links: resume.links } : textOf(loaded));
+  // A never-published episode may change its language (PL-8). A buffer from before PL1 has none: it reads as "unchanged", the row's own.
+  const [lang, setLang] = useState<Lang>(loaded.firstPublishedAt === null ? (resume?.lang ?? loaded.lang) : loaded.lang);
   // The text as the server has it, so "unsaved" means a difference from it, and a change put back isn't one.
-  const [base, setBase] = useState(() => signature(textOf(loaded)));
+  const [base, setBase] = useState(() => signature(textOf(loaded), loaded.lang));
   const [stored, setStored] = useState(true);
   const [note, setNote] = useState<Note | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [problems, setProblems] = useState<Map<number, LinkProblem>>(new Map());
   const writer = useWriter(onSession);
-  const live = useRef({ text, episode, base });
-  live.current = { text, episode, base };
+  const live = useRef({ text, lang, episode, base });
+  live.current = { text, lang, episode, base };
+  // Once published, an episode keeps its language: the page, the feed and the link have carried it (AC-14).
+  const mayChangeLanguage = episode.firstPublishedAt === null;
 
-  const dirty = signature(text) !== base;
+  const dirty = signature(text, lang) !== base;
   useEffect(() => onDirty(dirty), [dirty]);
 
   const day = (date: string) => formatDay(date, 'en');
@@ -621,19 +650,20 @@ function EditForm({
     episode.state === 'published' ? copy.episode.editingPublished(day(episode.date)) : episode.wasLive ? copy.episode.draftWasLive(day(episode.date)) : copy.episode.draft;
 
   /** Every change is written to the edit buffer as it is made, for as long as it differs from the episode. */
-  const change = (changed: EpisodeText) => {
+  const change = (changed: EpisodeText, nextLang: Lang = live.current.lang) => {
     // A cleared date is sent as none, and the server keeps the episode's own (`updateEpisode`). The field shows
     // that date again, so what is on screen is what a save keeps, rather than falling back to today.
     const next = changed.date === '' ? { ...changed, date: live.current.episode.date } : changed;
-    live.current = { ...live.current, text: next };
-    const differs = signature(next) !== live.current.base;
-    const result = buffers.apply(differs ? { type: 'edit-typed', edit: { id: loaded.id, ...next } } : { type: 'discarded', which: 'edit' });
+    live.current = { ...live.current, text: next, lang: nextLang };
+    const differs = signature(next, nextLang) !== live.current.base;
+    const result = buffers.apply(differs ? { type: 'edit-typed', edit: { id: loaded.id, ...next, lang: nextLang } } : { type: 'discarded', which: 'edit' });
     setStored(result.stored);
     setProblems(new Map());
     writer.edited();
     // Saying "Saved" or "Published" about text that has changed since would be wrong; what the server did to the episode's state stays true.
     setNote((current) => (current === 'unpublished' ? current : null));
     setText(next);
+    setLang(nextLang);
   };
 
   const run = async (action: Action) => {
@@ -648,16 +678,19 @@ function EditForm({
     }
     const before = live.current.episode;
     const sent = live.current.text;
-    const result = await writer.attempt(action, () => (action === 'unpublish' ? unpublishEpisode(before.id) : writeEditEpisode(before.id, sent, action === 'publish')));
+    // The language goes only for an episode that may still change it; the server refuses it for any other (LANG_FIXED).
+    const sentLang = before.firstPublishedAt === null ? live.current.lang : undefined;
+    const result = await writer.attempt(action, () => (action === 'unpublish' ? unpublishEpisode(before.id) : writeEditEpisode(before.id, sent, action === 'publish', sentLang)));
+    if (result && !result.ok && result.code === 'DATE_FUTURE') document.getElementById('edit-episode-date')?.focus();
     if (!result?.ok) return;
     const next = result.data.episode;
     setEpisode(next);
     onChanged();
     if (action === 'unpublish') return setNote('unpublished');
     // The server has the text: the edit buffer is cleared, and what is unsaved is measured from here.
-    const savedBase = signature(sent);
+    const savedBase = signature(sent, next.lang);
     setBase(savedBase);
-    live.current = { ...live.current, base: savedBase, episode: next };
+    live.current = { ...live.current, lang: next.lang, base: savedBase, episode: next };
     const keptBefore = buffers.read().kept.length > 0;
     const after = buffers.apply({ type: 'edit-confirmed' });
     setStored(after.stored);
@@ -705,6 +738,7 @@ function EditForm({
         writer={writer}
         words={t.failure}
         kept={stored}
+        atField="DATE_FUTURE"
         onRetry={() => void (writer.failure && run(writer.failure.action))}
         onSignIn={() => void signInAndRetry()}
       />
@@ -744,15 +778,18 @@ function EditForm({
         </button>
       </div>
       {keptNote ? <Offer head={t.keptNote.head} body={t.keptNote.body} /> : null}
+      {/* Shown while the episode has never been published (PL-8): a published or was-live episode keeps its language. */}
+      {mayChangeLanguage ? <LanguageControl name="edit-episode-language" lang={lang} locked={busy !== null} onChange={(next) => change(live.current.text, next)} /> : null}
       <Fields
         idBase="edit-episode"
-        lang={episode.lang}
+        lang={lang}
         text={text}
-        onText={change}
+        onText={(next) => change(next)}
         today={today}
         readOnly={busy !== null}
         published={episode.state === 'published'}
         problems={problems}
+        dateProblem={writer.failure?.code === 'DATE_FUTURE'}
         kept={stored && dirty}
         dock={dock}
       />
@@ -804,13 +841,17 @@ export function LeaveDialog({ onStay, onLeave }: { onStay: () => void; onLeave: 
   );
 }
 
-/** The offer for changes left in the edit buffer when the page opened: put them back, or discard (asking once more). */
-export function EditOffer({ onPut, onDiscard }: { onPut: () => void; onDiscard: () => void }) {
+/**
+ * The offer for changes left in the edit buffer when the page opened: put them back, or discard (asking once more). It
+ * names the episode the changes are to (PL-7). A buffer from before PL1 has no language, and the episode isn't read yet,
+ * so the language of its words stands in for it.
+ */
+export function EditOffer({ edit, onPut, onDiscard }: { edit: EpisodeEdit; onPut: () => void; onDiscard: () => void }) {
   const t = copy.episode.leftEdit;
   const [asking, setAsking] = useState(false);
   return (
     <>
-      <Offer head={t.head} body={t.body}>
+      <Offer head={t.head} body={t.body} name={<EpisodeName name={edit.name} lang={edit.lang ?? guessLang(edit.name)} />}>
         <button type="button" class="btn" onClick={onPut}>
           {t.put}
         </button>

@@ -46,6 +46,11 @@ export interface Unsent extends UnsentBase {
 export interface EditBuffer extends EditBase {
   title: string;
   doc: Doc;
+  /**
+   * The language the edit had chosen (PL-8). A buffer stored before PL1 has none, and is read as "unchanged": the row's
+   * own language, never English. Only a never-published entry may change it; for any other the row's language wins.
+   */
+  lang?: Lang;
 }
 
 /** What a person has typed into the episode form, as the form holds it: every field a string, tags and links in rows. */
@@ -65,7 +70,10 @@ export interface EpisodeText {
 
 export interface UnsentEpisode extends UnsentBase, EpisodeText {}
 
-export interface EpisodeEdit extends EditBase, EpisodeText {}
+export interface EpisodeEdit extends EditBase, EpisodeText {
+  /** As `EditBuffer.lang`: absent in a buffer stored before PL1, which is read as the row's own language. */
+  lang?: Lang;
+}
 
 export interface Snapshot<U extends UnsentBase = Unsent, E extends EditBase = EditBuffer> {
   unsent: U | null;
@@ -189,7 +197,7 @@ function readEdit(value: unknown): EditBuffer | null {
   if (!isObject(value)) return null;
   const doc = readDoc(value.doc);
   if (!isString(value.id) || !isString(value.title) || !doc) return null;
-  return { id: value.id, title: value.title, doc };
+  return { id: value.id, title: value.title, doc, ...(isLang(value.lang) ? { lang: value.lang } : {}) };
 }
 
 function readEpisodeText(value: Record<string, unknown>): EpisodeText | null {
@@ -215,7 +223,7 @@ function readUnsentEpisode(value: unknown): UnsentEpisode | null {
 function readEpisodeEdit(value: unknown): EpisodeEdit | null {
   if (!isObject(value) || !isString(value.id)) return null;
   const text = readEpisodeText(value);
-  return text ? { id: value.id, ...text } : null;
+  return text ? { id: value.id, ...text, ...(isLang(value.lang) ? { lang: value.lang } : {}) } : null;
 }
 
 function parse(raw: string | null): unknown {

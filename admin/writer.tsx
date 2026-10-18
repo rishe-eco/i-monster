@@ -8,10 +8,11 @@
 // signed back in over the text, once, and never in a loop (W6, J3.4).
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { Lang } from '../lib/i18n.ts';
+import { dirOf, type Lang } from '../lib/i18n.ts';
 import { limits } from '../lib/limits.ts';
 import type { Code, Result, SessionInfo } from './api.ts';
 import { copy, refusals } from './copy.ts';
+import { Runs } from './doc.tsx';
 import { signIn } from './passkey.ts';
 import { Modal, Notice } from './ui.tsx';
 
@@ -121,16 +122,20 @@ export function FailureNotice({
   writer,
   words,
   kept,
+  atField,
   onRetry,
   onSignIn,
 }: {
   writer: Writer;
   words: FailureWords;
   kept: boolean;
+  /** A refusal the form says at its own field, so this notice stays quiet for it (a date after today). */
+  atField?: Code;
   onRetry: () => void;
   onSignIn: () => void;
 }) {
-  const { failure, signInProblem, busy } = writer;
+  const { failure: raised, signInProblem, busy } = writer;
+  const failure = raised && raised.code === atField ? null : raised;
   const t = words;
   if (!failure && !signInProblem) return null;
   const action = failure?.action;
@@ -246,13 +251,34 @@ export function Said({ head, body }: { head: string; body: string }) {
   );
 }
 
-/** A notice about text that is set aside or found again, with the choices it offers. */
-export function Offer({ head, body, children }: { head: string; body: string; children?: ComponentChildren }) {
+/** The language of some words, by their script: Persian when more of the letters are Arabic-script than Latin. For a buffer that kept no language. */
+export function guessLang(text: string): Lang {
+  const arabic = (text.match(/[\u0600-\u06FF]/g) ?? []).length;
+  const latin = (text.match(/[A-Za-z]/g) ?? []).length;
+  return arabic > latin ? 'fa' : 'en';
+}
+
+/**
+ * What a kept text is called, so an offer says which text Put it back restores (PL-7): in the text's own language and
+ * direction whatever the admin's is, with the runs of the other script isolated. `placeholder` is a name the text
+ * doesn't have yet ("No name yet"), drawn quieter.
+ */
+export function OfferName({ text, lang, placeholder = false }: { text: string; lang: Lang; placeholder?: boolean }) {
+  return (
+    <p class={placeholder ? 'offer__name offer__name--placeholder' : 'offer__name'} lang={lang} dir={dirOf(lang)}>
+      {placeholder ? text : <Runs text={text} lang={lang} />}
+    </p>
+  );
+}
+
+/** A notice about text that is set aside or found again, with the choices it offers, and the name of the text when there is one. */
+export function Offer({ head, body, name, children }: { head: string; body: string; name?: ComponentChildren; children?: ComponentChildren }) {
   return (
     <div class="notice notice--neutral offer" role="status">
       <p>
         <strong>{head}</strong> {body}
       </p>
+      {name}
       {children ? <div class="offer__actions">{children}</div> : null}
     </div>
   );
