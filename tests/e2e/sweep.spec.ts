@@ -26,7 +26,15 @@ const richLog = (lang: Lang) => [
 for (const lang of LANGS) {
   test.describe(`the sweep, public pages, ${lang}`, () => {
     test(`the landing page`, async ({ page, browser, baseURL }, info) => {
+      // The intro reveals i-MoNSTeR from 0.9 s to 2.9 s after load. Swept inside that window, axe compares the
+      // revealed letters with the name "iMNSTR" (label-content-name-mismatch), so the sweep is of the page at
+      // rest: the intro is played out first (found at PL1's verify; the intro has its own test above).
+      await page.clock.install();
       await open(page, homePath(lang));
+      await page.clock.runFor(3000);
+      await expect(page.locator('.wordmark--hero')).not.toHaveClass(/is-revealed/);
+      // The page clock moves the script's timers, not CSS: wait for the letters' own transition to close them.
+      await page.waitForFunction(() => [...document.querySelectorAll('.wordmark--hero .wordmark__hid')].every((el) => el.getBoundingClientRect().width === 0));
       await sweep(page, info, { browser, baseURL, reducedAt: homePath(lang) });
     });
 
