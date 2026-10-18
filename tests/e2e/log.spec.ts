@@ -60,7 +60,9 @@ for (const lang of LANGS) {
       await expect(page).toHaveURL(/\?before=[0-9a-z]{10}$/);
       await expect(page.locator('main article')).toHaveCount(1);
       await expect(page.locator('main article')).toContainText(sampleText(lang, 21));
-      await expect(page.locator('.older')).toHaveCount(0);
+      // The last page has no Older row; its one row goes back (PL-10).
+      await expect(page.locator('.older a[rel=next]')).toHaveCount(0);
+      await expect(page.locator('.older a[rel=prev]')).toHaveCount(1);
       await expectNoSidewaysScroll(page, 360);
       await expectNoSidewaysScroll(page, 180);
     });
@@ -275,6 +277,18 @@ test.describe('JavaScript off', () => {
       await expect(page.locator('main article')).toHaveCount(20);
       await page.locator('.older a').click();
       await expect(page.locator('main article')).toHaveCount(1);
+    });
+
+    test(`"Newer entries" goes back to the first page, ${lang} (PL-10)`, async ({ page, request }) => {
+      await resetLog(request, plainEntries(lang, 21));
+      await page.goto(logPath(lang));
+      await expect(page.locator('.older a[rel=prev]')).toHaveCount(0);
+      await page.locator('.older a[rel=next]').click();
+      await expect(page.locator('main article')).toHaveCount(1);
+      await page.locator('.older a[rel=prev]').click();
+      // The bare path, with no cursor, and the same twenty entries as before.
+      await expect(page).toHaveURL(new RegExp(`${logPath(lang)}$`));
+      await expect(page.locator('main article')).toHaveCount(20);
     });
   }
 });

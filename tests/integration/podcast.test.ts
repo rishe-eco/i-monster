@@ -30,14 +30,15 @@ const CB = { label: 'Castbox', url: 'https://castbox.fm/episode/abc' };
 
 function seed(lang: Lang, n: number, extra: Partial<Parameters<typeof insertEpisodeFixture>[1]> = {}) {
   // Newest is n = 1: each is a day older than the last.
-  const day = String(28 - n).padStart(2, '0');
+  // A date n days before 28 Sep, past the month's start too, so 45 episodes each get their own day.
+  const date = new Date(Date.UTC(2026, 8, 28 - n)).toISOString().slice(0, 10);
   return insertEpisodeFixture(t.db, {
     lang,
     id: id(n),
     name: lang === 'fa' ? `نام ${n}` : `Name ${n}`,
     description: lang === 'fa' ? `توضیح ${n}.` : `Description ${n}.`,
     tags: [lang === 'fa' ? 'برچسب' : 'tag'],
-    date: `2026-09-${day}`,
+    date,
     links: [YT],
     ...extra,
   });
@@ -197,6 +198,56 @@ describe.each<Lang>(['en', 'fa'])('the podcast page, %s', (lang) => {
     expect(second).toContain(lang === 'fa' ? 'نام 21' : 'Name 21');
     expect(second).not.toContain('Older episodes');
     expect(second).not.toContain('قسمت‌های قدیمی‌تر');
+  });
+
+  it('gives the first page no Newer row, page 2 the bare path, and page 3 the cursor of page 2 (PL-10)', async () => {
+    for (let n = 1; n <= 45; n++) seed(lang, n);
+    const newer = lang === 'fa' ? 'قسمت‌های تازه‌تر' : 'Newer episodes';
+    const first = await html(path);
+    expect(first).not.toContain('rel="prev"');
+    expect(first).not.toContain(newer);
+    const second = await html(`${path}?before=${id(20)}`);
+    expect(second).toContain(`<a class="big-row" href="${path}" rel="prev">`);
+    expect(second).toContain(newer);
+    const third = await html(`${path}?before=${id(40)}`);
+    expect(third).toContain(`href="${path}?before=${id(20)}" rel="prev"`);
+    expect(second.indexOf('rel="prev"')).toBeLessThan(second.indexOf('rel="next"'));
+    for (const body of [second, third]) {
+      const block = body.slice(body.indexOf('class="older"'), body.indexOf('</main>')).replace(/<[^>]*>/g, ' ');
+      expect(block).not.toMatch(/\d/);
+    }
+  });
+
+  it('walks Newer from the last page through the same items, page by page, as Older did (PL-10)', () => {
+    for (let n = 1; n <= 45; n++) seed(lang, n);
+    const older: string[][] = [];
+    let page = listPublishedEpisodes(t.db, lang, null);
+    older.push(page.episodes.map((e) => e.id));
+    while (page.olderBefore) {
+      page = listPublishedEpisodes(t.db, lang, getPublishedEpisode(t.db, lang, page.olderBefore));
+      older.push(page.episodes.map((e) => e.id));
+    }
+    expect(older.map((p) => p.length)).toEqual([20, 20, 5]);
+    const walked: string[][] = [page.episodes.map((e) => e.id)];
+    while (page.newer) {
+      page = listPublishedEpisodes(t.db, lang, page.newer === 'first' ? null : getPublishedEpisode(t.db, lang, page.newer));
+      walked.unshift(page.episodes.map((e) => e.id));
+    }
+    expect(walked).toEqual(older);
+  });
+
+  it('pages and walks back across episodes on one date, the tie broken by id (PL-10)', () => {
+    for (let n = 1; n <= 19; n++) seed(lang, n);
+    for (const n of [20, 21, 22]) seed(lang, n, { date: '2026-09-01' });
+    const second = listPublishedEpisodes(t.db, lang, getPublishedEpisode(t.db, lang, id(20)));
+    expect(second.episodes.map((e) => e.id)).toEqual([id(21), id(22)]);
+    expect(second.newer).toBe('first');
+    const mid = listPublishedEpisodes(t.db, lang, getPublishedEpisode(t.db, lang, id(21)), 2);
+    expect(mid.episodes.map((e) => e.id)).toEqual([id(22)]);
+    // A page of two: the page before this one ends at the 21st, and the one before that at the 19th.
+    expect(mid.newer).toBe(id(19));
+    const back = listPublishedEpisodes(t.db, lang, getPublishedEpisode(t.db, lang, id(22)), 2);
+    expect(back.newer).toBe(id(20));
   });
 
   it('shows no count, no page number and no "latest" anywhere (AC-5, AC-30)', async () => {

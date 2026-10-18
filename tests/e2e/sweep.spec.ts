@@ -5,7 +5,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { resetPodcast, plainEpisodes } from './podcast-support.ts';
 import { DAY, MIXED, NOW, cspViolations, expectNoSidewaysScroll, fontsSettled, plainEntries, resetLog, scheme, watchCsp, type Lang } from './support.ts';
-import { axeViolations, clippedText, expectNoMotion, forcedColourProblems, sweep, tapTargetFailures } from './sweep-support.ts';
+import { axeViolations, brokenWords, clippedText, expectNoMotion, forcedColourProblems, sweep, tapTargetFailures } from './sweep-support.ts';
 
 const LANGS: Lang[] = ['en', 'fa'];
 const logPath = (lang: Lang) => (lang === 'fa' ? '/fa/log' : '/log');
@@ -49,6 +49,24 @@ for (const lang of LANGS) {
       await expect(page).toHaveURL(/\?before=/);
       const older = new URL(page.url());
       await sweep(page, info, { browser, baseURL, reducedAt: older.pathname + older.search });
+    });
+
+    test(`the log, a middle page (Newer and Older rows)`, async ({ page, request, browser, baseURL }, info) => {
+      await resetLog(request, plainEntries(lang, 45));
+      await open(page, logPath(lang));
+      await page.locator('.older a[rel=next]').click();
+      await expect(page.locator('.older a')).toHaveCount(2);
+      const middle = new URL(page.url());
+      await sweep(page, info, { browser, baseURL, reducedAt: middle.pathname + middle.search });
+    });
+
+    test(`the podcast, a middle page (Newer and Older rows)`, async ({ page, request, browser, baseURL }, info) => {
+      await resetPodcast(request, plainEpisodes(lang, 45));
+      await open(page, podcastPath(lang));
+      await page.locator('.older a[rel=next]').click();
+      await expect(page.locator('.older a')).toHaveCount(2);
+      const middle = new URL(page.url());
+      await sweep(page, info, { browser, baseURL, reducedAt: middle.pathname + middle.search });
     });
 
     test(`one entry`, async ({ page, request, browser, baseURL }, info) => {
@@ -101,6 +119,8 @@ test.describe('the wordmark', () => {
     test(`reveals on keyboard focus, ${lang}`, async ({ page, request }) => {
       await resetLog(request, []);
       await open(page, logPath(lang));
+      // The skip link is first (PL-6); the wordmark is second.
+      await page.keyboard.press('Tab');
       await page.keyboard.press('Tab');
       await expect(page.locator('.wordmark')).toBeFocused();
       await page.waitForTimeout(600);
@@ -324,6 +344,14 @@ test.describe('the highlighter and the rows', () => {
     expect(await page.locator('.page-lede--intro mark').evaluate((el) => getComputedStyle(el).animationName)).toBe('mark-draw');
   });
 
+  test('a row title keeps its full size at 360 px: the fit only bites when zoomed (PL-4)', async ({ page }) => {
+    await page.goto('/');
+    const sizes = await page.locator('.big-row__title').evaluateAll((els) => els.map((el) => getComputedStyle(el).fontSize));
+    expect(sizes.length).toBeGreaterThan(0);
+    // --size-cta at 360 px is 2.125rem, 34 px.
+    for (const size of sizes) expect(size).toBe('34px');
+  });
+
   test('a big row sweeps its highlighter in over 0.35 s on hover, and back out', async ({ page }) => {
     await page.goto('/');
     const row = page.locator('.big-row').first();
@@ -361,6 +389,52 @@ test.describe('the highlighter and the rows', () => {
       await context.close();
     }
   });
+});
+
+// ── The skip link (PL-6) ──
+
+test.describe('the skip link', () => {
+  for (const lang of LANGS) {
+    const label = lang === 'fa' ? 'پرش به محتوا' : 'Skip to content';
+    const pages: [string, () => string][] = [
+      ['the landing page', () => homePath(lang)],
+      ['the log', () => logPath(lang)],
+      ['the podcast', () => podcastPath(lang)],
+      ['the 404', () => (lang === 'fa' ? '/fa/no-such-page' : '/no-such-page')],
+    ];
+    for (const [name, path] of pages) {
+      for (const width of [360, 180]) {
+        test(`on ${name}, ${lang}, at ${width} px: out of view until the first Tab, then visible, and Enter moves focus to main`, async ({ page, request }) => {
+          await resetLog(request, plainEntries(lang, 2));
+          await open(page, path());
+          await page.setViewportSize({ width, height: 800 });
+          await fontsSettled(page);
+          const link = page.locator('.skip-link');
+          await expect(link).toHaveText(label);
+          await expect(link).toHaveAttribute('href', '#main');
+          // Before any Tab it is above the viewport, and the same size it will be on focus.
+          const resting = await link.boundingBox();
+          expect(resting && resting.y + resting.height).toBeLessThanOrEqual(0);
+          await page.keyboard.press('Tab');
+          await expect(link).toBeFocused();
+          const box = await link.boundingBox();
+          expect(box).not.toBeNull();
+          expect(box!.y).toBeGreaterThanOrEqual(0);
+          expect(box!.x).toBeGreaterThanOrEqual(0);
+          expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+          expect(box!.height).toBeGreaterThanOrEqual(44);
+          await page.keyboard.press('Enter');
+          await expect(page.locator('main')).toBeFocused();
+        });
+      }
+    }
+    test(`on an entry page, ${lang}, the first Tab focuses it`, async ({ page, request }) => {
+      const [id] = await resetLog(request, plainEntries(lang, 1));
+      await open(page, `${logPath(lang)}/${id}`);
+      await page.keyboard.press('Tab');
+      await expect(page.locator('.skip-link')).toBeFocused();
+    });
+  }
 });
 
 // ── The checks themselves: each is shown to fail on a page made wrong on purpose ──
@@ -427,6 +501,25 @@ test.describe('the checks catch what they claim to', () => {
     expect((await forcedColourProblems(page)).join('\n')).toMatch(/has no edge/);
     expect((await forcedColourProblems(page)).join('\n')).toMatch(/mark "a lost mark"/);
     expect(await cspViolations(page)).not.toEqual([]);
+  });
+
+  test('the broken-word check fails on a row title forced narrow, and passes on the page as it is (PL-4)', async ({ page, request }) => {
+    await resetLog(request, plainEntries('fa', 23));
+    await open(page, '/fa/log');
+    await fontsSettled(page);
+    await page.setViewportSize({ width: 180, height: 800 });
+    await page.waitForTimeout(100);
+    expect(await brokenWords(page)).toEqual([]);
+    // Force the title into a column too narrow for its longest word: the browser cuts the word, and the check says so.
+    await page.evaluate(() => {
+      const title = document.querySelector<HTMLElement>('.big-row__title');
+      if (!title) throw new Error('no row title');
+      title.style.setProperty('font-size', '3rem', 'important');
+      title.style.setProperty('inline-size', '3rem', 'important');
+      title.style.setProperty('display', 'block', 'important');
+    });
+    expect((await brokenWords(page)).length).toBeGreaterThan(0);
+    await page.setViewportSize({ width: 360, height: 800 });
   });
 
   test('the motion check fails when something moves under reduced motion', async ({ browser, baseURL, request }, info) => {

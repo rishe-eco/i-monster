@@ -21,8 +21,8 @@ export function podcastRoutes(db: Db, content: Record<Lang, SiteContent>): Hono<
       before = isId(cursor) ? getPublishedEpisode(db, lang, cursor) : null;
       if (!before) return c.notFound();
     }
-    const { episodes, olderBefore } = listPublishedEpisodes(db, lang, before);
-    return page(c, <Podcast lang={lang} assets={c.get('assets')} show={content[lang].show} episodes={episodes} olderBefore={olderBefore} />);
+    const { episodes, olderBefore, newer } = listPublishedEpisodes(db, lang, before);
+    return page(c, <Podcast lang={lang} assets={c.get('assets')} show={content[lang].show} episodes={episodes} olderBefore={olderBefore} newer={newer} />);
   };
 
   routes.get('/podcast', showPodcast('en'));

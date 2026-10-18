@@ -13,6 +13,10 @@ import {
   type Lang,
 } from './support.ts';
 
+// The owner line is one sentence and no more; the cookie line is the footer's, once (PL-3).
+const OWNER_LINE: Record<Lang, string> = { en: 'This is iMNSTR’s site.', fa: 'این سایت iMNSTR است.' };
+const NO_COOKIES: Record<Lang, string> = { en: 'No cookies here. The monster ate them.', fa: 'اینجا کوکی نداریم. هیولا خوردشان.' };
+
 const PAGES: [Lang, string, string][] = [
   ['en', '/no-such-page', 'Something ate this page.'],
   ['fa', '/fa/no-such-page', 'چیزی این صفحه را خورد.'],
@@ -39,6 +43,18 @@ for (const [lang, path, title] of PAGES) {
       await expect(page.locator(`main a[href="${prefix}/log"]`)).toBeVisible();
       await expect(page.locator(`main a[href="${prefix}/podcast"]`)).toBeVisible();
       await expect(page.locator(`main a[href="${lang === 'fa' ? '/fa/' : '/'}"]`)).toBeVisible();
+    });
+
+    test('says whose site it is once, and the cookie line only in the footer (PL-3)', async ({ page }) => {
+      await page.goto(path);
+      const line = page.locator('.owner-line');
+      await expect(line).toHaveText(OWNER_LINE[lang]);
+      // The owner's name is isolated from the sentence around it, and still reads as one word.
+      if (lang === 'fa') await expect(line.locator('bdi')).toHaveText('iMNSTR');
+      const text = await page.locator('body').innerText();
+      expect(text.split(NO_COOKIES[lang]).length - 1).toBe(1);
+      await expect(page.locator('footer')).toContainText(NO_COOKIES[lang]);
+      await expect(line).not.toContainText(NO_COOKIES[lang]);
     });
 
     test('still fits when the 360px phone is zoomed to 200% (HIG #8)', async ({ page }) => {

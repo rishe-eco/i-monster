@@ -14,7 +14,7 @@ import { localePath, strings, type Lang } from '../lib/i18n.ts';
 import { renderLines } from '../lib/render.ts';
 import { SITE_ORIGIN } from '../lib/switch.ts';
 import { fill } from './fill.tsx';
-import { ArrowIcon, ExternalIcon } from './icons.tsx';
+import { ArrowIcon, BackArrowIcon, ExternalIcon } from './icons.tsx';
 import { Layout } from './layout.tsx';
 import { Eyes } from './wordmark.tsx';
 
@@ -25,6 +25,8 @@ export interface PodcastProps {
   episodes: PublicEpisode[];
   /** The cursor for "Older episodes", or null on the last page. */
   olderBefore: string | null;
+  /** Where "Newer episodes" goes: null on the first page, 'first' for the bare path, else a cursor. */
+  newer: string | 'first' | null;
 }
 
 /**
@@ -74,7 +76,7 @@ const Episode: FC<{ lang: Lang; episode: PublicEpisode; showName: string }> = ({
   );
 };
 
-export const Podcast: FC<PodcastProps> = ({ lang, assets, show, episodes, olderBefore }) => {
+export const Podcast: FC<PodcastProps> = ({ lang, assets, show, episodes, olderBefore, newer }) => {
   const t = strings(lang);
   return (
     <Layout lang={lang} kind="podcast" assets={assets} title={show.name} description={t.podcast.description} current="podcast">
@@ -103,12 +105,20 @@ export const Podcast: FC<PodcastProps> = ({ lang, assets, show, episodes, olderB
           ))}
         </div>
       )}
-      {olderBefore ? (
+      {olderBefore || newer ? (
         <div class="older">
-          <a class="big-row" href={`${localePath(lang, '/podcast')}?before=${olderBefore}`} rel="next">
-            <span class="big-row__title">{t.podcast.older}</span>
-            <ArrowIcon class="big-row__arrow" />
-          </a>
+          {newer ? (
+            <a class="big-row" href={newer === 'first' ? localePath(lang, '/podcast') : `${localePath(lang, '/podcast')}?before=${newer}`} rel="prev">
+              <span class="big-row__title">{t.podcast.newer}</span>
+              <BackArrowIcon class="big-row__arrow" />
+            </a>
+          ) : null}
+          {olderBefore ? (
+            <a class="big-row" href={`${localePath(lang, '/podcast')}?before=${olderBefore}`} rel="next">
+              <span class="big-row__title">{t.podcast.older}</span>
+              <ArrowIcon class="big-row__arrow" />
+            </a>
+          ) : null}
         </div>
       ) : null}
     </Layout>

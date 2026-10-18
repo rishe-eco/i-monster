@@ -10,6 +10,14 @@ export const ArrowIcon: FC<{ class?: string }> = ({ class: extra }) => (
   </svg>
 );
 
+/** The arrow of a row that goes back, to the previous page: points the way "Older" does not, and mirrors in Persian. */
+export const BackArrowIcon: FC<{ class?: string }> = ({ class: extra }) => (
+  <svg class={`icon icon--flip ${extra ?? ''}`.trim()} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M19 12H5" />
+    <path d="m12 19-7-7 7-7" />
+  </svg>
+);
+
 export const ExternalIcon: FC<{ class?: string }> = ({ class: extra }) => (
   <svg class={`icon icon--flip icon--small ${extra ?? ''}`.trim()} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
     <path d="M7 7h10v10" />

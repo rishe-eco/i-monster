@@ -5,6 +5,8 @@ export interface Strings {
   owner: string;
   /** The text in the browser tab for pages that have no title of their own. */
   siteTitle: string;
+  /** The skip link, first on every public page (PL-6). */
+  skip: string;
   nav: {
     label: string;
     footerLabel: string;
@@ -36,6 +38,8 @@ export interface Strings {
     lede: string;
     description: string;
     older: string;
+    /** The row back to the previous page; shown only past the first page (PL-10). */
+    newer: string;
     empty: string;
     /** Holds {who} and {podcast}, each a link. */
     emptyMeanwhile: string;
@@ -49,6 +53,8 @@ export interface Strings {
     /** A show-level link's text; holds {platform}, the platform's name as the content file gives it. */
     showOn: string;
     older: string;
+    /** The row back to the previous page; shown only past the first page (PL-10). */
+    newer: string;
     empty: string;
     /** What stands between an episode's tags. */
     tagSeparator: string;

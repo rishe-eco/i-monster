@@ -1,5 +1,30 @@
 /* The shell and the landing and 404 pages. Logical properties and tokens only. */
 
+/* The skip link (PL-6). It keeps its full size and is moved out of view, not clipped to a pixel: the tap-size
+   check measures every link that has a box, and a 1 x 1 link would fail it. It comes into view on focus. */
+.skip-link {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: var(--space-2);
+  display: flex;
+  align-items: center;
+  min-block-size: var(--hit);
+  padding-inline: var(--space-2);
+  background: var(--button-fill);
+  color: var(--button-ink);
+  font-family: var(--font-ui);
+  font-size: var(--size-ui);
+  font-weight: 800;
+  border-radius: var(--radius-button);
+  text-decoration: none;
+  transform: translateY(-200%);
+  z-index: 1;
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
 .wrap {
   /* The container the hero wordmark's size is measured against (--fit-wordmark in tokens.css). */
   container-type: inline-size;
@@ -267,7 +292,8 @@
 .big-row__title {
   font-family: var(--font-ui);
   font-weight: 800;
-  font-size: var(--size-cta);
+  /* Gives way to the column it sits in, so the longest word of a row's title fits it when zoomed (PL-4). */
+  font-size: min(var(--size-cta), var(--fit-row-title));
   line-height: var(--leading-display);
   letter-spacing: var(--tracking-display);
 }
@@ -610,7 +636,7 @@
 }
 
 .big-row--small .big-row__title {
-  font-size: var(--size-title);
+  font-size: min(var(--size-title), var(--fit-row-title));
 }
 
 .empty {

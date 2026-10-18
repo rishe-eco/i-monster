@@ -9,7 +9,7 @@ import type { PublicEntry } from '../lib/entries.ts';
 import type { AssetManifest } from '../lib/assets.ts';
 import { localePath, strings, type Lang } from '../lib/i18n.ts';
 import { renderParagraphs } from '../lib/render.ts';
-import { ArrowIcon, FeedIcon } from './icons.tsx';
+import { ArrowIcon, BackArrowIcon, FeedIcon } from './icons.tsx';
 import { Layout } from './layout.tsx';
 import { fill } from './fill.tsx';
 import { Eyes } from './wordmark.tsx';
@@ -20,6 +20,8 @@ export interface LogProps {
   entries: PublicEntry[];
   /** The cursor for "Older entries", or null on the last page. */
   olderBefore: string | null;
+  /** Where "Newer entries" goes: null on the first page, 'first' for the bare path, else a cursor. */
+  newer: string | 'first' | null;
 }
 
 /** The ¶, the date as a link to the entry, the title inline if there is one, then the first paragraph. */
@@ -46,7 +48,7 @@ const EntryBlock: FC<{ lang: Lang; entry: PublicEntry }> = ({ lang, entry }) => 
   );
 };
 
-export const Log: FC<LogProps> = ({ lang, assets, entries, olderBefore }) => {
+export const Log: FC<LogProps> = ({ lang, assets, entries, olderBefore, newer }) => {
   const t = strings(lang);
   const feed = localePath(lang, '/log/feed.xml');
   return (
@@ -75,12 +77,20 @@ export const Log: FC<LogProps> = ({ lang, assets, entries, olderBefore }) => {
           ))}
         </div>
       )}
-      {olderBefore ? (
+      {olderBefore || newer ? (
         <div class="older">
-          <a class="big-row" href={`${localePath(lang, '/log')}?before=${olderBefore}`} rel="next">
-            <span class="big-row__title">{t.log.older}</span>
-            <ArrowIcon class="big-row__arrow" />
-          </a>
+          {newer ? (
+            <a class="big-row" href={newer === 'first' ? localePath(lang, '/log') : `${localePath(lang, '/log')}?before=${newer}`} rel="prev">
+              <span class="big-row__title">{t.log.newer}</span>
+              <BackArrowIcon class="big-row__arrow" />
+            </a>
+          ) : null}
+          {olderBefore ? (
+            <a class="big-row" href={`${localePath(lang, '/log')}?before=${olderBefore}`} rel="next">
+              <span class="big-row__title">{t.log.older}</span>
+              <ArrowIcon class="big-row__arrow" />
+            </a>
+          ) : null}
         </div>
       ) : null}
     </Layout>

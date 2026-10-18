@@ -100,7 +100,68 @@ describe.each<Lang>(['en', 'fa'])('the log, %s', (lang) => {
     const body = await second.text();
     expect(body.match(/<article class="entry">/g)?.length).toBe(1);
     expect(body).toContain(`/log/${id(21)}`);
-    expect(body).not.toContain('class="older"');
+    // The last page has no way further back in time, only the way to the newer page (PL-10).
+    expect(body).not.toContain('rel="next"');
+    expect(body).toContain(`<a class="big-row" href="${log}" rel="prev">`);
+  });
+
+  it('gives the first page no Newer row, page 2 the bare path, and page 3 the cursor of page 2 (PL-10)', async () => {
+    for (let n = 1; n <= 45; n++) seed(lang, n);
+    const newer = lang === 'fa' ? 'نوشته‌های تازه‌تر' : 'Newer entries';
+    const first = await html(log);
+    expect(first).not.toContain('rel="prev"');
+    expect(first).not.toContain(newer);
+    // Page 2 starts after the 20th; its Newer is the bare path, with no cursor.
+    const second = await html(`${log}?before=${id(20)}`);
+    expect(second).toContain(`<a class="big-row" href="${log}" rel="prev">`);
+    expect(second).toContain(newer);
+    // Page 3 starts after the 40th; its Newer is page 2's cursor, the 20th.
+    const third = await html(`${log}?before=${id(40)}`);
+    expect(third).toContain(`href="${log}?before=${id(20)}" rel="prev"`);
+    // The Newer row comes before the Older one, in the one block.
+    expect(second.indexOf('rel="prev"')).toBeLessThan(second.indexOf('rel="next"'));
+    // No digits in the rows' text beyond the dates: nothing counts (AC-30, house rule 1).
+    for (const body of [second, third]) {
+      const block = body.slice(body.indexOf('class="older"'), body.indexOf('</main>')).replace(/<[^>]*>/g, ' ');
+      expect(block).not.toMatch(/\d/);
+    }
+  });
+
+  it('walks Newer from the last page through the same items, page by page, as Older did (PL-10)', () => {
+    for (let n = 1; n <= 45; n++) seed(lang, n);
+    const older: string[][] = [];
+    let cursor: string | null = null;
+    let page = listPublished(t.db, lang, null);
+    older.push(page.entries.map((e) => e.id));
+    for (cursor = page.olderBefore; cursor; cursor = page.olderBefore) {
+      page = listPublished(t.db, lang, getPublished(t.db, lang, cursor));
+      older.push(page.entries.map((e) => e.id));
+    }
+    expect(older.map((p) => p.length)).toEqual([20, 20, 5]);
+    // Newer from the last page: each page's `newer` is the cursor of the page before it.
+    const walked: string[][] = [page.entries.map((e) => e.id)];
+    while (page.newer) {
+      page = listPublished(t.db, lang, page.newer === 'first' ? null : getPublished(t.db, lang, page.newer));
+      walked.unshift(page.entries.map((e) => e.id));
+    }
+    expect(walked).toEqual(older);
+  });
+
+  it('pages and walks back across entries at the same instant, the tie broken by id (PL-10)', () => {
+    for (let n = 1; n <= 19; n++) seed(lang, n);
+    for (const n of [20, 21, 22]) {
+      insertPublished(t.db, { lang, id: id(n), body: docFromText(`Tie ${n}.`), firstPublishedAt: NOW - 20 * DAY });
+    }
+    const second = listPublished(t.db, lang, getPublished(t.db, lang, id(20)));
+    expect(second.entries.map((e) => e.id)).toEqual([id(21), id(22)]);
+    expect(second.newer).toBe('first');
+    // A page of two, walked from the middle of the tie: the cursor lands on the right entry.
+    const mid = listPublished(t.db, lang, getPublished(t.db, lang, id(21)), 2);
+    expect(mid.entries.map((e) => e.id)).toEqual([id(22)]);
+    // A page of two: the page before this one ends at the 21st, and the one before that at the 19th.
+    expect(mid.newer).toBe(id(19));
+    const back = listPublished(t.db, lang, getPublished(t.db, lang, id(22)), 2);
+    expect(back.newer).toBe(id(20));
   });
 
   it('shows "Older entries" only when there are more, with exactly 20 giving none', async () => {

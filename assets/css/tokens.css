@@ -52,6 +52,10 @@
      taken off the width of .wrap, the container (cqi). It bites only when zoomed (HIG #8, AC-36). */
   --fit-wordmark: calc((100cqi - var(--eye-hero) * 2.12 - var(--eye-hero-gap)) / 5.5);
 
+  /* A row's title can't be wider than its column: the container (.wrap) less the row's padding, the gap and the
+     arrow, over the longest word's width in ems (Persian "آموخته‌های", 5 em). Like the wordmark's, it bites only when zoomed. */
+  --fit-row-title: calc((100cqi - var(--space-xs) * 2 - var(--space-2) - var(--icon)) / 5.25);
+
   /* The three display sizes are capped by the viewport, so a 360px phone zoomed
      to 200% (180 CSS px; HIG #8) still fits them. The caps only bite when zoomed. */
   --size-wordmark-hero: min(3.125rem, var(--fit-wordmark));

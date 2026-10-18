@@ -36,6 +36,34 @@ export async function clippedText(page: Page): Promise<string[]> {
   });
 }
 
+/**
+ * Words a row title breaks inside (PL-4). For each `.big-row__title` it walks the text's words and reads
+ * `Range.getClientRects()`: a word whose boxes sit on more than one line was cut by `overflow-wrap`, which
+ * is what a title too wide for its column does. A title is a fit, not a wrapping rule, so none should.
+ */
+export async function brokenWords(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const broken: string[] = [];
+    for (const title of document.querySelectorAll<HTMLElement>('.big-row__title')) {
+      if (title.getClientRects().length === 0) continue;
+      const walker = document.createTreeWalker(title, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const text = node.textContent ?? '';
+        for (const match of text.matchAll(/\S+/g)) {
+          const range = document.createRange();
+          range.setStart(node, match.index ?? 0);
+          range.setEnd(node, (match.index ?? 0) + match[0].length);
+          const rects = [...range.getClientRects()].filter((r) => r.width > 0);
+          if (rects.length < 2) continue;
+          const tops = rects.map((r) => r.top);
+          if (Math.max(...tops) - Math.min(...tops) > rects[0]!.height / 2) broken.push(`"${match[0]}" in "${(title.textContent ?? '').trim()}"`);
+        }
+      }
+    }
+    return broken;
+  });
+}
+
 /** The wordmark in its widest state, which is the review's #2: every one forced open, and the 0.35 s growth finished. */
 async function revealWordmarks(page: Page): Promise<void> {
   await page.evaluate(() => document.querySelectorAll('.wordmark').forEach((el) => el.classList.add('is-revealed')));
@@ -180,6 +208,7 @@ export async function sweep(page: Page, info: TestInfo, options: SweepOptions = 
   if (!options.skip?.scroll180) {
     await expectNoSidewaysScroll(page, 180);
     if (options.column) await expectWithinColumn(page, options.column);
+    expect(await brokenWords(page), `${name}: words a row title breaks at 180 px`).toEqual([]);
   }
   await page.setViewportSize({ width: 360, height: 800 });
 

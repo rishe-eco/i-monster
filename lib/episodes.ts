@@ -249,6 +249,8 @@ export interface EpisodePage {
   episodes: PublicEpisode[];
   /** The cursor for "Older episodes": the last one shown, when there are more behind it. */
   olderBefore: string | null;
+  /** Where "Newer episodes" goes: `null` on the first page, `'first'` for the bare path, else a cursor (PL-10). */
+  newer: string | 'first' | null;
 }
 
 /**
@@ -268,7 +270,26 @@ export function listPublishedEpisodes(db: Db, lang: Lang, before: PublicEpisode 
   ) as Row[];
   const shown = rows.slice(0, limit).map((row) => toPublicEpisode(db, row));
   const last = shown[shown.length - 1];
-  return { episodes: shown, olderBefore: rows.length > limit && last ? last.id : null };
+  return {
+    episodes: shown,
+    olderBefore: rows.length > limit && last ? last.id : null,
+    newer: before ? newerTarget(db, lang, before, limit) : null,
+  };
+}
+
+/**
+ * The previous page ends with the cursor episode itself. Read up to a page of episodes newer than it, nearest
+ * first: fewer than a page means the previous page is the first; otherwise its own cursor is the last one read.
+ */
+function newerTarget(db: Db, lang: Lang, before: PublicEpisode, limit: number): string | 'first' {
+  const ids = db
+    .prepare(
+      `SELECT id FROM episode WHERE lang = ? AND ${PUBLISHED} AND (date > ? OR (date = ? AND id < ?))
+       ORDER BY date ASC, id DESC LIMIT ?`,
+    )
+    .all(lang, before.date, before.date, before.id, limit) as { id: string }[];
+  const last = ids[limit - 1];
+  return ids.length < limit || !last ? 'first' : last.id;
 }
 
 // ── The admin's side ───────────────────────────────────────────────────────

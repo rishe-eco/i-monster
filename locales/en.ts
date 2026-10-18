@@ -3,6 +3,7 @@ import type { Strings } from './strings.ts';
 export const en: Strings = {
   owner: 'iMNSTR',
   siteTitle: 'iMNSTR',
+  skip: 'Skip to content',
   nav: {
     label: 'Main',
     footerLabel: 'Footer',
@@ -25,13 +26,14 @@ export const en: Strings = {
     readLearnings: 'Read the learnings',
     podcast: 'Monster Podcast',
     goHome: 'Go home',
-    ownerLine: 'This is {owner}’s site. No cookies here. The monster ate them.',
+    ownerLine: 'This is {owner}’s site.',
   },
   log: {
     title: 'Learnings',
     lede: 'Things I figured out. Newest on top.',
     description: 'Things iMNSTR figured out, newest on top.',
     older: 'Older entries',
+    newer: 'Newer entries',
     empty: 'Nothing published here at the moment.',
     emptyMeanwhile: 'Meanwhile, there’s {who} and the {podcast}.',
     whoLink: 'who I am',
@@ -42,6 +44,7 @@ export const en: Strings = {
     description: 'Monster Podcast: iMNSTR talks with people about making things and learning out loud.',
     showOn: 'The show on {platform}',
     older: 'Older episodes',
+    newer: 'Newer episodes',
     empty: 'Episodes will be listed here, with links to listen.',
     tagSeparator: ', ',
   },

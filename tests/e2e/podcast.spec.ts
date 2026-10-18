@@ -126,7 +126,8 @@ for (const lang of LANGS) {
       await page.locator('.older a').click();
       await expect(page).toHaveURL(/\?before=[0-9a-z]{10}$/);
       await expect(page.locator('main article.episode')).toHaveCount(1);
-      await expect(page.locator('.older')).toHaveCount(0);
+      await expect(page.locator('.older a[rel=next]')).toHaveCount(0);
+      await expect(page.locator('.older a[rel=prev]')).toHaveCount(1);
       // The show's links are above the episodes on page two as on page one.
       const links = page.locator('main .rows--show a');
       await expect(links).toHaveCount(2);
@@ -152,6 +153,10 @@ for (const lang of LANGS) {
       await page.goto(podcastPath(lang));
       await page.locator('.older a').click();
       await expect(page.locator('main article.episode')).toHaveCount(1);
+      // And Newer returns to the first page (PL-10).
+      await page.locator('.older a[rel=prev]').click();
+      await expect(page).toHaveURL(new RegExp(`${podcastPath(lang)}$`));
+      await expect(page.locator('main article.episode')).toHaveCount(20);
       await context.close();
     });
 

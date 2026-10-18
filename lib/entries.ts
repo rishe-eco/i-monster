@@ -108,6 +108,11 @@ export interface Page {
   entries: PublicEntry[];
   /** The cursor for "Older entries": the last entry shown, when there are more behind it. */
   olderBefore: string | null;
+  /**
+   * Where "Newer entries" goes: `null` on the first page, `'first'` when the previous page is the first
+   * (the bare path, no cursor), else the cursor of the previous page (PL-10).
+   */
+  newer: string | 'first' | null;
 }
 
 /** One published entry of this language, or null: a draft, an unknown id and the other language's id are all the same answer (AC-28). */
@@ -145,7 +150,28 @@ export function listPublished(db: Db, lang: Lang, before: PublicEntry | null, li
   ) as Row[];
   const shown = rows.slice(0, limit).map(toEntry);
   const last = shown[shown.length - 1];
-  return { entries: shown, olderBefore: rows.length > limit && last ? last.id : null };
+  return {
+    entries: shown,
+    olderBefore: rows.length > limit && last ? last.id : null,
+    newer: before ? newerTarget(db, lang, before, limit) : null,
+  };
+}
+
+/**
+ * The previous page ends with the cursor entry itself. Read up to a page of entries newer than it, nearest
+ * first: fewer than a page means the previous page is the first; otherwise its own cursor is the last one read.
+ */
+function newerTarget(db: Db, lang: Lang, before: PublicEntry, limit: number): string | 'first' {
+  const ids = db
+    .prepare(
+      `SELECT id FROM entry
+       WHERE lang = ? AND state = 'published'
+         AND (first_published_at > ? OR (first_published_at = ? AND id < ?))
+       ORDER BY first_published_at ASC, id DESC LIMIT ?`,
+    )
+    .all(lang, before.firstPublishedAt, before.firstPublishedAt, before.id, limit) as { id: string }[];
+  const last = ids[limit - 1];
+  return ids.length < limit || !last ? 'first' : last.id;
 }
 
 // ── The admin's side (B5) ──────────────────────────────────────────────────

@@ -62,6 +62,10 @@ export const Layout: FC<LayoutProps> = ({ lang, kind, assets, title, description
         ))}
       </head>
       <body>
+        {/* First in the tab order, out of view until it has focus (PL-6). */}
+        <a class="skip-link" href="#main">
+          {t.skip}
+        </a>
         <div class="wrap">
           <header class={landing ? 'site-header site-header--landing' : 'site-header'}>
             {landing ? null : (
@@ -86,7 +90,7 @@ export const Layout: FC<LayoutProps> = ({ lang, kind, assets, title, description
               </a>
             </nav>
           </header>
-          <main id="main">{children}</main>
+          <main id="main" tabindex={-1}>{children}</main>
           <footer class="site-footer">
             <nav class="footer-nav" aria-label={t.nav.footerLabel}>
               <a href={log}>{t.nav.learnings}</a>

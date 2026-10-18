@@ -5,6 +5,7 @@ import type { Strings } from './strings.ts';
 export const fa: Strings = {
   owner: 'iMNSTR',
   siteTitle: 'iMNSTR',
+  skip: 'پرش به محتوا',
   nav: {
     label: 'اصلی',
     footerLabel: 'پایین صفحه',
@@ -27,13 +28,14 @@ export const fa: Strings = {
     readLearnings: 'آموخته‌ها را بخوانید',
     podcast: 'پادکست مانستر',
     goHome: 'برو خانه',
-    ownerLine: 'این سایت {owner} است. اینجا کوکی نداریم. هیولا خوردشان.',
+    ownerLine: 'این سایت {owner} است.',
   },
   log: {
     title: 'آموخته‌ها',
     lede: 'چیزهایی که فهمیدم. تازه‌ترین بالا.',
     description: 'چیزهایی که iMNSTR فهمیده، تازه‌ترین بالا.',
     older: 'نوشته‌های قدیمی‌تر',
+    newer: 'نوشته‌های تازه‌تر',
     empty: 'فعلاً اینجا چیزی منتشر نشده.',
     emptyMeanwhile: 'تا آن موقع، {who} و {podcast} هست.',
     whoLink: 'من کی‌ام',
@@ -44,6 +46,7 @@ export const fa: Strings = {
     description: 'پادکست مانستر: iMNSTR با آدم‌ها دربارهٔ ساختن و بلند یاد گرفتن حرف می‌زند، به فارسی.',
     showOn: 'برنامه در {platform}',
     older: 'قسمت‌های قدیمی‌تر',
+    newer: 'قسمت‌های تازه‌تر',
     empty: 'قسمت‌ها اینجا فهرست می‌شوند، با لینک برای شنیدن.',
     tagSeparator: '، ',
   },

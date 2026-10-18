@@ -22,8 +22,8 @@ export function logRoutes(db: Db): Hono<AppEnv> {
       before = isId(cursor) ? getPublished(db, lang, cursor) : null;
       if (!before) return c.notFound();
     }
-    const { entries, olderBefore } = listPublished(db, lang, before);
-    return page(c, <Log lang={lang} assets={c.get('assets')} entries={entries} olderBefore={olderBefore} />);
+    const { entries, olderBefore, newer } = listPublished(db, lang, before);
+    return page(c, <Log lang={lang} assets={c.get('assets')} entries={entries} olderBefore={olderBefore} newer={newer} />);
   };
 
   const showFeed = (lang: Lang) => (c: Context<AppEnv>) => {
