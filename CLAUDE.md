@@ -27,7 +27,7 @@ The plan, the spec and the design live in `E:\_root\root-sot\imnstr\modules\01-w
 
 - TypeScript, strict. No `any` without a comment saying why. Imports carry their `.ts` / `.tsx` extension.
 - Comments explain why, in full sentences. Match the surrounding code.
-- CSS: **logical properties only** (`margin-inline-start`, never `left`), sizes in `rem`, colours, type and spacing from the tokens in `assets/css/tokens.css`. Breakpoints are in `em`.
+- CSS: **logical properties only** (`margin-inline-start`, never `left`), sizes in `rem`, colours, type and spacing from the tokens in `assets/css/tokens.css`. Media-query breakpoints are in `em`; container queries in `rem`.
 - Time is `now()` from `lib/clock.ts`. Never `new Date()` or `Date.now()` anywhere else (lint and a test both enforce it).
 - No new runtime dependency beyond plan §6.6.
 - Each stage mounts its routes from its own `routes/<area>.ts`; `app.ts` gains one line per stage.
