@@ -66,7 +66,7 @@ test('the shell is in W1 order, and the list is collapsed and asks for nothing u
   await expect(page.locator('#entries-body')).toBeHidden();
   // The editor is first, empty, and Edit puts an entry in the same place; then Entries, then Podcast (B7), then Passkeys, then Sign out.
   await expect(page.getByRole('textbox', { name: 'Entry text' })).toBeVisible();
-  expect(await page.locator('h2 .disclosure > span:first-child').allInnerTexts()).toEqual(['Entries', 'Podcast', 'Passkeys']);
+  expect(await page.locator('h2 .disclosure > span:first-child').allInnerTexts()).toEqual(['Entries', 'Podcast', 'Messages', 'Passkeys']);
   expect(admin.requests.filter((url) => url.includes('/admin/api/entries'))).toEqual([]);
   await openEntries(page);
   await expect(page.getByText('Entries you write will be listed here.')).toBeVisible();

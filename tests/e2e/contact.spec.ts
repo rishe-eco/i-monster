@@ -256,7 +256,9 @@ test.describe('the Messages section of the admin (CT-8)', () => {
     await page.reload();
     const toggle = page.getByRole('button', { name: 'Messages', exact: true });
     const body = page.locator('#messages-body');
-    // Between Podcast and Passkeys, collapsed, and asking for nothing until it is opened.
+    // Between Podcast and Passkeys, collapsed, and asking for nothing until it is opened. The shell draws after the
+    // reload's session check, so wait for it before reading the order.
+    await expect(toggle).toBeVisible();
     const order = await page.evaluate(() => {
       const at = (id: string) => document.querySelector(id);
       const before = (a: Element | null, b: Element | null) => Boolean(a && b && a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
