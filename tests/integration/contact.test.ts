@@ -222,8 +222,8 @@ describe.each(LANGS)('CT-4: the form, %s', (lang) => {
 describe.each(LANGS)('CT-5: refusals, %s', (lang) => {
   const T =
     lang === 'fa'
-      ? { summary: 'چند خانه را بررسی کنید:', subject: 'موضوع را بنویسید.', message: 'پیام را بنویسید.', reach: 'بگویید چطور با شما تماس بگیرم.', cap: 'امروز پیام زیادی رسیده. فردا دوباره بفرستید، یا به ایمیل بالا بنویسید.', origin: 'این فرم را فقط از همین سایت می‌شود فرستاد.' }
-      : { summary: 'Some fields need a look:', subject: 'Write a subject.', message: 'Write a message.', reach: 'Say how I can reach you.', cap: 'Too many messages today. Try again tomorrow, or use the email above.', origin: 'This form can only be sent from this site.' };
+      ? { summary: 'چند خانه را بررسی کنید:', subject: 'موضوع را بنویسید.', message: 'پیام را بنویسید.', reach: 'بگویید چطور با شما تماس بگیرم.', cap: 'امروز پیام زیادی رسیده. فردا دوباره بفرستید، یا به ایمیل بالا بنویسید.', capNoEmail: 'امروز پیام زیادی رسیده. فردا دوباره بفرستید.', origin: 'این فرم را فقط از همین سایت می‌شود فرستاد.' }
+      : { summary: 'Some fields need a look:', subject: 'Write a subject.', message: 'Write a message.', reach: 'Say how I can reach you.', cap: 'Too many messages today. Try again tomorrow, or use the email above.', capNoEmail: 'Too many messages today. Try again tomorrow.', origin: 'This form can only be sent from this site.' };
 
   it('answers 400 with the page, the values kept and the error next to each field, linked from a summary', async () => {
     const res = await post(path(lang), { subject: '   ', message: 'Keep <this> & that', reach: '' });
@@ -313,6 +313,14 @@ describe.each(LANGS)('CT-5: refusals, %s', (lang) => {
     setNow(NOW + DAY);
     expect((await post(path(lang), GOOD)).status).toBe(303);
     expect(count()).toBe(limits.contactCap + 1);
+  });
+
+  it('does not point to an email link at the cap when the server has none', async () => {
+    for (let n = 0; n < limits.contactCap; n++) await post(path(lang), GOOD, {}, bare);
+    const refused = await post(path(lang), GOOD, {}, bare);
+    expect(refused.status).toBe(429);
+    expect(refused.text).not.toContain(T.cap);
+    expect(refused.text).toContain(T.capNoEmail);
   });
 
   it('counts the cap across both languages, since it cannot tell senders apart', async () => {

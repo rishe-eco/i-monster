@@ -120,7 +120,7 @@ export const Contact: FC<ContactProps> = ({ lang, assets, links, values, problem
         ) : null}
         {notice === 'cap' || notice === 'origin' ? (
           <p class="contact-notice contact-notice--error" role="alert">
-            {notice === 'cap' ? t.cap : t.origin}
+            {notice === 'origin' ? t.origin : links.email ? t.cap : t.capNoEmail}
           </p>
         ) : null}
         {failed.length > 0 ? (

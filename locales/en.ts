@@ -74,6 +74,7 @@ export const en: Strings = {
     reachEmpty: 'Say how I can reach you.',
     tooLong: 'Keep it under {max} characters.',
     cap: 'Too many messages today. Try again tomorrow, or use the email above.',
+    capNoEmail: 'Too many messages today. Try again tomorrow.',
     origin: 'This form can only be sent from this site.',
   },
   footer: {

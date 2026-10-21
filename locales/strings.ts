@@ -90,6 +90,8 @@ export interface Strings {
     tooLong: string;
     /** The 24-hour cap (429). Points at the email link above the form. */
     cap: string;
+    /** The same, when the server has no email link to point at. */
+    capNoEmail: string;
     /** A post from another origin (403). */
     origin: string;
   };
