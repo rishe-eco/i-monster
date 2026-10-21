@@ -201,7 +201,8 @@ main:focus-visible {
   text-decoration: none;
 }
 
-.nav a[aria-current='page'] {
+.nav a[aria-current='page'],
+.footer-nav a[aria-current='page'] {
   text-decoration: underline;
   text-decoration-color: var(--monster);
   text-decoration-thickness: 0.125rem;
@@ -219,9 +220,10 @@ main:focus-visible {
   font-family: var(--font-ui-latin);
 }
 
-/* On a phone the header drops Feed (the footer keeps it) so the wordmark and
+/* On a phone the header drops Feed and Contact (the footer keeps both) so the wordmark and
    the nav fit 360px. */
-.nav .nav-feed {
+.nav .nav-feed,
+.nav .nav-contact {
   display: none;
 }
 
@@ -492,7 +494,8 @@ main:focus-visible {
     gap: var(--space-2xl);
   }
 
-  .nav .nav-feed {
+  .nav .nav-feed,
+  .nav .nav-contact {
     display: inline-flex;
   }
 
@@ -857,4 +860,154 @@ main:focus-visible {
 .page-lede a,
 .intro a {
   padding-block: var(--space-xs);
+}
+
+/* ── Contact (change note 08) ── */
+
+/* The founder's links sit in the reading column, quiet like the podcast's show links. */
+.rows--contact {
+  max-inline-size: var(--measure-read);
+  margin-block-start: var(--space-4);
+}
+
+.rows--contact .big-row__title {
+  font-size: var(--size-title);
+}
+
+/* An address or handle has no spaces to break at: it wraps rather than widen the page (HIG #8). */
+.rows--contact .big-row__line {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.contact-form {
+  margin-block-start: var(--space-6);
+  max-inline-size: var(--measure-read);
+}
+
+.contact-form__heading {
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: var(--size-title);
+  line-height: 1.15;
+  letter-spacing: var(--tracking-title);
+  text-wrap: balance;
+}
+
+/* A notice above the fields: the thank-you, the error summary, the cap and the origin refusal. */
+.contact-notice {
+  margin-block-start: var(--space-2);
+  padding: var(--space-lg) var(--space-2);
+  border: var(--rule) solid var(--rule-soft);
+  border-radius: var(--radius-button);
+  font-family: var(--font-ui);
+  font-size: var(--size-ui);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.contact-notice--success {
+  border-color: var(--success-edge);
+  background: var(--success-fill);
+}
+
+.contact-notice--error {
+  border-color: var(--error-edge);
+  background: var(--error-fill);
+  color: var(--error-ink);
+}
+
+/* The summary takes focus when a refused post comes back, so a keyboard or screen-reader user starts at it; it
+   is not a control, so it draws no ring (as the skip link's target does). */
+.contact-notice:focus-visible {
+  outline: none;
+}
+
+.contact-summary__list {
+  margin-block-start: var(--space-xs);
+}
+
+.contact-summary__list a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--hit-inline);
+  color: var(--error-ink);
+}
+
+.contact-field {
+  margin-block-start: var(--space-3);
+}
+
+.contact-field__label {
+  display: block;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--size-ui);
+  color: var(--ink);
+}
+
+.contact-field__hint {
+  margin-block-start: var(--space-hair);
+  font-family: var(--font-ui);
+  font-size: var(--size-meta);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.contact-field__input {
+  display: block;
+  inline-size: 100%;
+  min-block-size: var(--hit);
+  margin-block-start: var(--space-xs);
+  padding: var(--space-lg) var(--space-2);
+  border: var(--rule) solid var(--field-edge);
+  border-radius: var(--radius-field);
+  background: var(--input-fill);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--size-button);
+  line-height: 1.4;
+}
+
+.contact-field__input--message {
+  min-block-size: 9rem;
+  resize: vertical;
+}
+
+.contact-field__input[aria-invalid='true'] {
+  border-color: var(--error-edge);
+}
+
+.contact-field__error {
+  margin-block-start: var(--space-xs);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: var(--size-ui);
+  line-height: 1.45;
+  color: var(--error-ink);
+}
+
+/* The primary action is solid ink (HIG #5), as in the admin. */
+.contact-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--hit-button);
+  min-inline-size: var(--hit-button);
+  margin-block-start: var(--space-3);
+  padding-inline: var(--space-4);
+  border: var(--rule) solid var(--button-fill);
+  border-radius: var(--radius-button);
+  background: var(--button-fill);
+  color: var(--button-ink);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--size-button);
+  cursor: pointer;
+}
+
+/* The honeypot field. Hidden by this class, never by a style attribute (CSP); display: none also takes it out of
+   the tab order and the accessibility tree, which is what a real visitor needs it to be. */
+.contact__trap {
+  display: none;
 }

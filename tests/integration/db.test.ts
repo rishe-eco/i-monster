@@ -90,7 +90,7 @@ describe('the connection', () => {
     const before = db.prepare('SELECT name FROM schema_migration').all();
     openDb(t.path).close();
     expect(db.prepare('SELECT name FROM schema_migration').all()).toEqual(before);
-    expect(before).toEqual([{ name: '001_init.sql' }]);
+    expect(before).toEqual([{ name: '001_init.sql' }, { name: '002_contact_message.sql' }]);
   });
 
   it('creates every table of plan §6.3', () => {
@@ -102,6 +102,7 @@ describe('the connection', () => {
       [
         'auth_code',
         'auth_throttle',
+        'contact_message',
         'credential',
         'entry',
         'episode',

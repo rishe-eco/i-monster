@@ -3,13 +3,14 @@
 import { LANG_LABEL, localePath, otherLang, type Lang } from './i18n.ts';
 
 /** The kinds of public page. Paging (`?before=`) doesn't change the kind. */
-export type PageKind = 'landing' | 'log' | 'entry' | 'podcast' | 'not-found';
+export type PageKind = 'landing' | 'log' | 'entry' | 'podcast' | 'contact' | 'not-found';
 
 /** The path of each page kind that has a fixed one (an entry's path holds its id). */
 const PATHS = {
   landing: '/',
   log: '/log',
   podcast: '/podcast',
+  contact: '/contact',
 } as const;
 
 export interface SwitchTarget {
@@ -41,11 +42,11 @@ export interface Alternate {
 export const SITE_ORIGIN = 'https://imnstr.com';
 
 /**
- * The `hreflang` alternates a page carries: landing, log and podcast point at
+ * The `hreflang` alternates a page carries: landing, log, podcast and contact point at
  * each other, in both languages (AC-41). Other pages carry none.
  */
 export function alternates(kind: PageKind): Alternate[] {
-  if (kind !== 'landing' && kind !== 'log' && kind !== 'podcast') return [];
+  if (kind !== 'landing' && kind !== 'log' && kind !== 'podcast' && kind !== 'contact') return [];
   return (['en', 'fa'] as const).map((hreflang) => ({
     hreflang,
     href: SITE_ORIGIN + localePath(hreflang, PATHS[kind]),

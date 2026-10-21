@@ -364,6 +364,26 @@ export const copy = {
     },
   },
 
+  // The contact form's messages (change note 08, CT-8). Nothing here counts: "No messages." is a fact, not a number.
+  messages: {
+    title: 'Messages',
+    empty: 'No messages.',
+    loadFailed: "Couldn't load the messages.",
+    retry: 'Try again',
+    older: 'Older',
+    // What a message was sent from: the page's language, written the way the list's pills write it.
+    lang: { en: 'EN', fa: 'FA' },
+    reach: 'Reach:',
+    delete: 'Delete',
+    deleteNamed: (subject: string) => `Delete ${subject}`,
+    deleting: 'Deleting…',
+    confirm: {
+      title: 'Delete this message? It can’t be undone.',
+      keep: 'Keep it',
+      delete: 'Delete',
+    },
+  },
+
   reauth: {
     title: "Show it's you",
     // The default reason; B6 passes its own for an in-place sign-in.

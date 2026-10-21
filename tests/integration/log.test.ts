@@ -234,7 +234,7 @@ describe.each<Lang>(['en', 'fa'])('the log, %s', (lang) => {
     for (let n = 1; n <= 21; n++) seed(lang, n);
     for (const path of [log, `${log}?before=${id(20)}`]) {
       const body = await html(path);
-      expect(visibleText(body)).not.toMatch(/\bpage\s*\d|\bof\s+\d+\b|\b\d+\s+(entries|learnings|posts)\b|\blatest\b|total/i);
+      expect(visibleText(body)).not.toMatch(/\bpage\s*\d|\bof\s+\d+\b|\b\d+\s+(entries|learnings|writings|posts)\b|\blatest\b|total/i);
       expect(visibleText(body)).not.toMatch(/(صفحهٔ\s*[\d۰-۹]|مجموع|جمعاً|آخرین)/);
       expect(body).not.toMatch(/[?&](page|p|offset)=/);
     }

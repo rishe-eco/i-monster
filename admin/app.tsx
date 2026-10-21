@@ -1,7 +1,7 @@
 // The admin's screens and how they follow one another (plan B4b, PD-21):
 //   /admin/setup/<code>  → Setup, then the shell, signed in
 //   /admin               → the session decides: sign-in, or the shell
-//   the shell            → the editor's slot, Entries, Podcast, Passkeys, Sign out
+//   the shell            → the editor's slot, Entries, Podcast, Messages, Passkeys, Sign out
 // There is no router: two paths, and the rest is state.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { api, forgetSession, whenSignedOut, type Code, type SessionInfo } from './api.ts';
@@ -11,6 +11,7 @@ import { createBuffers, type EditBuffer } from './buffers.ts';
 import { EditOffer, EntryFrame, LeaveDialog, NewEntry, type Returned } from './composer.tsx';
 import { EntriesSection } from './entries.tsx';
 import { PodcastSection } from './episodes.tsx';
+import { MessagesSection } from './messages.tsx';
 import { PasskeysSection } from './passkeys.tsx';
 import { ReauthHost } from './reauth.tsx';
 import { SignIn } from './signin.tsx';
@@ -230,6 +231,7 @@ function Home({
       )}
       <EntriesSection onEdit={(id) => guard(() => startEdit(id))} refreshKey={entriesChanged} />
       <PodcastSection onSession={onSessionRenewed} />
+      <MessagesSection />
       <PasskeysSection session={session} onRemovedHere={onRemovedHere} onSessionEnded={onSessionEnded} />
       {leaving ? (
         <LeaveDialog

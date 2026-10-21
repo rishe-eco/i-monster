@@ -106,7 +106,7 @@ describe('hreflang (AC-41)', () => {
   });
 
   it('points each page at its own language feed (G6)', async () => {
-    expect(await html('/')).toContain('rel="alternate" type="application/atom+xml" title="iMNSTR — Learnings" href="/log/feed.xml"');
+    expect(await html('/')).toContain('rel="alternate" type="application/atom+xml" title="iMNSTR — Writings" href="/log/feed.xml"');
     expect(await html('/fa/')).toContain('type="application/atom+xml"');
     expect(await html('/fa/')).toContain('href="/fa/log/feed.xml"');
   });

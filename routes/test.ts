@@ -3,6 +3,7 @@
 import { Hono } from 'hono';
 import { now, setNow } from '../lib/clock.ts';
 import { issueSetupToken } from '../lib/codes.ts';
+import { clearMessages } from '../lib/contact.ts';
 import type { AppEnv } from '../lib/context.ts';
 import type { Db } from '../lib/db.ts';
 import { clearEntries, insertFixture, type NewFixture } from '../lib/entries.ts';
@@ -116,6 +117,12 @@ export function testRoutes(db: Db, env: Env): Hono<AppEnv> {
   // DELETE /__test/episodes empties the table between tests.
   routes.delete('/__test/episodes', (c) => {
     clearEpisodes(db);
+    return c.json({ ok: true });
+  });
+
+  // DELETE /__test/messages empties the contact messages between tests, so the 24-hour cap never carries over.
+  routes.delete('/__test/messages', (c) => {
+    clearMessages(db);
     return c.json({ ok: true });
   });
 

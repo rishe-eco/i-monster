@@ -60,6 +60,24 @@ export const limits = {
    * grow the table without end; past it a new key is dropped, old ones count on.
    */
   recordKeysPerMonth: 500,
+  /**
+   * The contact form's fields, in characters (code points) after trimming: the unit SQLite's `length()` counts, so the
+   * table's CHECKs and the code agree (CT-4, CT-10).
+   */
+  contactSubjectMax: 120,
+  contactMessageMax: 5000,
+  contactReachMax: 200,
+  /**
+   * The most messages the site stores in any rolling 24 hours (CT-5). Site-wide, not per sender: the app never reads
+   * the client address (house rule 9), so it can't tell senders apart.
+   */
+  contactCap: 30,
+  contactCapWindowMs: DAY,
+  /**
+   * The largest form post read. A field at its limit in a four-byte script, percent-encoded, is about 64 KiB, so this
+   * is twice that: it refuses a pasted file before the server reads it, and Nginx's 1 MiB never decides first.
+   */
+  contactBodyMaxBytes: 128 * 1024,
 } as const;
 
 /** Failures at which waiting starts, and the longest wait (PD-15). */

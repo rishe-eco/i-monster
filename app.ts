@@ -13,6 +13,7 @@ import { langFromPath } from './lib/i18n.ts';
 import { recordMiddleware } from './lib/record-middleware.ts';
 import { adminApiRoutes } from './routes/admin-api.ts';
 import { adminRoutes } from './routes/admin.tsx';
+import { contactRoutes } from './routes/contact.tsx';
 import { logRoutes } from './routes/log.tsx';
 import { podcastRoutes } from './routes/podcast.tsx';
 import { notFoundHandler, publicRoutes } from './routes/public.tsx';
@@ -50,6 +51,7 @@ export function createApp({ env, db, assets = buildAssets(undefined, { requireAd
   app.route('/', publicRoutes({ en: siteEn, fa: siteFa }));
   app.route('/', logRoutes(db));
   app.route('/', podcastRoutes(db, { en: siteEn, fa: siteFa }));
+  app.route('/', contactRoutes(db, env));
   app.route('/', adminApiRoutes(db, env));
   app.route('/', adminRoutes());
   if (env.e2eClock) app.route('/', testRoutes(db, env));

@@ -48,7 +48,7 @@ for (const lang of LANGS) {
       await resetLog(request, plainEntries(lang, 21));
       await page.goto(logPath(lang));
       const text = await page.locator('main').innerText();
-      expect(text).not.toMatch(/\bpage\s*\d|\bof\s+\d+\b|\b\d+\s+(entries|learnings)\b|latest|total/i);
+      expect(text).not.toMatch(/\bpage\s*\d|\bof\s+\d+\b|\b\d+\s+(entries|learnings|writings)\b|latest|total/i);
       expect(text).not.toMatch(/صفحهٔ\s*[\d۰-۹]|مجموع|آخرین/);
       expect(page.url()).not.toMatch(/[?&](page|p|offset)=/);
     });

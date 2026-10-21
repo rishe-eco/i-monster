@@ -108,3 +108,18 @@ describe('the episode copy (plan B7)', () => {
     expect(copy.episode.failure.network.notKept).not.toMatch(/\d/);
   });
 });
+
+describe('the messages copy (change note 08, CT-8)', () => {
+  it('says what the founder asked for, in the words the change note gives', () => {
+    expect(copy.messages.title).toBe('Messages');
+    expect(copy.messages.empty).toBe('No messages.');
+    expect(copy.messages.delete).toBe('Delete');
+    expect(copy.messages.confirm.title).toBe('Delete this message? It can’t be undone.');
+    expect(copy.messages.reach).toBe('Reach:');
+  });
+
+  it('shows no count and no unread state anywhere in the section (house rule 1)', () => {
+    const everything = JSON.stringify([copy.messages, copy.messages.deleteNamed('A question')]);
+    expect(everything).not.toMatch(/\b\d+\s+(messages?|new|unread)\b|\bunread\b|\bnew\b|\btotal\b/i);
+  });
+});

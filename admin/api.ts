@@ -152,6 +152,27 @@ export interface EpisodeDetail {
   firstPublishedAt: number | null;
 }
 
+/** One message from the contact form. The server sends no count and no total with the list. */
+export interface MessageRow {
+  id: string;
+  /** The language of the page it was sent from. */
+  lang: Lang;
+  subject: string;
+  message: string;
+  /** How the sender asked to be reached: whatever they typed. */
+  reach: string;
+  /** UTC milliseconds. */
+  receivedAt: number;
+}
+
+export interface MessagesPage {
+  messages: MessageRow[];
+  /** The cursor for "Older": the last row shown, when more lie behind it. */
+  olderBefore: string | null;
+  /** The server's clock, UTC milliseconds, so the list's year rule never reads the browser's (AC-31). */
+  now: number;
+}
+
 /** What the editor starts from (PD-10): the language of the last save or publish. */
 export interface Settings {
   lastLanguage: Lang;

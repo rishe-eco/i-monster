@@ -12,6 +12,7 @@ describe('loadEnv', () => {
       nodeEnv: 'development',
       origin: 'http://localhost:4100',
       rpId: 'localhost',
+      contact: {},
     });
   });
 
@@ -34,6 +35,7 @@ describe('loadEnv', () => {
       nodeEnv: 'test',
       origin: 'https://example.org',
       rpId: 'example.org',
+      contact: {},
     });
   });
 
@@ -85,6 +87,54 @@ describe('loadEnv', () => {
 
     it('refuse plain http in production', () => {
       expect(() => loadEnv({ NODE_ENV: 'production', ORIGIN: 'http://imnstr.com' })).toThrow(/https/);
+    });
+  });
+
+  // The invented values below are the only ones the repository ever holds (CT-3); the real ones are on the server.
+  describe('the contact links (CT-3)', () => {
+    const silent = () => undefined;
+
+    it('are absent when the variables are unset or empty, without a warning', () => {
+      const warnings: string[] = [];
+      expect(loadEnv({}, (m) => warnings.push(m)).contact).toEqual({});
+      expect(loadEnv({ CONTACT_EMAIL: '', CONTACT_TELEGRAM: '  ', CONTACT_INSTAGRAM: '' }, (m) => warnings.push(m)).contact).toEqual({});
+      expect(warnings).toEqual([]);
+    });
+
+    it('read an address and two handles, and strip a leading @ from a handle', () => {
+      expect(loadEnv({ CONTACT_EMAIL: 'someone@example.com', CONTACT_TELEGRAM: 'example_channel', CONTACT_INSTAGRAM: '@example.name' }, silent).contact).toEqual({
+        email: 'someone@example.com',
+        telegram: 'example_channel',
+        instagram: 'example.name',
+      });
+    });
+
+    it('trim the values', () => {
+      expect(loadEnv({ CONTACT_EMAIL: ' someone@example.com \n', CONTACT_TELEGRAM: ' @example ' }, silent).contact).toEqual({ email: 'someone@example.com', telegram: 'example' });
+    });
+
+    it('drop an invalid value with one warning that names the variable and never the value', () => {
+      const warnings: string[] = [];
+      const bad = { CONTACT_EMAIL: 'not an address@secret-host', CONTACT_TELEGRAM: 'a/b?c', CONTACT_INSTAGRAM: 'x'.repeat(65) };
+      expect(loadEnv(bad, (m) => warnings.push(m)).contact).toEqual({});
+      expect(warnings).toHaveLength(3);
+      expect(warnings[0]).toContain('CONTACT_EMAIL');
+      expect(warnings[1]).toContain('CONTACT_TELEGRAM');
+      expect(warnings[2]).toContain('CONTACT_INSTAGRAM');
+      for (const message of warnings) {
+        for (const value of Object.values(bad)) expect(message).not.toContain(value);
+        expect(message).not.toContain('secret-host');
+      }
+    });
+
+    it('keep the valid ones when another is invalid', () => {
+      expect(loadEnv({ CONTACT_EMAIL: 'nope', CONTACT_TELEGRAM: 'example_channel' }, silent).contact).toEqual({ telegram: 'example_channel' });
+    });
+
+    it('refuse an address with a display name, a quote, a comma or no top-level domain', () => {
+      for (const CONTACT_EMAIL of ['A <a@example.com>', '"a"@example.com', 'a@example.com, b@example.com', 'a@localhost', 'a@@example.com', '@example.com', 'mailto:a@example.com']) {
+        expect(loadEnv({ CONTACT_EMAIL }, silent).contact, CONTACT_EMAIL).toEqual({});
+      }
     });
   });
 });

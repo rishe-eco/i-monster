@@ -14,7 +14,7 @@ export interface LayoutProps {
   title?: string;
   description?: string;
   /** Which nav link is the current page. */
-  current?: 'learnings' | 'podcast';
+  current?: 'learnings' | 'podcast' | 'contact';
   children?: Child;
 }
 
@@ -39,6 +39,7 @@ export const Layout: FC<LayoutProps> = ({ lang, kind, assets, title, description
   const log = localePath(lang, '/log');
   const podcast = localePath(lang, '/podcast');
   const feed = localePath(lang, '/log/feed.xml');
+  const contact = localePath(lang, '/contact');
 
   return (
     <html lang={lang} dir={dirOf(lang)}>
@@ -85,6 +86,10 @@ export const Layout: FC<LayoutProps> = ({ lang, kind, assets, title, description
               <a class="nav-feed" href={feed}>
                 {t.nav.feed}
               </a>
+              {/* Like Feed, Contact leaves the header on a phone so the wordmark and the nav fit 360px; the footer keeps it. */}
+              <a class="nav-contact" href={contact} aria-current={current === 'contact' ? 'page' : undefined}>
+                {t.nav.contact}
+              </a>
               <a href={target.href} lang={target.lang} hreflang={target.lang}>
                 {target.label}
               </a>
@@ -93,9 +98,16 @@ export const Layout: FC<LayoutProps> = ({ lang, kind, assets, title, description
           <main id="main" tabindex={-1}>{children}</main>
           <footer class="site-footer">
             <nav class="footer-nav" aria-label={t.nav.footerLabel}>
-              <a href={log}>{t.nav.learnings}</a>
-              <a href={podcast}>{t.nav.podcast}</a>
+              <a href={log} aria-current={current === 'learnings' ? 'page' : undefined}>
+                {t.nav.learnings}
+              </a>
+              <a href={podcast} aria-current={current === 'podcast' ? 'page' : undefined}>
+                {t.nav.podcast}
+              </a>
               <a href={feed}>{t.nav.feed}</a>
+              <a href={contact} aria-current={current === 'contact' ? 'page' : undefined}>
+                {t.nav.contact}
+              </a>
             </nav>
             <p>{t.footer.noCookies}</p>
           </footer>

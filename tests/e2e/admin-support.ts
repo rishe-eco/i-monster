@@ -50,12 +50,13 @@ export async function signedInAdmin(browser: Browser, baseURL: string, request: 
   return { context, page, problems, requests };
 }
 
-/** The fixed clock and a clean slate: no passkey, no session, no entry or episode, and no remembered language. */
+/** The fixed clock and a clean slate: no passkey, no session, no entry, episode or message, and no remembered language. */
 export async function resetAdmin(request: APIRequestContext, now: number): Promise<void> {
   expect((await request.post('/__test/clock', { data: { now } })).ok()).toBe(true);
   expect((await request.delete('/__test/auth')).ok()).toBe(true);
   expect((await request.delete('/__test/entries')).ok()).toBe(true);
   expect((await request.delete('/__test/episodes')).ok()).toBe(true);
+  expect((await request.delete('/__test/messages')).ok()).toBe(true);
 }
 
 /**

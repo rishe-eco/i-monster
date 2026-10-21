@@ -919,3 +919,51 @@ img.ProseMirror-separator {
     padding-inline: var(--space-sm);
   }
 }
+
+/* ── Messages (change note 08) ── */
+
+.message-list {
+  margin-block-end: var(--space-2);
+  border-block-end: var(--rule-soft-width) solid var(--rule-soft);
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  padding-block: var(--space-2);
+  border-block-start: var(--rule-soft-width) solid var(--rule-soft);
+}
+
+.message__subject {
+  inline-size: 100%;
+  font-weight: 700;
+  font-size: var(--size-row-line);
+  overflow-wrap: anywhere;
+}
+
+.message__subject:lang(fa) {
+  font-family: var(--font-ui-fa);
+}
+
+.message__meta {
+  inline-size: 100%;
+  font-size: var(--size-meta);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* The text keeps the sender's line breaks, in the reading face, and wraps at any width (HIG #8). */
+.message__text {
+  inline-size: 100%;
+  font-size: var(--size-read);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message__text:lang(fa) {
+  font-family: var(--font-read-fa);
+  line-height: var(--leading-read-fa);
+}

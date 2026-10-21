@@ -40,3 +40,9 @@ export function localePath(lang: Lang, path: string): string {
   if (lang === 'en') return path;
   return path === '/' ? '/fa/' : `/fa${path}`;
 }
+
+/** A whole number as the language writes it: Persian digits under `/fa/`, with the language's own grouping. */
+export function formatNumber(value: number, lang: Lang): string {
+  // `arabext` is the Persian digits ۰–۹, the same digits `lib/dates.ts` writes Persian dates in.
+  return new Intl.NumberFormat(lang === 'fa' ? 'fa-IR-u-nu-arabext' : 'en-US').format(value);
+}

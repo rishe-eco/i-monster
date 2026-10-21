@@ -23,13 +23,18 @@ describe('switchTarget', () => {
     expect(switchTarget('podcast', 'fa')).toEqual({ lang: 'en', href: '/podcast', label: 'English' });
   });
 
+  it('goes from a contact page to the other language contact page', () => {
+    expect(switchTarget('contact', 'en')).toEqual({ lang: 'fa', href: '/fa/contact', label: 'فارسی' });
+    expect(switchTarget('contact', 'fa')).toEqual({ lang: 'en', href: '/contact', label: 'English' });
+  });
+
   it('goes from a 404 to the other language landing page', () => {
     expect(switchTarget('not-found', 'en')).toEqual({ lang: 'fa', href: '/fa/', label: 'فارسی' });
     expect(switchTarget('not-found', 'fa')).toEqual({ lang: 'en', href: '/', label: 'English' });
   });
 
   it('names the other language in that language (AC-41)', () => {
-    const kinds: PageKind[] = ['landing', 'log', 'entry', 'podcast', 'not-found'];
+    const kinds: PageKind[] = ['landing', 'log', 'entry', 'podcast', 'contact', 'not-found'];
     for (const kind of kinds) {
       expect(switchTarget(kind, 'en').label).toBe('فارسی');
       expect(switchTarget(kind, 'fa').label).toBe('English');
@@ -45,7 +50,7 @@ describe('alternates', () => {
     ]);
   });
 
-  it('does the same for the log and the podcast', () => {
+  it('does the same for the log, the podcast and the contact page', () => {
     expect(alternates('log')).toEqual([
       { hreflang: 'en', href: 'https://imnstr.com/log' },
       { hreflang: 'fa', href: 'https://imnstr.com/fa/log' },
@@ -53,6 +58,10 @@ describe('alternates', () => {
     expect(alternates('podcast')).toEqual([
       { hreflang: 'en', href: 'https://imnstr.com/podcast' },
       { hreflang: 'fa', href: 'https://imnstr.com/fa/podcast' },
+    ]);
+    expect(alternates('contact')).toEqual([
+      { hreflang: 'en', href: 'https://imnstr.com/contact' },
+      { hreflang: 'fa', href: 'https://imnstr.com/fa/contact' },
     ]);
   });
 

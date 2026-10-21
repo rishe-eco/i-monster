@@ -95,3 +95,11 @@ export function isolate(text: string, lang: Lang): string {
     })
     .join('');
 }
+
+/**
+ * A value that is always Latin and read left to right whatever page it is on (an address, a handle), as escaped
+ * HTML in its own `<bdi>`, so the `@` and the dots don't wander in a right-to-left line.
+ */
+export function isolateLtr(text: string): string {
+  return `<bdi dir="ltr">${escapeHtml(text)}</bdi>`;
+}

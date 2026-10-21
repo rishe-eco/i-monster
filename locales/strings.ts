@@ -13,6 +13,7 @@ export interface Strings {
     learnings: string;
     podcast: string;
     feed: string;
+    contact: string;
   };
   /** The title the feed advertises in `<link rel="alternate">`. */
   feedTitle: string;
@@ -64,6 +65,33 @@ export interface Strings {
     /** Holds {owner} and {podcast}, each a link. */
     writtenBy: string;
     podcastLink: string;
+  };
+  contact: {
+    /** The page's heading and its tab title; the nav link's text is `nav.contact`. */
+    title: string;
+    lede: string;
+    description: string;
+    emailLabel: string;
+    telegramLabel: string;
+    instagramLabel: string;
+    formHeading: string;
+    subjectLabel: string;
+    messageLabel: string;
+    reachLabel: string;
+    reachHint: string;
+    send: string;
+    /** The thank-you after a send (`?sent=1`). */
+    sent: string;
+    errorSummary: string;
+    subjectEmpty: string;
+    messageEmpty: string;
+    reachEmpty: string;
+    /** Holds {max}, the field's limit written in the language's own digits. */
+    tooLong: string;
+    /** The 24-hour cap (429). Points at the email link above the form. */
+    cap: string;
+    /** A post from another origin (403). */
+    origin: string;
   };
   footer: {
     noCookies: string;

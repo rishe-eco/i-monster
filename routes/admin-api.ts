@@ -40,6 +40,7 @@ import {
 } from '../lib/webauthn.ts';
 import { entryRoutes } from './admin-entries.ts';
 import { episodeRoutes } from './admin-episodes.ts';
+import { messageRoutes } from './admin-messages.ts';
 
 const STATUS = {
   UNAUTHENTICATED: 401,
@@ -309,10 +310,11 @@ export function adminApiRoutes(db: Db, env: Env): Hono<AppEnv> {
     return c.json({ independenceNoteDismissed: true });
   });
 
-  // ── Entries (B5) and episodes (B7). After the guard, so each route is behind a session (S-12) ──
+  // ── Entries (B5), episodes (B7) and messages (CT1). After the guard, so each route is behind a session (S-12) ──
 
   api.route('/', entryRoutes(db, { refuse, readJson }));
   api.route('/', episodeRoutes(db, { refuse, readJson }, { siteTz: env.siteTz }));
+  api.route('/', messageRoutes(db, { refuse }));
 
   // ── Anything else under /admin/api ──
 
