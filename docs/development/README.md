@@ -17,6 +17,7 @@ The build is nine stages, in the order of build plan §3 (`root-sot/imnstr/modul
 | B9 | Motion, wordmark and the access sweep | M | B7 | MS4 | verified 2026-10-18 · [record](B9.md); a real phone tap and screen readers owed |
 | PL1 | Live-review polish: step 9's F1–F5, D1, D2, P1–P4 (change note 05, not in the plan's nine) | M | B9, step 9 | — | verified 2026-10-18 · [record](PL1.md); the skip link with screen readers and the sheet on a phone owed (V-3) |
 | CS1 | Copy changes and sessions of 7 days idle, 30 at most, with a 30-day cookie (change note 06, not in the plan) | S | PL1 | — | verified 2026-10-18 · [record](CS1.md) |
+| CT1 | Writings for the log, and a Contact page with a stored message form and the admin's Messages (change note 08, not in the plan) | M | CS1 | — | verified 2026-10-21 · [record](CT1.md) |
 
 Milestones (plan §3). At each, the full suites run one at a time and the counts are recorded here.
 
