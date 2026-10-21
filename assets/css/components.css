@@ -870,8 +870,9 @@ main:focus-visible {
   margin-block-start: var(--space-4);
 }
 
+/* The title gives way to its column when zoomed, as every big row's does (PL-4): "Instagram" is the longest word. */
 .rows--contact .big-row__title {
-  font-size: var(--size-title);
+  font-size: min(var(--size-title), var(--fit-row-title));
 }
 
 /* An address or handle has no spaces to break at: it wraps rather than widen the page (HIG #8). */
@@ -930,7 +931,9 @@ main:focus-visible {
 .contact-summary__list a {
   display: inline-flex;
   align-items: center;
-  min-block-size: var(--hit-inline);
+  /* Each is a link on a line of its own, not one inside a sentence, so it is a full tap target (AC-35). */
+  min-block-size: var(--hit);
+  min-inline-size: var(--hit);
   color: var(--error-ink);
 }
 

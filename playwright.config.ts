@@ -39,6 +39,10 @@ export default defineConfig({
       DB_PATH: dbPath,
       E2E_CLOCK: '1',
       NODE_ENV: 'test',
+      // Invented links, so the contact page's links are drawn; the founder's real ones are only on the server.
+      CONTACT_EMAIL: 'someone@example.com',
+      CONTACT_TELEGRAM: 'example_channel',
+      CONTACT_INSTAGRAM: 'example',
     },
   },
 });
